@@ -1,0 +1,988 @@
+{
+  "legacy_commit": "31e85d6",
+  "legacy_function": "dd2.dson_patch_mod_list_resize",
+  "generator": "tools/regen_goldens.py",
+  "builder": "tests/support/dson_builder.py standard_save",
+  "cases": [
+    {
+      "id": "case_00",
+      "matrix_id": "Nnone_M0",
+      "existing": null,
+      "new_count": 0,
+      "existing_entries": null,
+      "new_entries": [],
+      "input_size": 640,
+      "input_sha256": "9a7f10f152fa045f6481f1e5e4c94e28736c7811c7bea4863bc0752735a3c26a",
+      "output": "case_00.bin",
+      "output_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_01",
+      "matrix_id": "Nnone_M1",
+      "existing": null,
+      "new_count": 1,
+      "existing_entries": null,
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ]
+      ],
+      "input_size": 640,
+      "input_sha256": "9a7f10f152fa045f6481f1e5e4c94e28736c7811c7bea4863bc0752735a3c26a",
+      "output": "case_01.bin",
+      "output_sha256": "cfc949536eb1149c99baf128e889306d566be30b728b409db2a815c2f6c38726",
+      "legacy_error": null
+    },
+    {
+      "id": "case_02",
+      "matrix_id": "Nnone_M2",
+      "existing": null,
+      "new_count": 2,
+      "existing_entries": null,
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ]
+      ],
+      "input_size": 640,
+      "input_sha256": "9a7f10f152fa045f6481f1e5e4c94e28736c7811c7bea4863bc0752735a3c26a",
+      "output": "case_02.bin",
+      "output_sha256": "a8f19a358b9c42fe35aa80a219cd2082cb9557c82f42ecf9a40533fc3c88deee",
+      "legacy_error": null
+    },
+    {
+      "id": "case_03",
+      "matrix_id": "Nnone_M5",
+      "existing": null,
+      "new_count": 5,
+      "existing_entries": null,
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 640,
+      "input_sha256": "9a7f10f152fa045f6481f1e5e4c94e28736c7811c7bea4863bc0752735a3c26a",
+      "output": "case_03.bin",
+      "output_sha256": "fbeadfbf73bd6fa704c05a3b077d81b294b5e3215a580351477885455288d9b8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_04",
+      "matrix_id": "Nnone_M12",
+      "existing": null,
+      "new_count": 12,
+      "existing_entries": null,
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ],
+        [
+          "Local Mod Five",
+          "mod_local_source"
+        ],
+        [
+          "2861478271",
+          "Steam"
+        ],
+        [
+          "Another Local Mod!",
+          "mod_local_source"
+        ],
+        [
+          "55555",
+          "Steam"
+        ],
+        [
+          "Yet another local mod name",
+          "mod_local_source"
+        ],
+        [
+          "666666",
+          "Steam"
+        ],
+        [
+          "Zz",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 640,
+      "input_sha256": "9a7f10f152fa045f6481f1e5e4c94e28736c7811c7bea4863bc0752735a3c26a",
+      "output": "case_04.bin",
+      "output_sha256": "961d76bed44f63a504ca1db0d8b14a0d6e18d890673a8873d05952c4439df2c4",
+      "legacy_error": null
+    },
+    {
+      "id": "case_05",
+      "matrix_id": "N0_M0",
+      "existing": 0,
+      "new_count": 0,
+      "existing_entries": [],
+      "new_entries": [],
+      "input_size": 684,
+      "input_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "output": "case_05.bin",
+      "output_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_06",
+      "matrix_id": "N0_M1",
+      "existing": 0,
+      "new_count": 1,
+      "existing_entries": [],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ]
+      ],
+      "input_size": 684,
+      "input_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "output": "case_06.bin",
+      "output_sha256": "cfc949536eb1149c99baf128e889306d566be30b728b409db2a815c2f6c38726",
+      "legacy_error": null
+    },
+    {
+      "id": "case_07",
+      "matrix_id": "N0_M2",
+      "existing": 0,
+      "new_count": 2,
+      "existing_entries": [],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ]
+      ],
+      "input_size": 684,
+      "input_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "output": "case_07.bin",
+      "output_sha256": "a8f19a358b9c42fe35aa80a219cd2082cb9557c82f42ecf9a40533fc3c88deee",
+      "legacy_error": null
+    },
+    {
+      "id": "case_08",
+      "matrix_id": "N0_M5",
+      "existing": 0,
+      "new_count": 5,
+      "existing_entries": [],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 684,
+      "input_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "output": "case_08.bin",
+      "output_sha256": "fbeadfbf73bd6fa704c05a3b077d81b294b5e3215a580351477885455288d9b8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_09",
+      "matrix_id": "N0_M12",
+      "existing": 0,
+      "new_count": 12,
+      "existing_entries": [],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ],
+        [
+          "Local Mod Five",
+          "mod_local_source"
+        ],
+        [
+          "2861478271",
+          "Steam"
+        ],
+        [
+          "Another Local Mod!",
+          "mod_local_source"
+        ],
+        [
+          "55555",
+          "Steam"
+        ],
+        [
+          "Yet another local mod name",
+          "mod_local_source"
+        ],
+        [
+          "666666",
+          "Steam"
+        ],
+        [
+          "Zz",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 684,
+      "input_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "output": "case_09.bin",
+      "output_sha256": "961d76bed44f63a504ca1db0d8b14a0d6e18d890673a8873d05952c4439df2c4",
+      "legacy_error": null
+    },
+    {
+      "id": "case_10",
+      "matrix_id": "N1_M0",
+      "existing": 1,
+      "new_count": 0,
+      "existing_entries": [
+        [
+          "999",
+          "Steam"
+        ]
+      ],
+      "new_entries": [],
+      "input_size": 772,
+      "input_sha256": "933a8922e223efe98fae5f6c8b3863aa3a7448e0efd355a40a130da9c505653e",
+      "output": "case_10.bin",
+      "output_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_11",
+      "matrix_id": "N1_M1",
+      "existing": 1,
+      "new_count": 1,
+      "existing_entries": [
+        [
+          "999",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ]
+      ],
+      "input_size": 772,
+      "input_sha256": "933a8922e223efe98fae5f6c8b3863aa3a7448e0efd355a40a130da9c505653e",
+      "output": "case_11.bin",
+      "output_sha256": "cfc949536eb1149c99baf128e889306d566be30b728b409db2a815c2f6c38726",
+      "legacy_error": null
+    },
+    {
+      "id": "case_12",
+      "matrix_id": "N1_M2",
+      "existing": 1,
+      "new_count": 2,
+      "existing_entries": [
+        [
+          "999",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ]
+      ],
+      "input_size": 772,
+      "input_sha256": "933a8922e223efe98fae5f6c8b3863aa3a7448e0efd355a40a130da9c505653e",
+      "output": "case_12.bin",
+      "output_sha256": "a8f19a358b9c42fe35aa80a219cd2082cb9557c82f42ecf9a40533fc3c88deee",
+      "legacy_error": null
+    },
+    {
+      "id": "case_13",
+      "matrix_id": "N1_M5",
+      "existing": 1,
+      "new_count": 5,
+      "existing_entries": [
+        [
+          "999",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 772,
+      "input_sha256": "933a8922e223efe98fae5f6c8b3863aa3a7448e0efd355a40a130da9c505653e",
+      "output": "case_13.bin",
+      "output_sha256": "fbeadfbf73bd6fa704c05a3b077d81b294b5e3215a580351477885455288d9b8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_14",
+      "matrix_id": "N1_M12",
+      "existing": 1,
+      "new_count": 12,
+      "existing_entries": [
+        [
+          "999",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ],
+        [
+          "Local Mod Five",
+          "mod_local_source"
+        ],
+        [
+          "2861478271",
+          "Steam"
+        ],
+        [
+          "Another Local Mod!",
+          "mod_local_source"
+        ],
+        [
+          "55555",
+          "Steam"
+        ],
+        [
+          "Yet another local mod name",
+          "mod_local_source"
+        ],
+        [
+          "666666",
+          "Steam"
+        ],
+        [
+          "Zz",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 772,
+      "input_sha256": "933a8922e223efe98fae5f6c8b3863aa3a7448e0efd355a40a130da9c505653e",
+      "output": "case_14.bin",
+      "output_sha256": "961d76bed44f63a504ca1db0d8b14a0d6e18d890673a8873d05952c4439df2c4",
+      "legacy_error": null
+    },
+    {
+      "id": "case_15",
+      "matrix_id": "N3_M0",
+      "existing": 3,
+      "new_count": 0,
+      "existing_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "Old Local",
+          "mod_local_source"
+        ],
+        [
+          "12345",
+          "Steam"
+        ]
+      ],
+      "new_entries": [],
+      "input_size": 968,
+      "input_sha256": "b1cd24dec947c57f70c8e7d867a0723a8b1d9bfe071df5d6f2989a828493ca75",
+      "output": "case_15.bin",
+      "output_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_16",
+      "matrix_id": "N3_M1",
+      "existing": 3,
+      "new_count": 1,
+      "existing_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "Old Local",
+          "mod_local_source"
+        ],
+        [
+          "12345",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ]
+      ],
+      "input_size": 968,
+      "input_sha256": "b1cd24dec947c57f70c8e7d867a0723a8b1d9bfe071df5d6f2989a828493ca75",
+      "output": "case_16.bin",
+      "output_sha256": "cfc949536eb1149c99baf128e889306d566be30b728b409db2a815c2f6c38726",
+      "legacy_error": null
+    },
+    {
+      "id": "case_17",
+      "matrix_id": "N3_M2",
+      "existing": 3,
+      "new_count": 2,
+      "existing_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "Old Local",
+          "mod_local_source"
+        ],
+        [
+          "12345",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ]
+      ],
+      "input_size": 968,
+      "input_sha256": "b1cd24dec947c57f70c8e7d867a0723a8b1d9bfe071df5d6f2989a828493ca75",
+      "output": "case_17.bin",
+      "output_sha256": "a8f19a358b9c42fe35aa80a219cd2082cb9557c82f42ecf9a40533fc3c88deee",
+      "legacy_error": null
+    },
+    {
+      "id": "case_18",
+      "matrix_id": "N3_M5",
+      "existing": 3,
+      "new_count": 5,
+      "existing_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "Old Local",
+          "mod_local_source"
+        ],
+        [
+          "12345",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 968,
+      "input_sha256": "b1cd24dec947c57f70c8e7d867a0723a8b1d9bfe071df5d6f2989a828493ca75",
+      "output": "case_18.bin",
+      "output_sha256": "fbeadfbf73bd6fa704c05a3b077d81b294b5e3215a580351477885455288d9b8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_19",
+      "matrix_id": "N3_M12",
+      "existing": 3,
+      "new_count": 12,
+      "existing_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "Old Local",
+          "mod_local_source"
+        ],
+        [
+          "12345",
+          "Steam"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ],
+        [
+          "Local Mod Five",
+          "mod_local_source"
+        ],
+        [
+          "2861478271",
+          "Steam"
+        ],
+        [
+          "Another Local Mod!",
+          "mod_local_source"
+        ],
+        [
+          "55555",
+          "Steam"
+        ],
+        [
+          "Yet another local mod name",
+          "mod_local_source"
+        ],
+        [
+          "666666",
+          "Steam"
+        ],
+        [
+          "Zz",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 968,
+      "input_sha256": "b1cd24dec947c57f70c8e7d867a0723a8b1d9bfe071df5d6f2989a828493ca75",
+      "output": "case_19.bin",
+      "output_sha256": "961d76bed44f63a504ca1db0d8b14a0d6e18d890673a8873d05952c4439df2c4",
+      "legacy_error": null
+    },
+    {
+      "id": "case_20",
+      "matrix_id": "N7_M0",
+      "existing": 7,
+      "new_count": 0,
+      "existing_entries": [
+        [
+          "7",
+          "Steam"
+        ],
+        [
+          "77",
+          "Steam"
+        ],
+        [
+          "777",
+          "Steam"
+        ],
+        [
+          "7777",
+          "Steam"
+        ],
+        [
+          "Legacy Mod",
+          "mod_local_source"
+        ],
+        [
+          "1234567890123",
+          "Steam"
+        ],
+        [
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "mod_local_source"
+        ]
+      ],
+      "new_entries": [],
+      "input_size": 1368,
+      "input_sha256": "0977ada167829ba94eef3841b101d5fbd202b0179cc5638b96d90811a49c16da",
+      "output": "case_20.bin",
+      "output_sha256": "69c39458d5a3bc193367043856b1308a26b45569e9fd3a2389da86a671995aa8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_21",
+      "matrix_id": "N7_M1",
+      "existing": 7,
+      "new_count": 1,
+      "existing_entries": [
+        [
+          "7",
+          "Steam"
+        ],
+        [
+          "77",
+          "Steam"
+        ],
+        [
+          "777",
+          "Steam"
+        ],
+        [
+          "7777",
+          "Steam"
+        ],
+        [
+          "Legacy Mod",
+          "mod_local_source"
+        ],
+        [
+          "1234567890123",
+          "Steam"
+        ],
+        [
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "mod_local_source"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ]
+      ],
+      "input_size": 1368,
+      "input_sha256": "0977ada167829ba94eef3841b101d5fbd202b0179cc5638b96d90811a49c16da",
+      "output": "case_21.bin",
+      "output_sha256": "cfc949536eb1149c99baf128e889306d566be30b728b409db2a815c2f6c38726",
+      "legacy_error": null
+    },
+    {
+      "id": "case_22",
+      "matrix_id": "N7_M2",
+      "existing": 7,
+      "new_count": 2,
+      "existing_entries": [
+        [
+          "7",
+          "Steam"
+        ],
+        [
+          "77",
+          "Steam"
+        ],
+        [
+          "777",
+          "Steam"
+        ],
+        [
+          "7777",
+          "Steam"
+        ],
+        [
+          "Legacy Mod",
+          "mod_local_source"
+        ],
+        [
+          "1234567890123",
+          "Steam"
+        ],
+        [
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "mod_local_source"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ]
+      ],
+      "input_size": 1368,
+      "input_sha256": "0977ada167829ba94eef3841b101d5fbd202b0179cc5638b96d90811a49c16da",
+      "output": "case_22.bin",
+      "output_sha256": "a8f19a358b9c42fe35aa80a219cd2082cb9557c82f42ecf9a40533fc3c88deee",
+      "legacy_error": null
+    },
+    {
+      "id": "case_23",
+      "matrix_id": "N7_M5",
+      "existing": 7,
+      "new_count": 5,
+      "existing_entries": [
+        [
+          "7",
+          "Steam"
+        ],
+        [
+          "77",
+          "Steam"
+        ],
+        [
+          "777",
+          "Steam"
+        ],
+        [
+          "7777",
+          "Steam"
+        ],
+        [
+          "Legacy Mod",
+          "mod_local_source"
+        ],
+        [
+          "1234567890123",
+          "Steam"
+        ],
+        [
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "mod_local_source"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 1368,
+      "input_sha256": "0977ada167829ba94eef3841b101d5fbd202b0179cc5638b96d90811a49c16da",
+      "output": "case_23.bin",
+      "output_sha256": "fbeadfbf73bd6fa704c05a3b077d81b294b5e3215a580351477885455288d9b8",
+      "legacy_error": null
+    },
+    {
+      "id": "case_24",
+      "matrix_id": "N7_M12",
+      "existing": 7,
+      "new_count": 12,
+      "existing_entries": [
+        [
+          "7",
+          "Steam"
+        ],
+        [
+          "77",
+          "Steam"
+        ],
+        [
+          "777",
+          "Steam"
+        ],
+        [
+          "7777",
+          "Steam"
+        ],
+        [
+          "Legacy Mod",
+          "mod_local_source"
+        ],
+        [
+          "1234567890123",
+          "Steam"
+        ],
+        [
+          "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+          "mod_local_source"
+        ]
+      ],
+      "new_entries": [
+        [
+          "1",
+          "Steam"
+        ],
+        [
+          "22",
+          "Steam"
+        ],
+        [
+          "333",
+          "Steam"
+        ],
+        [
+          "4444",
+          "Steam"
+        ],
+        [
+          "测试模组",
+          "mod_local_source"
+        ],
+        [
+          "Local Mod Five",
+          "mod_local_source"
+        ],
+        [
+          "2861478271",
+          "Steam"
+        ],
+        [
+          "Another Local Mod!",
+          "mod_local_source"
+        ],
+        [
+          "55555",
+          "Steam"
+        ],
+        [
+          "Yet another local mod name",
+          "mod_local_source"
+        ],
+        [
+          "666666",
+          "Steam"
+        ],
+        [
+          "Zz",
+          "mod_local_source"
+        ]
+      ],
+      "input_size": 1368,
+      "input_sha256": "0977ada167829ba94eef3841b101d5fbd202b0179cc5638b96d90811a49c16da",
+      "output": "case_24.bin",
+      "output_sha256": "961d76bed44f63a504ca1db0d8b14a0d6e18d890673a8873d05952c4439df2c4",
+      "legacy_error": null
+    }
+  ]
+}
