@@ -1,0 +1,113 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ddmanager"
+dynamic = ["version"]
+description = "Darkest Dungeon 1 mod manager: load-order editor, health check and save patcher"
+readme = "README.md"
+requires-python = ">=3.14"
+license = { file = "LICENSE.md" }
+dependencies = [
+  # Qt widgets: model/view drag-and-drop, QSS theming, HiDPI, image decoding (PNG/JPEG/GIF/SVG/WebP).
+  # Essentials only (no WebEngine/3D/Charts/Multimedia). 6.11.2 is the release verified for Python 3.14.
+  "PySide6-Essentials>=6.11.2,<7",
+]
+
+[project.scripts]
+ddmanager = "src.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",      # test runner
+  "pytest-qt>=4.5",   # qtbot, waitSignal, qtmodeltester (QAbstractItemModelTester)
+  "ruff>=0.16",       # lint + format + import sorting + pathlib/os.path enforcement
+  "ty>=0.0.84",       # type checker (Astral); the only type-check gate, no mypy
+  "rust-just>=1.58",  # the `just` task runner installed into the venv (no admin install)
+]
+build = [
+  "pyinstaller>=6.22",  # frozen Windows build; 6.22+ supports Python 3.14
+]
+
+[tool.hatch.version]
+path = "src/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+src = [".", "tests"]
+extend-exclude = [
+  "research", "modding", "archive-*", "DD Manager Data",
+  # legacy app (deleted at cutover) and research scripts: never linted
+  "dd2.py", "categories.py", "localization.py", "paths.py", "state.py", "legacy_loadout.py",
+  "pyi_rth_tk_paths.py", "dson_*.py", "DD Parse.py", "DD extractor.py",
+]
+
+[tool.ruff.lint]
+select = [
+  "E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PTH", "N", "C4", "PIE", "RET", "T20", "TID",
+  "PL", "PERF", "FBT003", "DTZ", "BLE", "S110",
+  "C90",  # mccabe: every function stays below max-complexity (cognitive load is a hard limit here)
+]
+ignore = [
+  "PLR2004",  # magic numbers: DSON offsets are documented inline
+  "N802",     # Qt virtual overrides are camelCase (rowCount, dropMimeData, ...)
+  "N815", "N803",  # Qt signal/argument names
+]
+
+# Size/complexity limits are deliberate: split, don't suppress.
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 8
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"os.path".msg = "Use pathlib.Path"
+"tkinter".msg = "The Tk UI was removed; use PySide6"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004", "FBT003", "PLC0415", "T20", "PLR0915", "C901"]  # long, linear test bodies are fine
+"tools/**" = ["T20"]
+"src/cli.py" = ["T20"]
+"packaging/*.spec" = ["F821"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------- ty
+[tool.ty.environment]
+python-version = "3.14"
+# The package is literally named `src`; without this ty would treat `src/` as a source root
+# and fail to resolve `import src`.
+root = ["."]
+
+[tool.ty.src]
+include = ["src", "tests", "tools", "run.py"]
+exclude = ["research"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "error"
+unused-ignore-comment = "error"
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+addopts = ["-ra", "--strict-markers", "--strict-config"]
+xfail_strict = true
+markers = [
+  "legacy: differential test against the pinned legacy oracle (needs git history + tkinter)",
+  "qt: needs a QApplication",
+  "slow: takes more than a second",
+  "corpus: uses the maintainer's local corpora (DDM_SAVE_CORPUS / DDM_STATE_CORPUS)",
+]
+filterwarnings = ["error", "ignore::DeprecationWarning:shiboken6.*"]
