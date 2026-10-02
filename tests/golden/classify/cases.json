@@ -1,0 +1,677 @@
+{
+  "legacy_commit": "31e85d6",
+  "generator": "tools/regen_goldens.py regenerate_classify",
+  "samples": {
+    "better_stage_coach_swf_compat": {
+      "digest": "fe219404487452a6230430679b85a15bd4950e82c6655f08e48854f244985866",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 8,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "Class Patch"
+    },
+    "chorus_class_mod": {
+      "digest": "6e76139929f97fe1c006fb0b14618d2a54a5a204dfa2df52ab01c396d760d924",
+      "scores": {
+        "UI": 4,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 4,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_broken_backup_20260519_152535": {
+      "digest": "08609250b7b9317366b85b16c145a07a00914666b9841bd595bacd22ed2bdba2",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop": {
+      "digest": "77f9268ad77b171b4e8e1c40638f835ee6fc48592ffd575619c2243797a643d2",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop_rebuild": {
+      "digest": "aea43576a9f1cf443342cc84fafd354c0858a8e1d42e37333b3b3c62212dd794",
+      "scores": {
+        "UI": 9,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 4,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop_rebuild_v2": {
+      "digest": "6e76139929f97fe1c006fb0b14618d2a54a5a204dfa2df52ab01c396d760d924",
+      "scores": {
+        "UI": 9,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 4,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop_rebuild_v3": {
+      "digest": "6e76139929f97fe1c006fb0b14618d2a54a5a204dfa2df52ab01c396d760d924",
+      "scores": {
+        "UI": 9,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 4,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop_v2": {
+      "digest": "77f9268ad77b171b4e8e1c40638f835ee6fc48592ffd575619c2243797a643d2",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "chorus_class_mod_testdrop_v3": {
+      "digest": "77f9268ad77b171b4e8e1c40638f835ee6fc48592ffd575619c2243797a643d2",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class"
+    },
+    "crusader_hu_swf_compat": {
+      "digest": "94713590ef6b9dadc8efee09c502e8fcf58494f0a4897b05c0414b17d8b912c9",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 14,
+        "Class": 8,
+        "Skins": 0
+      },
+      "suggestion": "Class Patch"
+    },
+    "swf_trinkets24_compat": {
+      "digest": "e521fa168d444cfffa7326105be4459a3853d980e7b7f34fc3a549b7e3efae8e",
+      "scores": {
+        "UI": 8,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 2,
+        "Enemies": 0,
+        "Class Patch": 8,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null
+    }
+  },
+  "synthetic": {
+    "latin_title": {
+      "spec_digest": "901b979035165fff3464d3f241039b6f2511870705e42e709773887dbc40366d",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 16,
+        "Skins": 0
+      },
+      "suggestion": "Class",
+      "nicknames": {
+        "My Nick": {
+          "scores": {
+            "UI": 0,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 0,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 16,
+            "Skins": 0
+          },
+          "suggestion": "Class"
+        },
+        "The Nick &amp; Co": {
+          "scores": {
+            "UI": 0,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 0,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 16,
+            "Skins": 0
+          },
+          "suggestion": "Class"
+        }
+      }
+    },
+    "cjk_title_latin_folder": {
+      "spec_digest": "7bca7b19e9f52dffcf3d787ff794e8a3b5b68409a87c37a90feef47e2e563f38",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 13
+      },
+      "suggestion": "Skins",
+      "nicknames": {}
+    },
+    "cjk_title_numeric_folder": {
+      "spec_digest": "38081573c6c270cb0aff347386aaa47234ab21d088f87210fbaf4ef4decfa175",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 11
+      },
+      "suggestion": "Skins",
+      "nicknames": {}
+    },
+    "percent_title": {
+      "spec_digest": "0ab8bfb37813eda9f09fc149b35aa958a537ecc3f4baa3413a17ffeec167d69f",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "colour_title": {
+      "spec_digest": "2e0abd76ff05463316ff04a37f4b10bb7134e42a1f50f34f9c8f0247c2ad23ef",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "html_title": {
+      "spec_digest": "2c7870e6f7d6a72d4f3d10cf9a95da9e888d9c1a805cbcb60f63292ec9bfe920",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "tooltip_title": {
+      "spec_digest": "60000f79ffd18b177fddfa272c08a17cb81a19339ce9f9e70ce80e9bc080ad2e",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "combats_title": {
+      "spec_digest": "774862afd73245ba2c6c5488c00e1ffd0c6a68246c654aacf2d6d93e784b0e27",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "numeric_folder_workshop": {
+      "spec_digest": "7b660d43022872d1e7fb6c26929ea79c66940de7014aa763a32f2940504a93c0",
+      "scores": {
+        "UI": 8,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "UI",
+      "nicknames": {
+        "Nicked": {
+          "scores": {
+            "UI": 8,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 0,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 0,
+            "Skins": 0
+          },
+          "suggestion": "UI"
+        }
+      }
+    },
+    "workshop_pid_differs": {
+      "spec_digest": "a743d412ef1569868ef9186a552bb91bf9defaf0f2b5daf3929ff0742d08effd",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "pid_outside_workshop": {
+      "spec_digest": "aa3e30991065349ba35a957689fd4fe569958efe2d51ca35ba815768e30e3bf7",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 8,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "Trinkets",
+      "nicknames": {}
+    },
+    "no_project_xml": {
+      "spec_digest": "350b0b9b357c49fc77011d551be66f6c31f73a773a38b3b6e53dc9b8c21293a0",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 6,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "Class Patch",
+      "nicknames": {}
+    },
+    "no_project_workshop_numeric": {
+      "spec_digest": "00e281ac745ed377a8c14a064ca794eeb9247ec0b4c55257b19cea8028d91beb",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 6,
+        "Class Patch": 6,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "localization_fallback": {
+      "spec_digest": "e0009831336fe03eb6e6af932692f2da9587b67549c3fa2e0852ef60c58f0f6b",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 6,
+        "Class": 4,
+        "Skins": 0
+      },
+      "suggestion": "Class Patch",
+      "nicknames": {}
+    },
+    "localization_double_entity": {
+      "spec_digest": "7b7131443aa0e5fb5ea360b369bd0536b5487c6ed1bb62593adbc2aecb41c877",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 6,
+        "Skins": 0
+      },
+      "suggestion": "Class",
+      "nicknames": {}
+    },
+    "internal_code_title": {
+      "spec_digest": "9a24afa19c020d336dea126246c578a668d3fc48e5800a81096c4eb58abdc063",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 5,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 6,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "black_reliquary": {
+      "spec_digest": "ac84dc169bf216414dfe1dc274d8580bb9fd739e0345fe0f7de666304fc1c4e0",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 8,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "Trinkets",
+      "nicknames": {
+        "[BR] Already": {
+          "scores": {
+            "UI": 0,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 8,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 0,
+            "Skins": 0
+          },
+          "suggestion": "Trinkets"
+        },
+        "Plain": {
+          "scores": {
+            "UI": 0,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 8,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 0,
+            "Skins": 0
+          },
+          "suggestion": "Trinkets"
+        }
+      }
+    },
+    "workshop_prefixed_folder": {
+      "spec_digest": "0ca9573e15bcab48275a9b4416128efe70f31472388cbedf145ad36c9dd5204d",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "workshop_nonnumeric_no_pid": {
+      "spec_digest": "f4d92eae185e1423dbeaa29dd6b1e1d129d30ccd013e92e5234fdd2cb6bc1433",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "encoding_bom_junk": {
+      "spec_digest": "ece1cc37504040ab56a902ee69c9163037e231612d70e96ed1ac6942c8c44ac6",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "encoding_gb18030": {
+      "spec_digest": "e1cc5e371b984ea1cb82646de120671e689c85a4304415d81e88d5057b58dfe9",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 10,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": "Enemies",
+      "nicknames": {}
+    },
+    "newest_file_wins": {
+      "spec_digest": "366693583a3deb6bd2442a1c3edd0e1ea823e8c5cafae11f4c8a53688c24397b",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "project_only_mtime": {
+      "spec_digest": "d91691615fa974b446bc1a9e3990036c298eba54308bf8dec31b6e3ab4eb599b",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    },
+    "entities_title": {
+      "spec_digest": "482ccb8501026461b6a1c687343d68499aa5d40510019b26a5fce6e428236a99",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class",
+      "nicknames": {}
+    },
+    "the_prefix": {
+      "spec_digest": "832b1dbcb911f2efa53b441d25a8ea475114b14e8e923f6d16c3d1758b368537",
+      "scores": {
+        "UI": 4,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 12,
+        "Skins": 0
+      },
+      "suggestion": "Class",
+      "nicknames": {
+        "the other": {
+          "scores": {
+            "UI": 4,
+            "Districts": 0,
+            "Dungeons": 0,
+            "Quirks": 0,
+            "Trinkets": 0,
+            "Enemies": 0,
+            "Class Patch": 0,
+            "Class": 12,
+            "Skins": 0
+          },
+          "suggestion": "Class"
+        }
+      }
+    },
+    "version_minor_only": {
+      "spec_digest": "4ebc06db3cefb9598ce4ad13aa279d9e48b3b2ac4c6055b4e306a5806c1c474b",
+      "scores": {
+        "UI": 0,
+        "Districts": 0,
+        "Dungeons": 0,
+        "Quirks": 0,
+        "Trinkets": 0,
+        "Enemies": 0,
+        "Class Patch": 0,
+        "Class": 0,
+        "Skins": 0
+      },
+      "suggestion": null,
+      "nicknames": {}
+    }
+  }
+}

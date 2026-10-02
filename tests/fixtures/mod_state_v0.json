@@ -1,0 +1,172 @@
+{
+  "language": "es",
+  "mods_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods",
+  "last_save_path": "C:\\Users\\ga\\Documents\\Darkest\\profile_3\\persist.game.json",
+  "last_backup_path": "C:\\Users\\ga\\Documents\\Darkest\\profile_3\\persist.game.backup.20250914_210512.json",
+  "last_output_path": "C:\\Users\\ga\\Desktop\\dd_save_code.txt",
+  "selected_profile_path": "C:\\Users\\ga\\Documents\\Darkest\\profile_3",
+  "manual_game_root": "",
+  "manual_local_mods_path": "",
+  "manual_workshop_mods_path": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\262060",
+  "first_run_summary_shown": true,
+  "view_mode": "Compact",
+  "window_geometry": "1280x800+100+60",
+  "order": [
+    "2248772895",
+    "0001_Superior_Wayfarer",
+    "crusader_hu_swf_compat",
+    "1739565783",
+    "0003_1_Black_Reliquary",
+    "better_stage_coach_swf_compat",
+    "Mi_Mod_Español",
+    "3012345678"
+  ],
+  "categories": {
+    "2248772895": "Class",
+    "0001_Superior_Wayfarer": "Class",
+    "crusader_hu_swf_compat": "Class Patch",
+    "1739565783": "UI",
+    "0003_1_Black_Reliquary": "Overhaul",
+    "better_stage_coach_swf_compat": "Patch"
+  },
+  "category_order": [
+    "Overhaul",
+    "UI",
+    "Districts",
+    "Dungeons",
+    "Quirks",
+    "Trinkets",
+    "Enemies",
+    "Class Patch",
+    "Class",
+    "Skins",
+    "Patch"
+  ],
+  "category_colors": {
+    "Overhaul": "#5F8B7E",
+    "Patch": "#A66A4A",
+    "Class": "#A4B56C"
+  },
+  "category_memory": {
+    "2248772895": "Class",
+    "The Chorus": "Class",
+    "norm:the chorus": "Class",
+    "Superior Wayfarer": "Class",
+    "norm:superior wayfarer": "Class",
+    "0001_Superior_Wayfarer": "Class",
+    "norm:0001 superior wayfarer": "Class",
+    "crusader_hu_swf_compat": "Class Patch",
+    "norm:crusader hu swf compat": "Class Patch",
+    "1739565783": "UI",
+    "Black Reliquary": "Overhaul",
+    "norm:black reliquary": "Overhaul",
+    "better_stage_coach_swf_compat": "Patch",
+    "norm:better stage coach swf compat": "Patch"
+  },
+  "auto_category_attempted": {
+    "2248772895": true,
+    "0001_Superior_Wayfarer": true,
+    "crusader_hu_swf_compat": true,
+    "1739565783": true,
+    "better_stage_coach_swf_compat": true
+  },
+  "custom_categories": [
+    "Overhaul",
+    "Patch"
+  ],
+  "enabled": {
+    "2248772895": true,
+    "0001_Superior_Wayfarer": true,
+    "crusader_hu_swf_compat": true,
+    "1739565783": false,
+    "0003_1_Black_Reliquary": false,
+    "better_stage_coach_swf_compat": true,
+    "Mi_Mod_Español": true,
+    "3012345678": false
+  },
+  "nicknames": {
+    "crusader_hu_swf_compat": "Crusader HU compat",
+    "Mi_Mod_Español": "Español ★"
+  },
+  "metadata": {
+    "2248772895": {
+      "title": "The Chorus",
+      "published_file_id": "2248772895",
+      "save_name": "2248772895",
+      "save_source": "Steam",
+      "version_label": "1.4",
+      "updated_label": "03/24",
+      "black_reliquary": false,
+      "metadata_path": "c:\\program files (x86)\\steam\\steamapps\\workshop\\content\\262060\\2248772895",
+      "project_mtime": 1711043215.0,
+      "localization_signature": "a1b2c3d4",
+      "workshop_timeupdated": "1711043215"
+    },
+    "0001_Superior_Wayfarer": {
+      "title": "Superior Wayfarer",
+      "published_file_id": "",
+      "save_name": "Superior Wayfarer",
+      "save_source": "mod_local_source",
+      "version_label": "2.0",
+      "updated_label": "11/23",
+      "black_reliquary": false,
+      "metadata_path": "c:\\program files (x86)\\steam\\steamapps\\common\\darkestdungeon\\mods\\0001_superior_wayfarer",
+      "project_mtime": 1699900000.5,
+      "localization_signature": "",
+      "workshop_timeupdated": ""
+    },
+    "crusader_hu_swf_compat": {
+      "title": "Crusader HU SWF compat",
+      "published_file_id": "",
+      "save_name": "Crusader HU SWF compat",
+      "save_source": "mod_local_source",
+      "version_label": "",
+      "updated_label": "02/24",
+      "black_reliquary": false,
+      "metadata_path": "c:\\program files (x86)\\steam\\steamapps\\common\\darkestdungeon\\mods\\crusader_hu_swf_compat",
+      "project_mtime": 1707000000.0,
+      "localization_signature": "",
+      "workshop_timeupdated": ""
+    },
+    "1739565783": {
+      "title": "Better UI (Ghost)",
+      "published_file_id": "1739565783",
+      "save_name": "1739565783",
+      "save_source": "Steam",
+      "version_label": "",
+      "updated_label": "05/22",
+      "black_reliquary": false,
+      "metadata_path": "c:\\program files (x86)\\steam\\steamapps\\workshop\\content\\262060\\1739565783",
+      "project_mtime": 1652000000.0,
+      "localization_signature": "",
+      "workshop_timeupdated": "1652000000"
+    },
+    "0003_1_Black_Reliquary": {
+      "title": "Black Reliquary",
+      "published_file_id": "",
+      "save_name": "Black Reliquary",
+      "save_source": "mod_local_source",
+      "version_label": "1.0",
+      "updated_label": "09/25",
+      "black_reliquary": true,
+      "metadata_path": "c:\\program files (x86)\\steam\\steamapps\\common\\darkestdungeon\\mods\\0003_1_black_reliquary",
+      "project_mtime": 1757000000.25,
+      "localization_signature": "f00dbabe",
+      "workshop_timeupdated": ""
+    },
+    "3012345678": {
+      "title": "Half scanned",
+      "published_file_id": "3012345678"
+    }
+  },
+  "mod_paths": {
+    "2248772895": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\262060\\2248772895",
+    "0001_Superior_Wayfarer": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods\\0001_Superior_Wayfarer",
+    "crusader_hu_swf_compat": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods\\crusader_hu_swf_compat",
+    "1739565783": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\262060\\1739565783",
+    "0003_1_Black_Reliquary": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods\\0003_1_Black_Reliquary",
+    "better_stage_coach_swf_compat": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods\\better_stage_coach_swf_compat",
+    "Mi_Mod_Español": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\DarkestDungeon\\mods\\Mi_Mod_Español",
+    "3012345678": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\262060\\3012345678"
+  }
+}

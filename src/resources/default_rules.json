@@ -1,0 +1,9 @@
+{
+  "format": "ddmanager.rules",
+  "format_version": 1,
+  "overlap": {
+    "ignore": ["project.xml", "modfiles.txt", "preview_icon.*", "*.bak"],
+    "merge": ["localization/*.string_table.xml"]
+  },
+  "mods": {}
+}
