@@ -75,6 +75,7 @@ QLabel[role="warning"] { color: ${warning}; }
 QLabel[role="error"] { color: ${error}; }
 QLabel[role="ok"] { color: ${ok}; }
 QLabel[role="mono"] { font-family: ${font_mono}; font-size: ${pt_mono}pt; }
+QPlainTextEdit[role="mono"] { font-family: ${font_mono}; font-size: ${pt_mono}pt; }
 QLabel[direction="wins"] { color: ${gold}; font-weight: 600; }
 QLabel[direction="normal"] { color: ${muted}; }
 

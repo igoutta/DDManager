@@ -18,6 +18,16 @@ from src.services.fsutil import FileFingerprint
 from src.services.save_slots import SaveSlot
 
 
+@dataclass(frozen=True, slots=True)
+class CategoryLayout:
+    """A category-editor commit waiting for the write: the four stored values it replaces."""
+
+    order: tuple[str, ...]
+    custom: tuple[str, ...]
+    colors: Mapping[str, str]
+    memory: Mapping[str, str]
+
+
 @dataclass(slots=True)
 class Pending:
     """State changes waiting for the debounced write."""
@@ -26,15 +36,29 @@ class Pending:
     attempted: set[ModId] = field(default_factory=set)
     memory: dict[str, str] = field(default_factory=dict)
     settings: dict[str, JsonValue] = field(default_factory=dict)
+    nicknames: dict[ModId, str | None] = field(default_factory=dict)
+    layout: CategoryLayout | None = None
+    unattempted: set[ModId] = field(default_factory=set)
 
     def any(self) -> bool:
-        return bool(self.categories or self.attempted or self.memory or self.settings)
+        return bool(
+            self.categories
+            or self.attempted
+            or self.unattempted
+            or self.memory
+            or self.settings
+            or self.nicknames
+            or self.layout is not None
+        )
 
     def clear(self) -> None:
         self.categories.clear()
         self.attempted.clear()
         self.memory.clear()
         self.settings.clear()
+        self.nicknames.clear()
+        self.unattempted.clear()
+        self.layout = None
 
 
 @dataclass(slots=True)

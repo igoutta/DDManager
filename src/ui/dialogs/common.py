@@ -28,6 +28,12 @@ def make_button(parent: QWidget, text: str, tip: str, *, role: str | None = None
     return button
 
 
+def set_button_text(button: QAbstractButton, text: str, tip: str) -> None:
+    """(Re)label a button: its tooltip always differs from its text."""
+    button.setText(text)
+    button.setToolTip(tip if tip != text else f"{tip}.")
+
+
 def button_row(*buttons: QAbstractButton, stretch_first: bool = True) -> QHBoxLayout:
     row = QHBoxLayout()
     if stretch_first:
@@ -74,10 +80,37 @@ def set_cell(
     return item
 
 
+CHROME_TIP_KEY = "chrome_tip_key"
+CHROME_TIP_TEXT = "chrome_tip_text"
+_GENERIC_TIP = "ui.window.control.tip"
+
+
+def tip_chrome(
+    root: QWidget, tr: Tr, key_for: Callable[[QAbstractButton], str] | None = None
+) -> None:
+    """Tooltips for Qt's own unlabeled buttons (table corners, tab arrows, dock buttons).
+
+    A button that has no tooltip gets the catalog text of ``key_for(button)`` (default: the
+    generic control tip) and remembers the key; calling again after a language change re-tips
+    every remembered button whose tooltip is still the text set here, so a real tooltip its
+    owner set later is never overwritten.
+    """
+    for button in root.findChildren(QAbstractButton):
+        current = button.toolTip()
+        key = button.property(CHROME_TIP_KEY)
+        ours = bool(key) and current == button.property(CHROME_TIP_TEXT)
+        if not ours and current.strip():
+            continue
+        if not key:
+            key = key_for(button) if key_for is not None else _GENERIC_TIP
+            button.setProperty(CHROME_TIP_KEY, key)
+        text = tr(str(key))
+        button.setProperty(CHROME_TIP_TEXT, text)
+        button.setToolTip(text)
+
+
 def finish(dialog: QDialog, title: str, width: int, height: int, tr: Tr) -> None:
     """Title and size, plus tooltips for Qt's own unlabeled buttons (table corners, tab arrows)."""
     dialog.setWindowTitle(title)
     dialog.resize(width, height)
-    for button in dialog.findChildren(QAbstractButton):
-        if not button.toolTip().strip():
-            button.setToolTip(tr("ui.window.control.tip"))
+    tip_chrome(dialog, tr)

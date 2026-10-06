@@ -575,6 +575,18 @@ def test_render_state_order_change_writes_explicit_bools(parsed: StateDoc) -> No
     assert out["metadata"] == parsed.raw["metadata"]
 
 
+def test_render_state_drops_enabled_keys_of_mods_that_left_the_order(parsed: StateDoc) -> None:
+    """A renamed folder or a forgotten mod leaves no stale ``enabled`` key behind."""
+    gone, *kept = parsed.order.entries
+    shorter = LoadOrder(entries=tuple(kept), enabled=parsed.order.enabled & frozenset(kept))
+    out = _render(parsed, StateChanges(order=shorter))
+    assert out["order"] == list(kept)
+    assert set(out["enabled"]) == set(kept)
+    flags = parsed.raw["enabled"]
+    assert isinstance(flags, dict) and str(gone) in flags, "it was there before"
+    assert all(out["enabled"][m] == parsed.order.is_enabled(M(m)) for m in kept)
+
+
 def test_render_state_categories_and_nicknames_none_unassigns(parsed: StateDoc) -> None:
     out = _render(
         parsed,

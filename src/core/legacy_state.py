@@ -185,8 +185,10 @@ class StateChanges:
     """A delta to apply on a :class:`StateDoc`; ``None`` fields are left untouched.
 
     ``categories``/``nicknames`` values of ``None`` unassign; ``category_memory_updates`` and
-    ``attempted`` merge; ``category_colors``, ``category_order``, ``custom_categories`` and
-    ``mod_paths`` replace wholesale (``dd2.py:6020``); ``settings`` names scalar keys.
+    ``attempted`` merge (``unattempted`` drops ids again, after a folder rename);
+    ``category_colors``, ``category_order``, ``custom_categories``, ``category_memory`` and
+    ``mod_paths`` replace wholesale (``dd2.py:6020``, and the category editor's purge of removed
+    categories); ``settings`` names scalar keys.
     """
 
     order: LoadOrder | None = None
@@ -199,6 +201,8 @@ class StateChanges:
     attempted: Iterable[ModId] | None = None
     mod_paths: Mapping[ModId, str] | None = None
     settings: Mapping[str, JsonValue] | None = None
+    category_memory: Mapping[str, str] | None = None
+    unattempted: Iterable[ModId] | None = None
 
 
 def _dict_at(doc: StateDict, key: str) -> dict[str, object]:
@@ -219,9 +223,16 @@ def _apply_assignments(doc: StateDict, key: str, updates: Mapping[ModId, str | N
 
 
 def _apply_order(doc: StateDict, order: LoadOrder) -> None:
-    """Write ``order`` and an explicit bool per entry in ``enabled`` (stale keys are kept)."""
+    """Write ``order`` and an explicit bool per entry in ``enabled``.
+
+    Keys of mods that are no longer entries (a renamed folder, a forgotten missing mod) are
+    dropped: every reader defaults an absent key, so they would only ever go stale.
+    """
     doc["order"] = list(order.entries)
     flags = _dict_at(doc, "enabled")
+    entries = set(order.entries)
+    for stale in [key for key in flags if key not in entries]:
+        del flags[stale]
     for mod in order.entries:
         flags[mod] = order.is_enabled(mod)
 
@@ -240,6 +251,8 @@ def _apply_replacements(doc: StateDict, changes: StateChanges) -> None:
         doc["custom_categories"] = list(changes.custom_categories)
     if changes.category_colors is not None:
         doc["category_colors"] = dict(changes.category_colors)
+    if changes.category_memory is not None:
+        doc["category_memory"] = dict(changes.category_memory)
     if changes.mod_paths is not None:
         doc["mod_paths"] = {str(mod): path for mod, path in changes.mod_paths.items()}
 
@@ -251,10 +264,18 @@ def _apply_merges(doc: StateDict, changes: StateChanges) -> None:
         _apply_assignments(doc, "nicknames", changes.nicknames)
     if changes.category_memory_updates is not None:
         _dict_at(doc, "category_memory").update(changes.category_memory_updates)
-    if changes.attempted is not None:
-        attempted = _dict_at(doc, "auto_category_attempted")
-        for mod in changes.attempted:
-            attempted[mod] = True
+    _apply_attempted(doc, changes)
+
+
+def _apply_attempted(doc: StateDict, changes: StateChanges) -> None:
+    """Mark ``attempted`` ids, then drop ``unattempted`` ones."""
+    if changes.attempted is None and changes.unattempted is None:
+        return
+    attempted = _dict_at(doc, "auto_category_attempted")
+    for mod in changes.attempted or ():
+        attempted[mod] = True
+    for mod in changes.unattempted or ():
+        attempted.pop(mod, None)
 
 
 def render_state(base: StateDoc, changes: StateChanges) -> dict[str, JsonValue]:
@@ -265,8 +286,8 @@ def render_state(base: StateDoc, changes: StateChanges) -> dict[str, JsonValue]:
     """
     doc: StateDict = copy.deepcopy(dict(base.raw))
     _apply_order(doc, changes.order if changes.order is not None else base.order)
-    _apply_merges(doc, changes)
     _apply_replacements(doc, changes)
+    _apply_merges(doc, changes)
     if changes.settings is not None:
         _apply_settings(doc, changes.settings)
     doc["schema_version"] = SCHEMA_VERSION

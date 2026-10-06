@@ -1,7 +1,7 @@
 """Pure builders: scan result + state -> immutable view models (no Qt, no I/O)."""
 
 from collections import defaultdict
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
 
 from src.core.categories import CATEGORY_COLORS, category_color
@@ -28,11 +28,15 @@ _UNASSIGNED_COLOR = CATEGORY_COLORS["Unassigned"]
 _SUMMARY_LINES = 3
 
 
-def category_label(name: str | None, tr: Tr) -> str:
-    """The translated legacy category name (``category_<snake>`` keys), else the raw name."""
+def category_label(name: str | None, tr: Tr, has: Has | None = None) -> str:
+    """The translated legacy category name (``category_<snake>`` keys), else the raw name.
+
+    With ``has`` a name the catalog does not know (a custom category) is shown as typed.
+    """
     if not name:
         return tr("category_unassigned")
-    return tr(f"category_{name.lower().replace(' ', '_')}")
+    key = f"category_{name.lower().replace(' ', '_')}"
+    return tr(key) if has is None or has(key) else name
 
 
 def finding_message(finding: Finding, tr: Tr, has: Has) -> str:
@@ -106,10 +110,16 @@ class RowBuilder:
         grouped = findings_by_mod(s.findings)
         return {mod: self._row(mod, s, grouped.get(mod, [])) for mod in s.order.entries}
 
+    def build_some(self, ids: Iterable[ModId], s: Session) -> dict[ModId, ModRowVM]:
+        """The rows of those ``ids`` that are order entries (the shape of ``build_all``)."""
+        grouped = findings_by_mod(s.findings)
+        entries = set(s.order.entries)
+        return {mod: self._row(mod, s, grouped.get(mod, [])) for mod in ids if mod in entries}
+
     def _common(self, mod: ModId, s: Session, found: Sequence[Finding]) -> dict[str, object]:
         tier = s.tiers.get(mod) or s.table.unassigned()
         category = s.categories.get(mod) or tier.legacy_category
-        label = category_label(category, self._tr)
+        label = category_label(category, self._tr, self._has)
         return {
             "tier_id": tier.id,
             "tier_badge": self._tr(tier_token(tier.id).badge_key),

@@ -1,4 +1,9 @@
-"""The three tabs of the profile manager: save slots, load-order profiles, backups."""
+"""The three tabs of the profile manager: save slots, load-order profiles, backups.
+
+The dialog labels them: each tab's ``retranslate_ui`` sets its headers and buttons from the
+catalog and re-renders its data (the port's texts are translated too), so a language switch
+while the manager is open re-labels everything live.
+"""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -11,17 +16,21 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QPushButton,
     QTableWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from src.ui.dialogs.common import button_row, make_button, make_table, set_cell
+from src.ui.dialogs.common import button_row, make_button, make_table, set_button_text, set_cell
 from src.ui.i18n import Translator
 from src.ui.presenters.dto import ProfilesPort
 from src.ui.theme.theme import set_role
 
 _PATH_ROLE = Qt.ItemDataRole.UserRole
+_SLOT_COLUMNS = ("slot", "date", "week", "applied", "path")
+_BACKUP_COLUMNS = ("created", "reason", "size", "location")
+_PROFILE_BUTTONS = ("save", "apply", "import", "export", "rename", "delete")
 
 
 def _selected_path(table: QTableWidget) -> Path | None:
@@ -31,27 +40,25 @@ def _selected_path(table: QTableWidget) -> Path | None:
     return Path(str(data)) if data else None
 
 
+def _relabel(buttons: dict[str, QPushButton], prefix: str, tr: Callable[..., str]) -> None:
+    """``ui.<prefix>.<name>`` / ``.tip`` for every button of a tab."""
+    for name, button in buttons.items():
+        set_button_text(button, tr(f"ui.{prefix}.{name}"), tr(f"ui.{prefix}.{name}.tip"))
+
+
 class SlotsTab(QWidget):
     def __init__(self, port: ProfilesPort, translator: Translator, parent: QWidget) -> None:
         super().__init__(parent)
         self._port, self._tr = port, translator
-        tr = translator.tr
-        self.table = make_table(
-            self,
-            [tr("ui.slots.col.slot"), tr("ui.slots.col.date"), tr("ui.slots.col.week"),
-             tr("ui.slots.col.applied"), tr("ui.slots.col.path")],
-        )  # fmt: skip
-        self.use_button = make_button(
-            self, tr("ui.slots.use"), tr("ui.slots.use.tip"), role="primary"
-        )
-        self.import_button = make_button(self, tr("ui.slots.import"), tr("ui.slots.import.tip"))
-        self.folder_button = make_button(self, tr("ui.slots.folder"), tr("ui.slots.folder.tip"))
-        self.save_button = make_button(
-            self, tr("ui.slots.choose_save"), tr("ui.slots.choose_save.tip")
-        )
-        self.mods_button = make_button(
-            self, tr("ui.slots.choose_mods"), tr("ui.slots.choose_mods.tip")
-        )
+        self.table = make_table(self, [""] * len(_SLOT_COLUMNS))
+        names = ("use", "import", "folder", "choose_save", "choose_mods")
+        self.buttons = {name: make_button(self, "", "") for name in names}
+        set_role(self.buttons["use"], "primary")
+        self.use_button = self.buttons["use"]
+        self.import_button = self.buttons["import"]
+        self.folder_button = self.buttons["folder"]
+        self.save_button = self.buttons["choose_save"]
+        self.mods_button = self.buttons["choose_mods"]
         layout = QVBoxLayout(self)
         layout.addWidget(self.table, 1)
         layout.addLayout(
@@ -63,6 +70,11 @@ class SlotsTab(QWidget):
         self.folder_button.clicked.connect(lambda: self._with_path(port.open_slot_folder))
         self.save_button.clicked.connect(lambda: (port.choose_save_file(), self.refresh()))
         self.mods_button.clicked.connect(port.choose_mods_folder)
+
+    def retranslate_ui(self) -> None:
+        tr = self._tr.tr
+        self.table.setHorizontalHeaderLabels([tr(f"ui.slots.col.{c}") for c in _SLOT_COLUMNS])
+        _relabel(self.buttons, "slots", tr)
         self.refresh()
 
     def _with_path(self, action: Callable[[Path], None], *, refresh: bool = False) -> None:
@@ -89,13 +101,8 @@ class ProfilesTab(QWidget):
     def __init__(self, port: ProfilesPort, translator: Translator, parent: QWidget) -> None:
         super().__init__(parent)
         self._port, self._tr = port, translator
-        tr = translator.tr
         self.listing = QListWidget(self)
-        names = ("save", "apply", "import", "export", "rename", "delete")
-        self.buttons = {
-            name: make_button(self, tr(f"ui.profiles.{name}"), tr(f"ui.profiles.{name}.tip"))
-            for name in names
-        }
+        self.buttons = {name: make_button(self, "", "") for name in _PROFILE_BUTTONS}
         set_role(self.buttons["apply"], "primary")
         layout = QVBoxLayout(self)
         layout.addWidget(self.listing, 1)
@@ -106,6 +113,9 @@ class ProfilesTab(QWidget):
         }  # fmt: skip
         for name, handler in handlers.items():
             self.buttons[name].clicked.connect(handler)
+
+    def retranslate_ui(self) -> None:
+        _relabel(self.buttons, "profiles", self._tr.tr)
         self.refresh()
 
     def refresh(self) -> None:
@@ -180,21 +190,21 @@ class BackupsTab(QWidget):
     def __init__(self, port: ProfilesPort, translator: Translator, parent: QWidget) -> None:
         super().__init__(parent)
         self._port, self._tr = port, translator
-        tr = translator.tr
-        self.table = make_table(
-            self,
-            [tr("ui.backups.col.created"), tr("ui.backups.col.reason"), tr("ui.backups.col.size"),
-             tr("ui.backups.col.location")],
-        )  # fmt: skip
-        self.restore_button = make_button(
-            self, tr("ui.backups.restore"), tr("ui.backups.restore.tip"), role="danger"
-        )
-        self.folder_button = make_button(self, tr("ui.backups.folder"), tr("ui.backups.folder.tip"))
+        self.table = make_table(self, [""] * len(_BACKUP_COLUMNS))
+        self.buttons = {name: make_button(self, "", "") for name in ("restore", "folder")}
+        set_role(self.buttons["restore"], "danger")
+        self.restore_button = self.buttons["restore"]
+        self.folder_button = self.buttons["folder"]
         layout = QVBoxLayout(self)
         layout.addWidget(self.table, 1)
         layout.addLayout(button_row(self.restore_button, self.folder_button, stretch_first=False))
         self.restore_button.clicked.connect(self._restore)
         self.folder_button.clicked.connect(port.open_backup_folder)
+
+    def retranslate_ui(self) -> None:
+        tr = self._tr.tr
+        self.table.setHorizontalHeaderLabels([tr(f"ui.backups.col.{c}") for c in _BACKUP_COLUMNS])
+        _relabel(self.buttons, "backups", tr)
         self.refresh()
 
     def refresh(self) -> None:
@@ -211,11 +221,5 @@ class BackupsTab(QWidget):
 
     def _restore(self) -> None:
         path = _selected_path(self.table)
-        tr = self._tr.tr
-        if path is None:
-            return
-        answer = QMessageBox.question(
-            self, tr("ui.backups.restore"), tr("ui.backups.restore_confirm", name=path.name)
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            self._port.restore(path)
+        if path is not None:
+            self._port.restore(path, self.refresh)

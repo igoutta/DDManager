@@ -62,9 +62,15 @@ def icons(qapp, tokens):
 
 @pytest.fixture
 def translator(qapp):
+    """English translator; whatever language a test switched to is undone afterwards, because
+    the ``qtbase_<lang>`` translator it installs on the application is global (it would change
+    how later tests see key sequences and standard button texts)."""
     from src.ui.i18n import Translator
 
-    return Translator.from_resources("en")
+    tr = Translator.from_resources("en")
+    yield tr
+    if tr.language() != "en":
+        tr.set_language("en")
 
 
 @pytest.fixture
@@ -192,3 +198,80 @@ def window_factory(qtbot, fake_services, make_controller, translator, thumbs, to
 @pytest.fixture
 def main_window(window_factory):
     return window_factory()
+
+
+@pytest.fixture
+def rig_factory(
+    qtbot, fake_services, immediate_executor, thumbs, translator, tokens, icons, monkeypatch
+):
+    """``rig_factory(...) -> Rig``: a started controller (and window) over customised fakes.
+
+    ``catalog`` replaces what the scanner finds, ``enabled``/``categories`` and every other
+    ``fakes.build_state`` keyword shape the state file, ``applied_keys`` is what the active save
+    lists, ``answers`` configures the prompter.  Everything is in place BEFORE the controller
+    is created, because it reads the state at construction.
+    """
+    from tests.ui import m5_support as m5
+
+    def make(
+        *,
+        catalog=None,
+        enabled=ENABLED,
+        categories=CATEGORIES,
+        applied_keys=None,
+        answers=None,
+        window=False,
+        start=True,
+        **state,
+    ) -> m5.Rig:
+        services = fake_services
+        if catalog is not None:
+            services.catalog = dict(catalog)
+            services.scanner.set_catalog(services.catalog)
+        services.state.doc = fakes.build_state(
+            services.catalog,
+            enabled=enabled,
+            mods_path=services.detector.snapshot.primary_mods_dir,
+            save_path=services.save_path,
+            categories=categories,
+            **state,
+        )
+        services.renamer = services.folder_renamer = fakes.FakeRenamer(services.scanner)
+        if applied_keys is not None:
+            applied = tuple(services.catalog[ModId(k)].save_identity for k in applied_keys)
+            services.slots.applied = services.patcher.applied = applied
+        prompter = m5.RecordingPrompter(answers)
+        controller = build(
+            MainController,
+            services=services,
+            executor=immediate_executor,
+            prompter=prompter,
+            translator=translator,
+            thumbs=thumbs,
+        )
+        messages = m5.Messages(translator)
+        messages.attach(controller, prompter, monkeypatch)
+        driver, prompts = m5.DialogDriver(), m5.StaticPrompts()
+        driver.install(monkeypatch)
+        prompts.install(monkeypatch)
+        rig = m5.Rig(services, controller, prompter, translator, messages, driver, prompts)
+        if window:
+            rig.window = build(
+                HarnessWindow,
+                controller=controller,
+                translator=translator,
+                thumbs=thumbs,
+                tokens=tokens,
+                icons=icons,
+                services=services,
+                prompter=prompter,
+                settings_path=services.paths.ui_settings_file,
+            )
+            qtbot.addWidget(rig.window)
+            rig.window.test_controller, rig.window.test_prompter = controller, prompter
+        if start:
+            controller.start()
+            messages.clear()
+        return rig
+
+    return make

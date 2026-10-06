@@ -180,6 +180,7 @@ class FakePrompter:
         "confirm_disable_active": True,
         "review_order_change": True,
         "resolve_state_conflict": "cancel",
+        "confirm": True,
         "pick_save_file": None,
         "pick_folder": None,
         "pick_profile_file": None,
@@ -194,7 +195,9 @@ class FakePrompter:
     def count(self, name: str) -> int:
         return sum(1 for call in self.calls if call[0] == name)
 
-    def _ask(self, name: str, *args: Any, **kwargs: Any) -> Any:
+    def _ask(self, name: str, /, *args: Any, **kwargs: Any) -> Any:
+        """Record and answer ``name``; the name is positional-only so a question's own ``name=``
+        parameter (``confirm("...", name=file)``) cannot collide with it."""
         self.calls.append((name, args, kwargs))
         answer = self.answers[name]
         if callable(answer):
@@ -218,6 +221,9 @@ class FakePrompter:
 
     def resolve_state_conflict(self) -> str:
         return self._ask("resolve_state_conflict")
+
+    def confirm(self, key: str, **params: object) -> bool:
+        return self._ask("confirm", key, **params)
 
     def info(self, key: str, **params: object) -> None:
         self._ask("info", key, **params)

@@ -2,7 +2,6 @@
 
 import builtins
 from collections.abc import Callable, Sequence
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,16 +12,15 @@ from src.core.ids import ModId, SaveIdentity
 from src.core.load_order import LoadOrder
 from src.core.loadorder_document import document_from_order
 from src.core.loadorder_resolve import resolve_document
-from src.services.backup import BackupRecord
 from src.services.errors import ServiceError
 from src.services.save_slots import SaveSlot
+from src.ui.presenters.backups import BackupsPresenter
 from src.ui.presenters.dto import BackupVM, ProfileVM, SlotVM
 
 if TYPE_CHECKING:
     from src.ui.controller import MainController
 
 _DATE_FORMAT = "%Y-%m-%d %H:%M"
-_KIB = 1024
 
 
 def order_from_identities(
@@ -47,15 +45,11 @@ def order_from_identities(
     return LoadOrder((*matched, *rest), frozenset(matched)), unmatched
 
 
-def _size_text(size: int) -> str:
-    return f"{size / _KIB:.0f} KiB" if size >= _KIB else f"{size} B"
-
-
 class ProfilesPresenter(QObject):
     def __init__(self, controller: MainController) -> None:
         super().__init__(controller)
         self._c = controller
-        self._records: dict[Path, BackupRecord] = {}
+        self._backups = BackupsPresenter(controller)
 
     # ------------------------------------------------------------------ slots
 
@@ -186,9 +180,13 @@ class ProfilesPresenter(QObject):
         imported = self._attempt(lambda: c.services.profiles.import_file(path))
         if imported is None:
             return
-        doc, _extras = imported
-        if self._attempt(lambda: c.services.profiles.save(doc)) is not None:
+        doc, extras = imported
+        # a legacy loadout re-imported under the same file name replaces the earlier copy
+        saved = self._attempt(lambda: c.services.profiles.save(doc, overwrite=extras is not None))
+        if saved is not None:
             c.post("ui.notice.profile_saved", name=doc.name)
+        if extras is not None:
+            c.tools.import_legacy(doc, extras)
 
     def export(self, name: str, dest: Path) -> None:
         c = self._c
@@ -205,34 +203,7 @@ class ProfilesPresenter(QObject):
     # ------------------------------------------------------------------ backups
 
     def backups_for_active(self) -> builtins.list[BackupVM]:
-        save = self._c.save_path()
-        self._records.clear()
-        if save is None:
-            return []
-        records = self._c.services.backups.list(save)
-        self._records = {record.path: record for record in records}
-        return [self._backup_vm(record) for record in records]
+        return self._backups.listing()
 
-    def _backup_vm(self, record: BackupRecord) -> BackupVM:
-        created: datetime = record.created
-        reason = record.reason.value if record.reason is not None else ""
-        return BackupVM(
-            path=record.path,
-            created_text=created.strftime(_DATE_FORMAT),
-            reason_text=reason,
-            size_text=_size_text(record.size),
-            location=record.location,
-        )
-
-    def restore(self, path: Path) -> None:
-        c = self._c
-        record = self._records.get(path)
-        save = c.save_path()
-        if record is None or save is None:
-            return
-        services = c.services
-        c.run_task(
-            lambda _token: services.backups.restore(record, target=save),
-            lambda result: c.post("ui.notice.restored", name=result.restored_from.path.name),
-            busy_key="ui.busy.restoring",
-        )
+    def restore(self, path: Path, on_done: Callable[[], None] | None = None) -> None:
+        self._backups.restore(path, on_done)

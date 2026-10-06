@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
 
+from src.ui.presenters.tools_dto import RenamePreviewVM
 from src.ui.viewmodels import OrderDiffVM, PatchPreviewVM
 
 
@@ -50,7 +51,15 @@ class Prompter(Protocol):
 
     def review_patch(self, vm: PatchPreviewVM) -> PatchDecision: ...
 
+    def review_rename(self, vm: RenamePreviewVM) -> bool:
+        """Preview of the local mod folder renames; True when the user wants them done."""
+        ...
+
     def resolve_state_conflict(self) -> Literal["reload", "overwrite", "cancel"]: ...
+
+    def confirm(self, key: str, **params: object) -> bool:
+        """A yes/no question: text ``key``, title ``key.title``, accept button ``key.yes``."""
+        ...
 
     def info(self, key: str, **params: object) -> None: ...
 

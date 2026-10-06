@@ -1,4 +1,4 @@
-"""Settings presenter: priority direction, language, density and the two path pickers."""
+"""Settings presenter: priority direction, language, density, backup retention, trust, pickers."""
 
 from dataclasses import replace
 from pathlib import Path
@@ -7,11 +7,14 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject
 
 from src.core.load_order import PriorityDirection, PrioritySetting
-from src.services.settings_repo import Settings
+from src.services.settings_repo import RetentionPolicy, Settings
+from src.ui.presenters.trust import TrustPresenter
 from src.ui.theme.tokens import DENSITY
 
 if TYPE_CHECKING:
     from src.ui.controller import MainController
+
+LANGUAGE_ORDER = ("en", "zh_CN", "pt_PT", "es_ES")
 
 
 class SettingsPresenter(QObject):
@@ -19,6 +22,7 @@ class SettingsPresenter(QObject):
         super().__init__(controller)
         self._c = controller
         self._settings: Settings = controller.services.initial_settings
+        self.trust = TrustPresenter(controller)
 
     # ------------------------------------------------------------------ load / save
 
@@ -50,6 +54,11 @@ class SettingsPresenter(QObject):
     def language(self) -> str:
         return self._c.language()
 
+    def languages(self) -> tuple[str, ...]:
+        """The interface languages that ship a catalog, in menu order."""
+        known = set(self._c.translator.languages())
+        return tuple(code for code in LANGUAGE_ORDER if code in known) or (self.language(),)
+
     def set_language(self, code: str) -> None:
         self._c.set_language(code)
 
@@ -60,6 +69,14 @@ class SettingsPresenter(QObject):
     def set_density(self, mode: str) -> None:
         if mode in DENSITY:
             self._c.set_density(mode)
+
+    def retention(self) -> RetentionPolicy:
+        return self._settings.backups
+
+    def set_retention(self, *, keep_last: int, keep_days: int, min_keep: int) -> None:
+        """Backup retention (applies the next time DD Manager starts, like the other services)."""
+        policy = RetentionPolicy(max(keep_last, 1), max(keep_days, 0), max(min_keep, 0))
+        self.save(replace(self._settings, backups=policy))
 
     # ------------------------------------------------------------------ pickers
 

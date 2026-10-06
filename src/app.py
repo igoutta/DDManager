@@ -33,6 +33,7 @@ from src.ui.theme.tokens import DARK_TOKENS
 from src.ui.thumbnails import ThumbnailProvider
 from src.ui.widgets.actions import IconSet
 from src.ui.widgets.main_window import MainWindow
+from src.ui.widgets.manage_actions import offer_plugin_approval
 from src.ui.widgets.prompter import QtPrompter
 from src.ui.workers import QtExecutor
 
@@ -113,11 +114,12 @@ def run_gui(args: argparse.Namespace, paths: AppPaths, env: Environment) -> int:
     thumbnails = ThumbnailProvider(executor)
     controller = MainController(services, executor, translator, thumbnails)
     window = MainWindow(controller, translator, DARK_TOKENS, IconSet(DARK_TOKENS))
-    controller.attach_prompter(QtPrompter(window, translator))
+    controller.attach_prompter(QtPrompter(window, translator, window.icons))
     install_crash_dialog(app, log, window, translator, paths)
     app.aboutToQuit.connect(lock.unlock)
     window.show()
     QTimer.singleShot(0, controller.start)
+    QTimer.singleShot(0, lambda: offer_plugin_approval(window))
     return app.exec()
 
 

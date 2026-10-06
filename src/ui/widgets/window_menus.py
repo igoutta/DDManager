@@ -29,6 +29,7 @@ class WindowChrome:
             ("rescan", "sort", "validate"),
             ("backup", "patch"),
             ("profiles",),
+            ("launch_game",),
         ):
             for key in keys:
                 bar.addAction(hub[key])
@@ -61,8 +62,9 @@ class WindowChrome:
             "ui.menu.file",
             window,
             [
-                "rescan", "backup", "patch", None, "profiles", "choose_save", "choose_mods", None,
-                "open_save_folder", "open_local_mods", "launch_game", None, "quit",
+                "rescan", "backup", "patch", None, "profiles", "choose_save", "choose_mods",
+                "edit_paths", "auto_detect", None, "open_save_folder", "open_local_mods",
+                "launch_game", None, "quit",
             ],
         )  # fmt: skip
         self._add(
@@ -71,10 +73,20 @@ class WindowChrome:
             window,
             [
                 "undo", "redo", None, "find", None, "enable", "disable", None, "top", "up",
-                "down", "bottom", None, "open_mod_folder", "open_mod_page", "forget_missing",
+                "down", "bottom", None, "open_mod_folder", "open_mod_page", "forget_missing", None,
+                "nickname", "assign_category",
             ],
         )  # fmt: skip
-        self._add("tools", "ui.menu.tools", window, ["sort", "validate"])
+        self._add(
+            "tools",
+            "ui.menu.tools",
+            window,
+            [
+                "sort", "auto_categorize", "validate", None, "edit_categories", None,
+                "apply_order", "save_code", None, "patch_other", "patch_latest", None,
+                "check_setup", "copy_debug", None, "settings", "plugin_approval",
+            ],
+        )  # fmt: skip
         view = self._add("view", "ui.menu.view", window, ["health"])
         for name, title_key, keys in (
             ("density", "ui.menu.density", [f"density_{slug}" for slug in DENSITY_SLUGS.values()]),

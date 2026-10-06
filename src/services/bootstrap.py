@@ -15,6 +15,7 @@ from src.services.backup import BackupService
 from src.services.detection import InstallDetector
 from src.services.environment import Environment
 from src.services.errors import PluginLoadError
+from src.services.folder_renamer import FolderRenamer
 from src.services.metadata_cache import MetadataCache
 from src.services.platform_actions import detect_default_language
 from src.services.plugin_loader import PluginRecord, load_builtin, load_user_plugins
@@ -44,6 +45,7 @@ class Services:
     scanner: ScanService
     cache: MetadataCache
     backups: BackupService
+    renamer: FolderRenamer
     patcher: SavePatchService
     slots: SaveSlotService
     profiles: ProfileRepository
@@ -112,6 +114,7 @@ def build_services(
         scanner=ScanService(registry.mod_sources, clock=now),
         cache=cache,
         backups=backups,
+        renamer=FolderRenamer(clock=now),
         patcher=SavePatchService(formats, backups, probe=process),
         slots=SaveSlotService(formats, clock=now),
         profiles=ProfileRepository(paths.profiles_dir),

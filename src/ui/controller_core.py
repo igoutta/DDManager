@@ -138,14 +138,16 @@ class ControllerCore(QObject):
     def finding_vms(self) -> tuple[FindingVM, ...]:
         return self._findings.vms()
 
-    def slot_label(self) -> str:
+    def slot_label(self, path: Path | None = None) -> str:
+        """The label of ``path`` (default: the selected save): slot and week when detected."""
         s = self._s
-        if s.save_path is None:
+        save = path if path is not None else s.save_path
+        if save is None:
             return self.tr("ui.slot.none")
         for slot in s.slots:
-            if slot.save_path == s.save_path:
+            if slot.save_path == save:
                 return self.slot_text(slot.number, slot.week, slot.save_path)
-        return self.slot_text(None, None, s.save_path)
+        return self.slot_text(None, None, save)
 
     def slot_text(self, number: int | None, week: int | None, path: Path) -> str:
         base = (

@@ -82,9 +82,14 @@ class EditFlows:
         self.commit(self._c.session.order.disable(frozenset(ids)), "ui.undo.disable")
 
     def forget_missing(self, ids: Sequence[ModId]) -> None:
-        s = self._c.session
+        """Drop missing mods from the order: only on request, and only after a confirmation."""
+        c = self._c
+        s = c.session
         gone = frozenset(mod for mod in ids if mod in s.missing)
-        self.commit(s.order.forget(gone), "ui.undo.forget")
+        if not gone or c.prompter is None:
+            return
+        if c.prompter.confirm("ui.prompt.forget_missing", count=len(gone)):
+            self.commit(s.order.forget(gone), "ui.undo.forget")
 
     # ------------------------------------------------------------------ undo / redo
 

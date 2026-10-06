@@ -1,6 +1,6 @@
 """Plain data the profile dialog renders, and the port it drives (no services imported)."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -58,7 +58,7 @@ class ProfilesPort(Protocol):
 
     def backups_for_active(self) -> Sequence[BackupVM]: ...
 
-    def restore(self, path: Path) -> None: ...
+    def restore(self, path: Path, on_done: Callable[[], None] | None = None) -> None: ...
 
     def open_slot_folder(self, path: Path) -> None: ...
 

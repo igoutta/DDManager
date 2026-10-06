@@ -16,14 +16,17 @@ class PlatformFlows:
     def __init__(self, controller: MainController) -> None:
         self._c = controller
 
-    def _guarded(self, action: Callable[[], object]) -> None:
+    def _guarded(self, action: Callable[[], object]) -> bool:
+        """Run a host action; a typed failure becomes a notice and ``False``."""
         try:
             action()
         except ServiceError as exc:
             self._c.post("ui.notice.action_failed", "error", error=exc.message)
+            return False
+        return True
 
-    def open_path(self, path: Path) -> None:
-        self._guarded(lambda: platform_actions.open_folder(path, self._c.services.env))
+    def open_path(self, path: Path) -> bool:
+        return self._guarded(lambda: platform_actions.open_folder(path, self._c.services.env))
 
     def open_mod_folder(self, mod_id: ModId) -> None:
         info = self._c.mods().get(mod_id)
@@ -42,13 +45,19 @@ class PlatformFlows:
 
     def launch_game(self) -> None:
         install = self._c.install()
-        if install is not None:
-            self._guarded(lambda: platform_actions.launch_game(install, self._c.services.env))
+        if install is None:
+            self._c.post("ui.notice.not_scanned", "warning")
+        elif self._guarded(lambda: platform_actions.launch_game(install, self._c.services.env)):
+            self._c.post("ui.notice.game_launched")
 
     def open_local_mods_folder(self) -> None:
         install = self._c.install()
-        if install is not None and install.local_mod_dirs:
-            self.open_path(install.local_mod_dirs[0])
+        if install is None:
+            self._c.post("ui.notice.not_scanned", "warning")
+        elif not install.local_mod_dirs:
+            self._c.post("ui.notice.no_local_mods", "warning")
+        elif self.open_path(install.local_mod_dirs[0]):
+            self._c.post("ui.notice.local_mods_opened", path=str(install.local_mod_dirs[0]))
 
     def open_backup_folder(self) -> None:
         save = self._c.save_path()

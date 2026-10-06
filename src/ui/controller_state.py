@@ -16,10 +16,17 @@ def is_dirty(s: Session) -> bool:
 
 def _changes(s: Session) -> StateChanges:
     p = s.pending
+    layout = p.layout
     return StateChanges(
         order=s.order,
         categories=dict(p.categories) or None,
+        nicknames=dict(p.nicknames) or None,
+        category_order=layout.order if layout else None,
+        custom_categories=layout.custom if layout else None,
+        category_colors=layout.colors if layout else None,
+        category_memory=layout.memory if layout else None,
         attempted=set(p.attempted) or None,
+        unattempted=set(p.unattempted) or None,
         category_memory_updates=dict(p.memory) or None,
         settings=dict(p.settings) or None,
     )

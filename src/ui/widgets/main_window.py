@@ -11,6 +11,7 @@ from src.__about__ import __version__
 from src.core.ids import ModId
 from src.core.load_order import MoveOp, PriorityDirection
 from src.ui.controller import MainController
+from src.ui.dialogs.common import tip_chrome
 from src.ui.dialogs.profile_manager_dialog import ProfileManagerDialog
 from src.ui.dialogs.shortcuts_dialog import ShortcutsDialog
 from src.ui.i18n import Translator
@@ -26,6 +27,14 @@ from src.ui.widgets.window_actions import DENSITY_SLUGS, LANGUAGES, ActionHub
 from src.ui.widgets.window_menus import WindowChrome
 
 _STRETCH = (3, 5, 3)
+# Qt's own chrome buttons (dock close/float, toolbar overflow, ...) and their generic tooltips.
+_CHROME_KEYS = {
+    "qt_toolbar_ext_button": "ui.window.more.tip",
+    "qt_menubar_ext_button": "ui.window.more.tip",
+    "qt_tableview_cornerbutton": "ui.window.corner.tip",
+    "qt_dockwidget_floatbutton": "ui.window.float_dock.tip",
+    "qt_dockwidget_closebutton": "ui.window.close_dock.tip",
+}
 
 
 class MainWindow(QMainWindow):
@@ -82,13 +91,21 @@ class MainWindow(QMainWindow):
         self.available.addAction(hub["enable"])
         self.available.view.setContextMenuPolicy(Qt.ContextMenuPolicy.ActionsContextMenu)
         self.available.view.addActions(
-            [hub["enable"], hub["open_mod_folder"], hub["open_mod_page"], hub["forget_missing"]]
+            [
+                hub["enable"],
+                hub["open_mod_folder"],
+                hub["open_mod_page"],
+                hub["forget_missing"],
+                hub["nickname"],
+                hub["assign_category"],
+            ]
         )
         self.load_order.attach_actions(
             [hub[k] for k in ("enable", "disable", "top", "up", "down", "bottom")],
             [
                 hub["disable"], hub["top"], hub["up"], hub["down"], hub["bottom"], None,
-                hub["open_mod_folder"], hub["open_mod_page"], hub["forget_missing"],
+                hub["open_mod_folder"], hub["open_mod_page"], hub["forget_missing"], None,
+                hub["nickname"], hub["assign_category"],
             ],
             shortcut_actions=[hub[k] for k in ("disable", "top", "up", "down", "bottom")],
         )  # fmt: skip
@@ -285,25 +302,13 @@ class MainWindow(QMainWindow):
         self.dock.retranslate_ui()
         self.status_bar.retranslate_ui()
         self.refresh_slots()
-        self._tip_internal_buttons()
+        tip_chrome(self, tr, self._chrome_key)
 
-    def _tip_internal_buttons(self) -> None:
-        """Qt's own chrome buttons (dock close/float, toolbar overflow, ...) get tooltips too."""
-        keys = {
-            "qt_toolbar_ext_button": "ui.window.more.tip",
-            "qt_menubar_ext_button": "ui.window.more.tip",
-            "qt_tableview_cornerbutton": "ui.window.corner.tip",
-            "qt_dockwidget_floatbutton": "ui.window.float_dock.tip",
-            "qt_dockwidget_closebutton": "ui.window.close_dock.tip",
-        }
-        for button in self.findChildren(QAbstractButton):
-            if not button.toolTip().strip():
-                default = (
-                    "ui.window.clear.tip"
-                    if button.parent() is self.available.search
-                    else "ui.window.control.tip"
-                )
-                button.setToolTip(self.translator.tr(keys.get(button.objectName(), default)))
+    def _chrome_key(self, button: QAbstractButton) -> str:
+        """The generic tooltip key of one of Qt's own unlabeled buttons."""
+        if button.parent() is self.available.search:
+            return "ui.window.clear.tip"
+        return _CHROME_KEYS.get(button.objectName(), "ui.window.control.tip")
 
     def save_ui_state(self) -> None:
         settings = QSettings(str(self._ui_ini), QSettings.Format.IniFormat)

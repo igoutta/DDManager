@@ -57,10 +57,12 @@ class SaveFlows:
 
     # ------------------------------------------------------------------ patch
 
-    def patch(self) -> None:
-        save = self._c.require_save()
+    def patch(self, save: Path | None = None) -> None:
+        """Patch the selected save, or ``save`` (Patch other file / Patch latest detected)."""
         if save is None:
-            return
+            save = self._c.require_save()
+            if save is None:
+                return
         try:
             entries = applied_entries(self._c.order(), self._c.identity_map())
         except ValueError as exc:
@@ -73,6 +75,29 @@ class SaveFlows:
             return services.patcher.plan(save, entries), state
 
         self._c.run_task(plan_task, self._planned, busy_key="ui.busy.planning")
+
+    def patch_other(self) -> None:
+        """Pick any save file and patch it through the preview; the selected slot stays."""
+        c = self._c
+        current = c.save_path()
+        prompter = c.prompter
+        picked = prompter.pick_save_file(current.parent if current else None) if prompter else None
+        if picked is not None:
+            self.patch(picked)
+
+    def patch_latest(self) -> None:
+        """Patch the most recently changed detected save file, after confirming which one."""
+        c = self._c
+        install = c.install()
+        latest = c.services.slots.latest(install.save_files) if install is not None else None
+        if latest is None:
+            c.post("ui.notice.no_save_detected", "warning")
+            return
+        prompter = c.prompter
+        if prompter is not None and prompter.confirm(
+            "ui.prompt.patch_latest", file=str(latest), slot=c.slot_label(latest)
+        ):
+            self.patch(latest)
 
     def _planned(self, planned: tuple[PatchPlan, RunState]) -> None:
         plan, state = planned

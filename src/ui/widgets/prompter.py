@@ -6,12 +6,16 @@ from typing import Literal
 
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QPushButton, QWidget
 
+from src.ui.dialogs.apply_order_dialog import ApplyOrderDialog
 from src.ui.dialogs.order_diff_dialog import OrderDiffDialog
 from src.ui.dialogs.patch_preview_dialog import PatchPreviewDialog
 from src.ui.i18n import Translator
 from src.ui.ports import PatchDecision
+from src.ui.presenters.tools_dto import RenamePreviewVM
 from src.ui.theme.theme import set_role
+from src.ui.theme.tokens import DARK_TOKENS
 from src.ui.viewmodels import OrderDiffVM, PatchPreviewVM
+from src.ui.widgets.actions import IconSet
 
 _MAX_TITLES = 12
 
@@ -19,9 +23,12 @@ _MAX_TITLES = 12
 class QtPrompter:
     """Everything the controller asks the user goes through here (tests use a fake)."""
 
-    def __init__(self, parent: QWidget, translator: Translator) -> None:
+    def __init__(
+        self, parent: QWidget, translator: Translator, icons: IconSet | None = None
+    ) -> None:
         self._parent = parent
         self._tr = translator
+        self._icons = icons if icons is not None else IconSet(DARK_TOKENS)
 
     # ------------------------------------------------------------------ helpers
 
@@ -65,6 +72,10 @@ class QtPrompter:
             return PatchDecision(proceed=False, acknowledged=frozenset(), override_errors=False)
         return dialog.decision()
 
+    def review_rename(self, vm: RenamePreviewVM) -> bool:
+        dialog = ApplyOrderDialog(vm, self._tr, self._icons, self._parent)
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
     def resolve_state_conflict(self) -> Literal["reload", "overwrite", "cancel"]:
         tr = self._tr.tr
         box = self._box(
@@ -80,6 +91,15 @@ class QtPrompter:
         if clicked is reload:
             return "reload"
         return "overwrite" if clicked is mine else "cancel"
+
+    def confirm(self, key: str, **params: object) -> bool:
+        tr = self._tr.tr
+        box = self._box(QMessageBox.Icon.Question, tr(f"{key}.title"), tr(key, **params))
+        yes = self._add(box, f"{key}.yes", QMessageBox.ButtonRole.AcceptRole)
+        cancel = self._add(box, "ui.dialog.cancel", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(cancel)
+        box.exec()
+        return box.clickedButton() is yes
 
     def info(self, key: str, **params: object) -> None:
         box = self._box(

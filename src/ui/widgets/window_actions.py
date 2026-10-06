@@ -11,6 +11,8 @@ from src.ui.controller import MainController
 from src.ui.i18n import Translator
 from src.ui.theme.tokens import DENSITY
 from src.ui.widgets.actions import ActionSpec, IconSet, make_action, retranslate_action
+from src.ui.widgets.manage_actions import bind_manage_actions, manage_specs
+from src.ui.widgets.tools_actions import tools_specs
 
 if TYPE_CHECKING:
     from src.ui.widgets.main_window import MainWindow
@@ -35,6 +37,7 @@ class ActionHub:
         self._group("density", [f"density_{slug}" for slug in DENSITY_SLUGS.values()])
         self._group("language", [f"lang_{c}" for c in LANGUAGES])
         self._group("priority", list(PRIORITY_KEYS))
+        bind_manage_actions(window, self.actions)
 
     def _group(self, name: str, keys: Sequence[str]) -> None:
         group = QActionGroup(self._w)
@@ -53,7 +56,14 @@ class ActionHub:
     # ------------------------------------------------------------------ specs
 
     def _specs(self) -> list[ActionSpec]:
-        return [*self._file_specs(), *self._edit_specs(), *self._view_specs(), *self._help_specs()]
+        return [
+            *self._file_specs(),
+            *self._edit_specs(),
+            *manage_specs(self._w),
+            *tools_specs(self._w),
+            *self._view_specs(),
+            *self._help_specs(),
+        ]
 
     def _file_specs(self) -> list[ActionSpec]:
         w, c = self._w, self._w.controller
@@ -61,6 +71,8 @@ class ActionHub:
             ActionSpec("rescan", "rescan", c.rescan, ("F5",)),
             ActionSpec("backup", "backup", c.backup_save, ("Ctrl+B",)),
             ActionSpec("patch", "patch", c.patch_save, ("Ctrl+Shift+P",), danger=True),
+            ActionSpec("patch_other", "patch", c.patch_other_file, danger=True),
+            ActionSpec("patch_latest", "patch", c.patch_latest_detected, danger=True),
             ActionSpec("profiles", "profiles", w.open_profile_manager, ("Ctrl+P",)),
             ActionSpec("choose_save", "folder", c.settings.choose_save_file),
             ActionSpec("choose_mods", "folder", c.settings.choose_mods_folder),

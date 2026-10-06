@@ -40,6 +40,7 @@ class ScanFlow:
         s.scan_findings = (*outcome.install.findings, *outcome.scan.findings)
         self._first_run(outcome)
         c.rebuild()
+        c.highlight.start()
         c.schedule_save()
         c.validate()
         c.slotsChanged.emit()
