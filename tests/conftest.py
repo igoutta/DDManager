@@ -1,6 +1,5 @@
 """Shared fixtures. Qt-specific fixtures live in tests/ui/conftest.py."""
 
-import shutil
 from pathlib import Path
 
 import pytest
@@ -10,13 +9,13 @@ MODDING_DIR = REPO_ROOT / "modding"
 
 
 @pytest.fixture(scope="session")
-def sample_mods_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """A private copy of the repo's sample mods (modding/), so tests may mutate it."""
-    dest = tmp_path_factory.mktemp("modding")
-    for child in MODDING_DIR.iterdir():
-        if child.is_dir():
-            shutil.copytree(child, dest / child.name)
-    return dest
+def sample_mods_dir() -> Path:
+    """The repo's sample mods (modding/), read IN PLACE: tests must never write under it.
+
+    Copying the folder (hundreds of MB of art) used to cost half a minute per session; a test
+    that needs a mods root it may touch builds one with ``mod_dir`` or ``modding_copy``.
+    """
+    return MODDING_DIR
 
 
 @pytest.fixture

@@ -77,7 +77,7 @@ max-statements = 50
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004", "FBT003", "PLC0415", "T20", "PLR0915", "C901"]  # long, linear test bodies are fine
 "tools/**" = ["T20"]
-"src/cli.py" = ["T20"]
+"src/cli*.py" = ["T20"]
 "packaging/*.spec" = ["F821"]
 
 [tool.ruff.format]

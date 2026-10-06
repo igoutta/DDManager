@@ -2,9 +2,11 @@
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Final
 
+from src import cli_profile, cli_save, cli_scan
 from src.__about__ import __version__
 from src.core.errors import DDManagerError, UnknownSaveFormatError
 from src.core.saves import DsonProblem, SaveFormat, SaveValidationReport, default_registry
@@ -28,7 +30,53 @@ def build_parser() -> argparse.ArgumentParser:
         "verify", help="exit 0 when the save is legacy-valid, 1 otherwise"
     )
     verify.add_argument("file", type=Path, help="path to a persist.game.json")
+    _add_save_commands(save_commands)
+    _add_scan_commands(commands)
+    _add_profile_commands(commands)
     return parser
+
+
+def _add_save_commands(save_commands: argparse._SubParsersAction) -> None:
+    plan = save_commands.add_parser("plan", help="show what patching a save would change")
+    plan.add_argument("file", type=Path, help="path to a persist.game.json")
+    plan.add_argument(
+        "--emit", type=Path, help="write the patched bytes here (the save is untouched)"
+    )
+    patch = save_commands.add_parser("patch", help="back up and patch a save with the state order")
+    patch.add_argument("file", type=Path, help="path to a persist.game.json")
+    patch.add_argument(
+        "--ack", action="append", default=[], choices=cli_save.ACK_CHOICES,
+        help="acknowledge a risk the plan reported (repeatable)",
+    )  # fmt: skip
+    backup = save_commands.add_parser("backup", help="make a manual managed backup of a save")
+    backup.add_argument("file", type=Path, help="path to a persist.game.json")
+    restore = save_commands.add_parser("restore", help="restore a save from a backup")
+    restore.add_argument("file", type=Path, help="the save to restore INTO")
+    restore.add_argument("--from", dest="source", type=Path, help="backup file (default: latest)")
+
+
+def _add_scan_commands(commands: argparse._SubParsersAction) -> None:
+    scan = commands.add_parser("scan", help="list the installed mods")
+    scan.add_argument("--json", action="store_true", help="machine-readable output")
+    commands.add_parser("diagnostics", help="print the setup report (Check Setup)")
+
+
+def _add_profile_commands(commands: argparse._SubParsersAction) -> None:
+    profile = commands.add_parser("profile", help="named load-order profiles")
+    sub = profile.add_subparsers(dest="profile_command", required=True)
+    sub.add_parser("list", help="list the saved profiles")
+    save = sub.add_parser("save", help="store the current order as a profile")
+    save.add_argument("name")
+    save.add_argument("--overwrite", action="store_true")
+    export = sub.add_parser("export", help="write a profile to a file")
+    export.add_argument("name")
+    export.add_argument("dest", type=Path)
+    imp = sub.add_parser("import", help="import a loadorder or legacy loadout file")
+    imp.add_argument("file", type=Path)
+    imp.add_argument("--overwrite", action="store_true")
+    apply = sub.add_parser("apply", help="adopt a profile's order in mod_state.json")
+    apply.add_argument("name")
+    apply.add_argument("--dry-run", action="store_true")
 
 
 def _read_file(path: Path) -> bytes | None:
@@ -140,15 +188,40 @@ def save_verify(path: Path) -> int:
     return 0 if fmt is not None and report.ok else 1
 
 
+_HANDLERS: Final[dict[tuple[str, str | None], Callable[[argparse.Namespace], int]]] = {
+    ("save", "inspect"): lambda args: save_inspect(args.file),
+    ("save", "verify"): lambda args: save_verify(args.file),
+    ("save", "plan"): cli_save.cmd_plan,
+    ("save", "patch"): cli_save.cmd_patch,
+    ("save", "backup"): cli_save.cmd_backup,
+    ("save", "restore"): cli_save.cmd_restore,
+    ("scan", None): cli_scan.cmd_scan,
+    ("diagnostics", None): cli_scan.cmd_diagnostics,
+    ("profile", "list"): cli_profile.cmd_list,
+    ("profile", "save"): cli_profile.cmd_save,
+    ("profile", "export"): cli_profile.cmd_export,
+    ("profile", "import"): cli_profile.cmd_import,
+    ("profile", "apply"): cli_profile.cmd_apply,
+}
+
+
+def _subcommand(args: argparse.Namespace) -> str | None:
+    return getattr(args, "save_command", None) or getattr(args, "profile_command", None)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
+    """Exit codes: 0 ok, 1 user error (typed errors print as ``[code] message``), 2 usage."""
     args = build_parser().parse_args(sys.argv[1:] if argv is None else list(argv))
     if args.command is None:
         from src.app import main as gui_main  # noqa: PLC0415  (Qt is imported lazily)
 
         gui_args = ["--data-dir", args.data_dir] if args.data_dir else []
         return gui_main(gui_args)
-    if args.command == "save" and args.save_command == "inspect":
-        return save_inspect(args.file)
-    if args.command == "save" and args.save_command == "verify":
-        return save_verify(args.file)
-    return 0
+    handler = _HANDLERS.get((args.command, _subcommand(args)))
+    if handler is None:
+        return 0
+    try:
+        return handler(args)
+    except DDManagerError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
