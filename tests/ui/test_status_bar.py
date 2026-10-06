@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QAbstractButton, QLabel
+
 from src.ui.widgets.elided_label import ElidedLabel
 from src.ui.widgets.health_dock import HealthDock
-
 from tests.ui.helpers import make_status, stamp
 
 LONG = Path("C:/Users/someone/Documents/Darkest/a/very/deeply/nested/profile_0/persist.game.json")

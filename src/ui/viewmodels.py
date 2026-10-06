@@ -118,6 +118,8 @@ class PatchPreviewVM:
     findings: tuple[FindingVM, ...] = ()
     required_acks: tuple[tuple[str, str], ...] = ()  # (ack id, i18n key)
     blocking: bool = False
+    missing_count: int = 0
+    """Enabled mods whose folder is gone: not in ``after``, and the reason is shown."""
 
 
 @dataclass(frozen=True, slots=True)

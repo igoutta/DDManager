@@ -449,6 +449,7 @@
   "ui.patch.col.change": "Change",
   "ui.patch.col.entry": "Entry",
   "ui.patch.errors": "{count} errors in the load order",
+  "ui.patch.missing_excluded": "{count} enabled mods are missing from disk and will not be written to the save",
   "ui.patch.override": "Patch despite {count} errors",
   "ui.patch.override.tip": "Tick to allow patching while the load order has errors",
   "ui.patch.save_path": "Save file: {path}",

@@ -229,6 +229,7 @@ def _signature(snapshot: ModSnapshot) -> MetadataSignature:
         project_mtime=snapshot.project_mtime,
         localization_signature=snapshot.localization_signature,
         workshop_timeupdated=snapshot.acf_timeupdated,
+        content_roots_mtime_ns=snapshot.content_roots_mtime_ns,
     )
 
 

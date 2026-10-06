@@ -257,7 +257,9 @@ def make_diff_vm(moved: int = 2, total: int = 5):
     return OrderDiffVM(rows=rows, moved_count=moved, total=total, added=0, removed=0)
 
 
-def make_patch_vm(*, blocking: bool = False, acks: tuple[tuple[str, str], ...] = ()):
+def make_patch_vm(
+    *, blocking: bool = False, acks: tuple[tuple[str, str], ...] = (), missing: int = 0
+):
     from pathlib import Path
 
     from src.core.findings import Severity
@@ -274,6 +276,7 @@ def make_patch_vm(*, blocking: bool = False, acks: tuple[tuple[str, str], ...] =
         findings=findings,
         required_acks=acks,
         blocking=blocking,
+        missing_count=missing,
     )
 
 

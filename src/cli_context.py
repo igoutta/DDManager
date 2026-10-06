@@ -14,7 +14,7 @@ from src.services.bootstrap import Services, build_services
 from src.services.detection import InstallSnapshot, ManualPaths
 from src.services.environment import Environment
 from src.services.errors import ServiceError
-from src.services.scan import ScanResult
+from src.services.scan import ScanResult, scan_with_cache
 from src.services.state_repo import StateSnapshot
 
 
@@ -56,8 +56,18 @@ def detect_install(session: Session) -> InstallSnapshot:
 
 
 def scan_mods(session: Session) -> tuple[InstallSnapshot, ScanResult]:
+    """Detect and scan through the mod info cache (committed and saved like the GUI does)."""
     install = detect_install(session)
-    return install, session.services.scanner.scan(install)
+    services = session.services
+    return install, scan_with_cache(services.scanner, services.cache, install)
+
+
+def missing_mods(
+    session: Session, scan: ScanResult, order: LoadOrder | None = None
+) -> frozenset[ModId]:
+    """Entries of ``order`` (default: the state order) whose folder the scan did not find."""
+    chosen = order if order is not None else session.state.doc.order
+    return frozenset(mod for mod in chosen.entries if mod not in scan.mods)
 
 
 def identity_map(session: Session, scan: ScanResult) -> dict[ModId, SaveIdentity]:
@@ -70,10 +80,16 @@ def identity_map(session: Session, scan: ScanResult) -> dict[ModId, SaveIdentity
 def active_identities(
     session: Session, scan: ScanResult, order: LoadOrder | None = None
 ) -> tuple[SaveIdentity, ...]:
-    """The applied-mods list for ``order`` (default: the state order), or a service error."""
+    """The applied-mods list for ``order`` (default: the state order), or a service error.
+
+    Enabled mods whose folder is gone are left out (contract §4), never written from the stale
+    ``metadata`` identities of the state file.
+    """
     chosen = order if order is not None else session.state.doc.order
     try:
-        return applied_entries(chosen, identity_map(session, scan))
+        return applied_entries(
+            chosen, identity_map(session, scan), missing=missing_mods(session, scan, chosen)
+        )
     except ValueError as exc:
         raise ServiceError(str(exc), code="identity_missing") from exc
 

@@ -18,6 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="ddmanager", description="DD Manager (Darkest Dungeon 1)")
     parser.add_argument("--version", action="version", version=f"ddmanager {__version__}")
     parser.add_argument("--data-dir", help="override the DD Manager Data directory")
+    _add_gui_options(parser)
     commands = parser.add_subparsers(dest="command")
 
     save = commands.add_parser("save", help="inspect or verify a binary save (persist.game.json)")
@@ -34,6 +35,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_scan_commands(commands)
     _add_profile_commands(commands)
     return parser
+
+
+def _add_gui_options(parser: argparse.ArgumentParser) -> None:
+    """The GUI's flags, accepted here so ``DD Manager.exe --self-test`` reaches ``src.app``."""
+    gui = parser.add_argument_group("GUI options (used when no command is given)")
+    gui.add_argument("--lang", help="UI language code (en, es_ES, pt_PT, zh_CN)")
+    gui.add_argument("--log-level", help="DEBUG, INFO, WARNING or ERROR")
+    gui.add_argument("--self-test", action="store_true", help="check the installation, exit")
+    gui.add_argument("--safe-mode", action="store_true", help="do not load user plugins/rules")
 
 
 def _add_save_commands(save_commands: argparse._SubParsersAction) -> None:
@@ -211,12 +221,12 @@ def _subcommand(args: argparse.Namespace) -> str | None:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Exit codes: 0 ok, 1 user error (typed errors print as ``[code] message``), 2 usage."""
-    args = build_parser().parse_args(sys.argv[1:] if argv is None else list(argv))
+    raw = sys.argv[1:] if argv is None else list(argv)
+    args = build_parser().parse_args(raw)
     if args.command is None:
         from src.app import main as gui_main  # noqa: PLC0415  (Qt is imported lazily)
 
-        gui_args = ["--data-dir", args.data_dir] if args.data_dir else []
-        return gui_main(gui_args)
+        return gui_main(raw)  # every option was validated above; src.app re-parses them
     handler = _HANDLERS.get((args.command, _subcommand(args)))
     if handler is None:
         return 0

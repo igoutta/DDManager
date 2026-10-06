@@ -41,12 +41,9 @@ packages = ["src"]
 target-version = "py314"
 line-length = 100
 src = [".", "tests"]
-extend-exclude = [
-  "research", "modding", "archive-*", "DD Manager Data",
-  # legacy app (deleted at cutover) and research scripts: never linted
-  "dd2.py", "categories.py", "localization.py", "paths.py", "state.py", "legacy_loadout.py",
-  "pyi_rth_tk_paths.py", "dson_*.py", "DD Parse.py", "DD extractor.py",
-]
+# research/ holds the historical DSON scripts (hardcoded paths, not maintained); modding/ are
+# sample mods used as test fixtures; archive-* and "DD Manager Data" are local scratch/runtime data.
+extend-exclude = ["research", "modding", "archive-*", "DD Manager Data"]
 
 [tool.ruff.lint]
 select = [

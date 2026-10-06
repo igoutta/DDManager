@@ -149,6 +149,16 @@ def test_patch_preview_blocking_needs_the_override_checkbox(qtbot, common):
     assert first_attr(dialog, ("decision", "patch_decision"))().override_errors is True
 
 
+def test_patch_preview_says_how_many_enabled_mods_are_missing_and_left_out(qtbot, common):
+    dialog = build(PatchPreviewDialog, vm=make_patch_vm(missing=2), **common)
+    qtbot.addWidget(dialog)
+    notes = [t for t in all_text(dialog) if "will not be written" in t]
+    assert len(notes) == 1 and "2 enabled mods" in notes[0], notes
+    plain = build(PatchPreviewDialog, vm=make_patch_vm(), **common)
+    qtbot.addWidget(plain)
+    assert not [t for t in all_text(plain) if "will not be written" in t]
+
+
 def test_patch_preview_non_blocking_has_no_override_checkbox(qtbot, common):
     dialog = build(PatchPreviewDialog, vm=make_patch_vm(), **common)
     qtbot.addWidget(dialog)

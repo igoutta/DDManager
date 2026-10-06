@@ -1,3 +1,3 @@
 """Single source of the application version."""
 
-__version__ = "0.3.0a1"
+__version__ = "0.3.0"

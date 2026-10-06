@@ -28,7 +28,6 @@ def non_default(tmp_path: Path) -> Settings:
             enabled=True, approved={"a.py": "ab" * 32}, disabled=frozenset({"b.py"})
         ),
         rules=PluginTrust(enabled=True, approved={"r.py": "cd" * 32}),
-        refuse_when_game_running=False,
         language="es",
     )
 
@@ -45,7 +44,23 @@ def test_defaults() -> None:
     assert settings.backups == RetentionPolicy(keep_last=20, keep_days=30, min_keep=3)
     assert settings.plugins == PluginTrust(enabled=False, approved={}, disabled=frozenset())
     assert settings.rules == PluginTrust()
-    assert settings.refuse_when_game_running is True
+    assert not hasattr(settings, "refuse_when_game_running"), "the guard is always on"
+
+
+def test_the_old_refuse_when_game_running_key_is_kept_as_an_unknown_key(tmp_path: Path) -> None:
+    """Early 0.3.0 builds wrote it: not a setting, not a finding, and it is written back."""
+    path = tmp_path / "settings.json"
+    path.write_text(
+        json.dumps({"format": "ddmanager.settings", "format_version": 1,
+                    "refuse_when_game_running": False, "language": "pt_PT"}),
+        "utf-8",
+    )  # fmt: skip
+    settings, findings = SettingsRepository(path).load()
+    assert findings == []
+    assert settings.language == "pt_PT"
+    assert dict(settings.extra) == {"refuse_when_game_running": False}
+    SettingsRepository(path).save(settings)
+    assert json.loads(path.read_text("utf-8"))["refuse_when_game_running"] is False
 
 
 def test_missing_file_gives_defaults_without_findings(tmp_path: Path) -> None:

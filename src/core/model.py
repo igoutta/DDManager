@@ -30,6 +30,9 @@ class MetadataSignature:
     """``"<xml count>:<newest mtime>"`` of ``localization/*.xml`` or ``""`` (``dd2.py:3358``)."""
     workshop_timeupdated: str
     """``ModSnapshot.acf_timeupdated``: the ACF ``timeupdated`` for the resolved workshop id."""
+    content_roots_mtime_ns: int | None = None
+    """Newest ``st_mtime_ns`` of the folder and its direct subdirectories: a file added to or
+    removed from a content root changes it.  ``None`` in legacy-shaped values and when unknown."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +67,8 @@ class ModSnapshot:
     """
     preview_path: PurePath | None
     preview_mtime_ns: int | None
+    content_roots_mtime_ns: int | None = None
+    """See :attr:`MetadataSignature.content_roots_mtime_ns`."""
 
 
 @dataclass(frozen=True, slots=True)

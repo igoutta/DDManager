@@ -4,9 +4,17 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from src.cli_context import Session, active_identities, open_session, print_findings, scan_mods
+from src.cli_context import (
+    Session,
+    active_identities,
+    missing_mods,
+    open_session,
+    print_findings,
+    scan_mods,
+)
 from src.core.ids import SaveIdentity
 from src.core.legacy_state import StateChanges
+from src.core.load_order import missing_active
 from src.services.backup import BackupReason, BackupRecord
 from src.services.errors import BackupNotFoundError, StateConflictError, UnacknowledgedRiskError
 from src.services.fsutil import atomic_write_bytes
@@ -52,6 +60,13 @@ def _print_plan(plan: PatchPlan) -> None:
 
 def _make_plan(session: Session, save_path: Path) -> PatchPlan:
     _, scan = scan_mods(session)
+    order = session.state.doc.order
+    skipped = missing_active(order, missing_mods(session, scan, order))
+    if skipped:
+        print(
+            f"{len(skipped)} enabled mod(s) are missing from disk and will not be written: "
+            + ", ".join(skipped)
+        )
     entries = active_identities(session, scan)
     return session.services.patcher.plan(save_path, entries)
 

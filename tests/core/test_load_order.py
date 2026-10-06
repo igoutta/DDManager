@@ -26,6 +26,7 @@ from src.core.load_order import (
     PrioritySetting,
     Reconciliation,
     applied_entries,
+    missing_active,
 )
 from src.core.reorder import move_block, move_down, move_to_bottom, move_to_top, move_up
 from tools.legacy_oracle import LegacyOracle
@@ -428,6 +429,28 @@ def test_applied_entries_lists_every_missing_identity() -> None:
     assert "charlie" in message
     assert "alpha" not in message, "only the missing ids are listed"
     assert "delta" not in message, "inactive entries need no identity"
+
+
+def test_applied_entries_leaves_mods_missing_from_disk_out_even_with_a_cached_identity() -> None:
+    """Contract §4: an enabled mod whose folder is gone is excluded, never written from a stale
+    identity; the others still need one."""
+    order = _order("alpha gone bravo lost* charlie")
+    identities = {
+        M("alpha"): SaveIdentity("111", SaveSource.STEAM),
+        M("gone"): SaveIdentity("Gone", SaveSource.LOCAL),
+        M("charlie"): SaveIdentity("C mod", SaveSource.LOCAL),
+    }
+    missing = frozenset({M("gone"), M("lost")})
+    with pytest.raises(ValueError, match="bravo"):
+        applied_entries(order, identities, missing=missing)
+    identities[M("bravo")] = SaveIdentity("B", SaveSource.LOCAL)
+    assert applied_entries(order, identities, missing=missing) == (
+        identities[M("alpha")],
+        identities[M("bravo")],
+        identities[M("charlie")],
+    )
+    assert missing_active(order, missing) == (M("gone"),), "disabled missing mods do not count"
+    assert missing_active(order, missing, present=True) == _ids("alpha bravo charlie")
 
 
 # ----------------------------------------------------------------- legacy parity

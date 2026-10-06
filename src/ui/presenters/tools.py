@@ -50,7 +50,7 @@ class ToolsPresenter(QObject):
             c.post("ui.notice.no_enabled", "warning")
             return None
         try:
-            entries = applied_entries(c.order(), c.identity_map())
+            entries = applied_entries(c.order(), c.identity_map(), missing=c.session.missing)
         except ValueError as exc:
             c.prompter_error("ui.error.identity_missing_code", str(exc))
             return None

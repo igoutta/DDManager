@@ -16,7 +16,7 @@ from src.services.bootstrap import Services
 from src.services.detection import InstallSnapshot, ManualPaths
 from src.services.ports import CancelToken
 from src.services.save_slots import SaveSlot
-from src.services.scan import ScanResult
+from src.services.scan import ScanResult, scan_with_cache
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,7 +68,7 @@ def choose_save(
 def run_scan(services: Services, settings: StateSettings, token: CancelToken) -> ScanOutcome:
     """Detect, scan, list the save slots and find the last backup (a worker-thread function)."""
     install = services.detector.detect(manual_paths(settings), optional_path(settings.mods_path))
-    scan = services.scanner.scan(install, cancel=token)
+    scan = scan_with_cache(services.scanner, services.cache, install, cancel=token)
     slots = tuple(services.slots.slots(install.save_files))
     save = choose_save(services, settings, install)
     record = services.backups.latest(save) if save is not None else None

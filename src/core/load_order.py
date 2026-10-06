@@ -192,11 +192,26 @@ class Reconciliation:
 
 
 def applied_entries(
-    order: LoadOrder, identities: Mapping[ModId, SaveIdentity]
+    order: LoadOrder,
+    identities: Mapping[ModId, SaveIdentity],
+    *,
+    missing: AbstractSet[ModId] = frozenset(),
 ) -> tuple[SaveIdentity, ...]:
-    """``active()`` mapped to save identities; ``ValueError`` names every id without one."""
-    active = order.active()
-    missing = [mod for mod in active if mod not in identities]
-    if missing:
-        raise ValueError(f"applied entries: no identity known for mods {', '.join(missing)}")
+    """``active()`` without ``missing`` mapped to save identities.
+
+    ``missing`` holds the mods whose folder is not on disk: they are never written into a save,
+    not even from a cached identity (contract §4).  ``ValueError`` names every other active id
+    without an identity.
+    """
+    active = missing_active(order, missing, present=True)
+    unknown = [mod for mod in active if mod not in identities]
+    if unknown:
+        raise ValueError(f"applied entries: no identity known for mods {', '.join(unknown)}")
     return tuple(identities[mod] for mod in active)
+
+
+def missing_active(
+    order: LoadOrder, missing: AbstractSet[ModId], *, present: bool = False
+) -> tuple[ModId, ...]:
+    """The active mods that are in ``missing`` (or, with ``present``, those that are not)."""
+    return tuple(mod for mod in order.active() if (mod in missing) != present)

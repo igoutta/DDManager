@@ -216,3 +216,54 @@ def test_usage_errors_exit_2(world: World) -> None:
         with pytest.raises(SystemExit) as caught:
             world.run(*argv)
         assert caught.value.code == 2, argv
+
+
+# ------------------------------------------------------------------ missing mods (contract §4)
+
+STALE_METADATA = {
+    "title": "Delta Mod",
+    "published_file_id": "",
+    "save_name": "Delta Mod",
+    "save_source": LOCAL,
+    "version_label": "",
+    "updated_label": "",
+    "black_reliquary": False,
+    "metadata_path": "",
+    "project_mtime": None,
+    "localization_signature": "",
+    "workshop_timeupdated": "",
+}
+
+
+def test_plan_and_patch_leave_out_an_enabled_mod_whose_folder_is_gone(
+    world: World, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The stale ``metadata`` identity of a missing mod is never written; the note says so."""
+    state_file = world.data / "mod_state.json"
+    state = json.loads(state_file.read_text("utf-8"))
+    state["order"] = ["bravo", "delta", "alpha", "charlie"]
+    state["enabled"]["delta"] = True
+    state["metadata"] = {"delta": STALE_METADATA}
+    state_file.write_text(json.dumps(state), "utf-8")
+    out = tmp_path / "plan.bin"
+    assert world.run("save", "plan", str(world.save), "--emit", str(out)) == 0
+    assert out.read_bytes() == DsonV1Format().write_applied(world.raw, world.wanted)
+    printed = capsys.readouterr().out
+    assert "1 enabled mod(s) are missing from disk and will not be written: delta" in printed
+    assert "Delta Mod" not in printed
+    assert world.run("save", "patch", str(world.save), *ACK_UNKNOWN) == 0
+    assert DsonV1Format().read_applied(world.save.read_bytes()) == world.wanted
+
+
+def test_scan_writes_the_mod_info_cache_and_the_next_scan_reads_it(
+    world: World, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert world.run("scan", "--json") == 0
+    first = json.loads(capsys.readouterr().out)
+    cache_file = world.data / "cache" / "mod_info.v1.json"
+    assert cache_file.is_file()
+    before = cache_file.read_bytes()
+    assert world.run("scan", "--json") == 0
+    second = json.loads(capsys.readouterr().out)
+    assert cache_file.read_bytes() == before, "nothing changed: nothing is rewritten"
+    assert second["mods"] == first["mods"]

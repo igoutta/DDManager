@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from src.__about__ import __version__
-from src.cli_context import Session, detect_install, open_session, print_findings, scan_mods
+from src.cli_context import Session, open_session, print_findings, scan_mods
 from src.core.diagnostics import DiagnosticsInput, diagnostics_lines
 from src.core.findings import Finding, Severity
 from src.core.ids import ModId
@@ -82,8 +82,7 @@ def _platform_label() -> str:
 
 
 def build_diagnostics(session: Session) -> DiagnosticsInput:
-    install = detect_install(session)
-    scan = session.services.scanner.scan(install)
+    install, scan = scan_mods(session)
     settings = session.state.doc.settings
     doc = session.state.doc
     priority = session.services.initial_settings.priority

@@ -4,9 +4,10 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.core.findings import Severity
+from src.core.findings import Finding, Severity
 from src.core.ids import ModId, SaveIdentity
-from src.core.load_order import applied_entries
+from src.core.load_order import applied_entries, missing_active
+from src.core.validation import ValidationReport
 from src.services.backup import GAME_IMAGES, BackupReason, BackupRecord
 from src.services.ports import CancelToken, RunState
 from src.services.save_patch import ACK_GAME_STATE_UNKNOWN, PatchPlan, PatchResult
@@ -59,16 +60,18 @@ class SaveFlows:
 
     def patch(self, save: Path | None = None) -> None:
         """Patch the selected save, or ``save`` (Patch other file / Patch latest detected)."""
+        c = self._c
         if save is None:
-            save = self._c.require_save()
+            save = c.require_save()
             if save is None:
                 return
+        c.validate_now()
         try:
-            entries = applied_entries(self._c.order(), self._c.identity_map())
+            entries = applied_entries(c.order(), c.identity_map(), missing=c.session.missing)
         except ValueError as exc:
-            self._c.prompter_error("ui.error.identity_missing", str(exc))
+            c.prompter_error("ui.error.identity_missing", str(exc))
             return
-        services = self._c.services
+        services = c.services
 
         def plan_task(_token: CancelToken) -> tuple[PatchPlan, RunState]:
             state = services.probe.find(GAME_IMAGES)
@@ -136,12 +139,22 @@ class SaveFlows:
         )
 
     def _preview(self, plan: PatchPlan, *, unknown: bool) -> PatchPreviewVM:
+        """The dialog's view: the Health Check's errors gate the primary button with the plan's.
+
+        The ERROR findings of the current report are listed with the plan's own findings and
+        ``blocking`` is true for either kind, so a missing or duplicated mod has to be overridden
+        knowingly ("Patch despite N errors").  Enabled mods absent from disk are counted: the
+        entries already leave them out.
+        """
         c = self._c
+        s = c.session
         before = tuple(self._label(e) for e in plan.before)
         after = tuple(self._label(e) for e in plan.after)
         acks = set(plan.required_acks)
         if unknown:
             acks.add(ACK_GAME_STATE_UNKNOWN)
+        report = ValidationReport(s.findings)
+        shown: tuple[Finding, ...] = (*_errors(report), *plan.findings)
         return PatchPreviewVM(
             save_path=plan.save_path,
             slot_label=c.slot_label(),
@@ -149,10 +162,15 @@ class SaveFlows:
             before=before,
             after=after,
             diff=_diff_vm(before, after),
-            findings=tuple(finding_vm(f, c.tr, c.has) for f in plan.findings),
+            findings=tuple(finding_vm(f, c.tr, c.has) for f in shown),
             required_acks=tuple((ack, f"ui.ack.{ack}") for ack in sorted(acks)),
-            blocking=any(f.severity >= Severity.ERROR for f in plan.findings),
+            blocking=report.blocking or any(f.severity >= Severity.ERROR for f in plan.findings),
+            missing_count=len(missing_active(s.order, s.missing)),
         )
+
+
+def _errors(report: ValidationReport) -> tuple[Finding, ...]:
+    return tuple(f for f in report.findings if f.severity >= Severity.ERROR)
 
 
 def last_save_settings(save: Path, backup: Path) -> dict[str, str]:

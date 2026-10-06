@@ -449,6 +449,7 @@
   "ui.patch.col.change": "Alteração",
   "ui.patch.col.entry": "Entrada",
   "ui.patch.errors": "{count} erros na ordem de carregamento",
+  "ui.patch.missing_excluded": "{count} mods ativados não estão no disco e não serão escritos na gravação",
   "ui.patch.override": "Aplicar apesar de {count} erros",
   "ui.patch.override.tip": "Assinale para permitir a aplicação enquanto a ordem de carregamento tiver erros",
   "ui.patch.save_path": "Ficheiro de gravação: {path}",

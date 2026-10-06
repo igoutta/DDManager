@@ -449,6 +449,7 @@
   "ui.patch.col.change": "Cambio",
   "ui.patch.col.entry": "Entrada",
   "ui.patch.errors": "{count} errores en el orden de carga",
+  "ui.patch.missing_excluded": "{count} mods activados no están en el disco y no se escribirán en el guardado",
   "ui.patch.override": "Aplicar a pesar de {count} errores",
   "ui.patch.override.tip": "Márcalo para permitir aplicar mientras el orden de carga tenga errores",
   "ui.patch.save_path": "Archivo de guardado: {path}",

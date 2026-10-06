@@ -2,6 +2,64 @@
 
 All notable changes to this project should be listed here.
 
+## v0.3.0 - 2026-10-06
+
+DD Manager is rewritten on PySide6 (Qt) in a layered `src/` package. Everything v0.2.1 could do is still there, the data folder and `mod_state.json` stay compatible, and the release is still `DD Manager.exe` in the same portable layout. Details: `docs/architecture.md` and `docs/migration.md`.
+
+### Added
+- A new PySide6 window: Available, Load Order and Details panes with drag and drop, multi-select, undo and redo, keyboard shortcuts (F1 lists them), a toolbar and menus, and the same dark Darkest Dungeon theme and category colors. Every action has a tooltip in all four languages.
+- An explicit load-order model: rank N is written as `applied_ugcs_1_0` entry N-1, and the first entry wins conflicts. The winning end is a setting (`View > Priority direction`) with a "verified" flag; it changes labels, Health Check verdicts and Auto-Sort placement, never the bytes written for an order.
+- A Health Check with ten finding ids (`core.missing_from_disk`, `core.duplicate_identity`, `core.multiple_overhauls`, `core.patch_before_target`, `core.file_overlap`, `core.declared_requires`, `core.declared_load_after`, `core.declared_incompatible`, `core.folder_key_collision`, `core.sort_cycle`), one-click fixes, a status-bar summary, and a rules file: shipped defaults plus your own `DD Manager Data/rules/rules.json`.
+- Tiers derived from categories, and an Auto-Sort that previews its result before it changes anything.
+- Profiles as plain, shareable `ddmanager.loadorder` JSON files (`*.loadorder.json`), a Profile Manager (Save Slots, Profiles, Backups), import of the order a save currently lists, and import of the legacy `dd_mod_loadout.json`.
+- Managed backups with retention (newest 20, newest 3, 30 days; configurable), a manual `Backup Save`, and a validated `Restore`.
+- A Patch Save preview (before and after, added, removed, moved, backup folder) with explicit acknowledgements for risks: Steam Cloud folder, duplicate save identity, a file not named `persist.game.json`, game state unknown. Health Check errors keep the Patch button disabled until *Patch despite N errors* is ticked. Patching refuses while the game is running (no setting turns that off) or when the save changed since the preview.
+- `Forget Missing Mods`: mods whose folder is gone stay in the load order as missing rows until you remove them. An enabled missing mod is an error and is left out of the patched save; it is never written from the old `metadata` cache.
+- A mod info cache (`DD Manager Data/cache/mod_info.v1.json`): a rescan re-reads only the folders whose `project.xml`, localization files, Workshop update time or top-level folders changed (347 Workshop mods: about 3.4 s down to 0.3 s on the maintainer's machine).
+- Opt-in plugins (`DD Manager Data/plugins/*.py`) and user rule modules (`DD Manager Data/rules/*.py`), each approved by SHA-256, plus `Settings` and `Plugin Approval` dialogs and `--safe-mode`.
+- A headless `ddmanager` command: `scan`, `save inspect|verify|plan|patch|backup|restore`, `profile list|save|export|import|apply`, `diagnostics`.
+- `--data-dir`, the `DDMANAGER_DATA_DIR` variable, `--lang`, `--log-level` and `--self-test` options.
+- A rotating log (`DD Manager Data/logs/ddmanager.log`), `faulthandler.log`, a crash dialog for the whole session, and a single-instance lock.
+- A `mod_state.pre-0.3.0.json` copy of your state, made once on the first 0.3.0 launch.
+- `docs/architecture.md`, `docs/migration.md` (compatibility contract, parity checklist, divergences, rollback) and `docs/load-order-semantics.md`, with a probe kit (`just probe-kit`) to confirm which end wins.
+- Development on uv with Python 3.14, ruff, ty, pytest and pytest-qt, a `justfile`, CI, and differential tests against the v0.2.1 code read from git.
+
+### Changed
+These are intentional differences from v0.2.1, each explained in `docs/migration.md`:
+- Enabling a mod appends it after the last enabled mod; v0.2.1 put it back in its remembered slot. Disabling a mod keeps its slot in `mod_state.json`.
+- Auto-Sort keeps the current order inside a tier instead of re-sorting alphabetically, and it works in precedence space: with "First entry wins" the strongest tier (Patch, then Unassigned) is at the top. `Unassigned` now sits next to `Patch` instead of being forced last.
+- Nothing re-sorts your load order at start-up. Scanning assigns categories to new mods only; it never moves them.
+- New mods are appended disabled and show a NEW pill for 15 seconds; v0.2.1 also sorted them to the top of the lists, so dragging during that window promoted them by accident.
+- Enabling and disabling use an explicit checkbox column (plus double-click, Space and Delete); the hidden 28 px click zone at the left edge is gone.
+- Backups go to `DD Manager Data/backups/` instead of next to the save, so Steam Cloud no longer syncs them. Backups made by v0.2.x beside the save are still listed and restorable. `last_backup_path` is still written, so v0.2.1's `Restore Last Backup` keeps working.
+- Dragging a mod down lands it at the drop indicator; v0.2.1 overshot.
+- Restore validates the backup, backs up the current save first, and writes atomically with a fresh modification time.
+- `Apply Order to Local Mod Folders` uses monotonic four-digit prefixes (`0001_`, `0002_`, ...), renames in two phases with rollback, and keeps nicknames. v0.2.1 lost them.
+- Importing a profile or load order matches mods by save identity `(name, source)`, then Workshop id, folder and unique title, not by name alone.
+- Mods that are no longer on disk are never pruned from your state (a briefly unmounted drive used to wipe categories and nicknames).
+- `mod_state.json` keeps all 22 legacy keys and gains `schema_version: 1`; `enabled` is written as an explicit true or false for every entry; `metadata` and `mod_paths` are left as they were (the new app reads mod folders itself; v0.2.1 rebuilds both). Writes are atomic and a corrupt file is preserved before it is replaced.
+- Detection looks for both `DarkestDungeon` and `Darkest Dungeon` folders and for a GOG `<root>/mods` folder; the first root wins a duplicate folder name and the others are reported as findings.
+- Row thumbnails are decoded by Qt (JPEG preview images now work) and cached in memory; `icon_cache/` is kept but no longer written.
+- There is no splash window. The scan runs in the background with a busy indicator, and the duplicate local and Workshop warning appears after the first scan.
+- `Generate Save Code` now JSON-escapes names.
+- The save slot's week ignores the backup files DD Manager itself writes beside a save.
+- The app now runs on Python 3.14 and PySide6; the zip keeps its name and layout (`DD Manager Portable <version>.zip`).
+
+### Fixed
+- The save codec no longer asks the UI who a mod is in the middle of patching, and the four copy-pasted serializers are one. Names in saves are read as UTF-8, so Chinese, Japanese and other non-ASCII names are no longer silently dropped.
+- The validator now also checks the header magic, strictly increasing offsets and exact child counts (reported by `ddmanager save inspect`); a patched save is never allowed to be worse than the file it came from, and the written entries must read back identically.
+- `mod_state.json` writes can no longer be cut in half or rotate a corrupt file over the good backup.
+- Newly discovered mods are always added disabled and every reader treats a missing flag the same way; v0.2.1 defaulted to disabled on discovery but enabled everywhere it read.
+- Errors after start-up are logged and shown instead of vanishing in the windowed build.
+
+### Removed
+- The Tkinter application and its modules: `dd2.py`, `categories.py`, `localization.py`, `paths.py`, `state.py`, `legacy_loadout.py`, plus `pyi_rth_tk_paths.py`, `build.ps1` and `startup_title.png`. The behavior they implemented lives in `src/` and `packaging/`; v0.2.1 stays available as a release and as the git tag `v0.2.1`.
+- The hidden `Start New Campaign` prototype and the startup splash.
+- The DSON research scripts (`dson_*.py`, `DD Parse.py`, `DD extractor.py`, `replacement_list.json`) moved to `research/`; they are historical, hardcode paths and are not maintained.
+
+### Rolling back
+If 0.3.0 does not work for you, extract the v0.2.1 release over `DD Manager Portable` (or run it from another folder next to the same `DD Manager Data`). It reads the same `mod_state.json`, and your original file is also kept as `mod_state.pre-0.3.0.json`. v0.2.1 prunes entries for mods that are not on disk and rebuilds its own metadata, as it always did. See `docs/migration.md#rollback-procedure`.
+
 ## v0.2.1 - 2026-06-01
 
 ### Added

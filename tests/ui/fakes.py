@@ -113,7 +113,12 @@ class FakeScanner:
         self.result = self._result(catalog)
 
     def scan(
-        self, install: object, *, cancel: object = None, progress: object = None
+        self,
+        install: object,
+        *,
+        cache: object = None,
+        cancel: object = None,
+        progress: object = None,
     ) -> ScanResult:
         self.calls += 1
         return self.result

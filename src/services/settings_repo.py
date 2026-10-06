@@ -21,7 +21,7 @@ FORMAT: Final = "ddmanager.settings"
 FORMAT_VERSION: Final = 1
 _KNOWN_KEYS: Final = frozenset({
     "format", "format_version", "priority", "active_profile", "selected_save", "backups",
-    "plugins", "rules", "refuse_when_game_running", "language",
+    "plugins", "rules", "language",
 })  # fmt: skip
 
 
@@ -52,10 +52,10 @@ class Settings:
     backups: RetentionPolicy = field(default_factory=RetentionPolicy)
     plugins: PluginTrust = field(default_factory=PluginTrust)
     rules: PluginTrust = field(default_factory=PluginTrust)
-    refuse_when_game_running: bool = True
     language: str | None = None
     extra: tuple[tuple[str, JsonValue], ...] = ()
-    """Unknown top-level keys, written back untouched."""
+    """Unknown top-level keys, written back untouched (``refuse_when_game_running`` of early
+    0.3.0 builds lands here: the game-running guard is always on)."""
 
 
 # ---------------------------------------------------------------- typed readers
@@ -176,7 +176,6 @@ def parse_settings(obj: object) -> tuple[Settings, list[Finding]]:
         backups=_retention(root, findings),
         plugins=_trust(root, "plugins", findings),
         rules=_trust(root, "rules", findings),
-        refuse_when_game_running=root.boolean("refuse_when_game_running", default=True),
         language=root.text("language"),
         extra=tuple((key, value) for key, value in obj.items() if key not in _KNOWN_KEYS),
     )
@@ -209,7 +208,6 @@ def render_settings(settings: Settings) -> str:
         },
         "plugins": _trust_json(settings.plugins),
         "rules": _trust_json(settings.rules),
-        "refuse_when_game_running": settings.refuse_when_game_running,
         "language": settings.language,
     }
     obj.update(dict(settings.extra))

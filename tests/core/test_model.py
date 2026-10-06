@@ -107,7 +107,7 @@ def test_parse_modfiles_txt_on_the_sample_mods(sample_mods_dir: Path) -> None:
 # ----------------------------------------------------------------- value types
 
 
-def test_metadata_signature_is_the_legacy_four_field_key() -> None:
+def test_metadata_signature_is_the_legacy_four_field_key_plus_the_content_root_stamp() -> None:
     sig = MetadataSignature(
         metadata_path="c:\\mods\\x",
         project_mtime=1.5,
@@ -119,7 +119,10 @@ def test_metadata_signature_is_the_legacy_four_field_key() -> None:
         "project_mtime",
         "localization_signature",
         "workshop_timeupdated",
+        "content_roots_mtime_ns",
     ]
+    assert sig.content_roots_mtime_ns is None, "a legacy-shaped value still constructs"
+    assert sig != dataclasses.replace(sig, content_roots_mtime_ns=1)
     assert hasattr(sig, "__slots__")
     with pytest.raises(dataclasses.FrozenInstanceError):
         sig.project_mtime = 2.0  # ty: ignore[invalid-assignment]
@@ -173,6 +176,7 @@ def test_mod_snapshot_is_frozen_slotted_and_holds_no_derivations() -> None:
         "acf_timeupdated",
         "preview_path",
         "preview_mtime_ns",
+        "content_roots_mtime_ns",
     }
     assert not names & {"title", "tier", "category", "nickname", "enabled", "save_identity"}
     with pytest.raises(dataclasses.FrozenInstanceError):

@@ -28,6 +28,11 @@ class PatchPreviewDialog(QDialog):
         layout.addWidget(self._path_label(tr("ui.patch.save_path", path=vm.save_path)))
         layout.addWidget(self._path_label(tr("ui.patch.backup_dir", path=vm.backup_dir)))
         layout.addWidget(QLabel(self._summary()))
+        if vm.missing_count:
+            missing = QLabel(tr("ui.patch.missing_excluded", count=vm.missing_count))
+            missing.setWordWrap(True)
+            set_role(missing, "warning")
+            layout.addWidget(missing)
         layout.addWidget(self._diff_table(), 1)
         self.errors = self._findings_list(layout)
         self.ack_boxes = self._ack_boxes(layout)

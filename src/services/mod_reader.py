@@ -12,14 +12,15 @@ from pathlib import Path
 
 from src.core.identity import resolve_workshop_id
 from src.core.ids import ModId, SourceKind
-from src.core.model import ModSnapshot, normalize_manifest_path
+from src.core.model import MetadataSignature, ModSnapshot, normalize_manifest_path
 from src.core.project_xml import (
     ProjectInfo,
     localization_entries,
     parse_project,
     parse_xml_forgiving,
 )
-from src.services.sources import ReadContext
+from src.services.sources import ModLocation, ReadContext
+from src.services.steam_locations import is_workshop_content_path, workshop_id_for_folder
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,25 @@ def _mtime(path: Path) -> float | None:
         return path.stat().st_mtime
     except OSError:
         return None
+
+
+def content_roots_mtime_ns(path: Path) -> int | None:
+    """Newest ``st_mtime_ns`` of ``path`` and its direct subdirectories, ``None`` if unreadable.
+
+    A directory's mtime changes when an entry is created, deleted or renamed directly in it, so
+    this stamp notices files added to or removed from a content root without walking the tree.
+    """
+    try:
+        stamps = [path.stat().st_mtime_ns]
+        stamps.extend(
+            child.stat().st_mtime_ns
+            for child in path.iterdir()
+            if child.is_dir(follow_symlinks=False)
+        )
+    except OSError as exc:
+        log.debug("cannot stat the content roots of %s: %s", path, exc)
+        return None
+    return max(stamps)
 
 
 @dataclass(slots=True)
@@ -187,4 +207,32 @@ def snapshot_mod_folder(
         acf_timeupdated=ctx.acf_times.get(resolved, "") if resolved else "",
         preview_path=preview,
         preview_mtime_ns=_preview_mtime_ns(preview),
+        content_roots_mtime_ns=content_roots_mtime_ns(path),
+    )
+
+
+def signature_of(location: ModLocation, ctx: ReadContext) -> MetadataSignature:
+    """The metadata-cache key of a folder from stats and ``project.xml`` alone (no walk).
+
+    Equals the ``signature`` of the ``ModInfo`` that :func:`snapshot_mod_folder` leads to for
+    the same folder state, so ``MetadataCache.lookup`` can decide freshness before any reading:
+    a workshop root (``steamapps/workshop/content/262060``) is read as the Steam source does,
+    anything else as the local source does.  ``project.xml`` is parsed only under the workshop,
+    where the resolved id selects the ACF ``timeupdated``.
+    """
+    path = location.path
+    under_workshop = is_workshop_content_path(path)
+    project_bytes = read_project_bytes(path)
+    project = parse_project(project_bytes) if under_workshop and project_bytes else None
+    resolved = resolve_workshop_id(
+        under_workshop=under_workshop,
+        path_workshop_id=workshop_id_for_folder(path, under_workshop=under_workshop),
+        project=project,
+    )
+    return MetadataSignature(
+        metadata_path=str(path),
+        project_mtime=_mtime(path / "project.xml") if project_bytes is not None else None,
+        localization_signature=_read_localization(path, deep=False)[1],
+        workshop_timeupdated=ctx.acf_times.get(resolved, "") if resolved else "",
+        content_roots_mtime_ns=content_roots_mtime_ns(path),
     )

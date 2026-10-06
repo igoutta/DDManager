@@ -244,11 +244,15 @@ class MainController(ControllerCommands):
 
     # ================================================================== state file
 
-    def flush(self) -> bool:
-        """Write pending changes and run a due validation now (tests, shutdown)."""
+    def validate_now(self) -> None:
+        """Run a due (debounced) validation at once, so the findings match the current order."""
         if self._validate_timer.isActive():
             self._validate_timer.stop()
             self.validate()
+
+    def flush(self) -> bool:
+        """Write pending changes and run a due validation now (tests, shutdown)."""
+        self.validate_now()
         return self._sync.flush()
 
     def reload_state(self) -> None:

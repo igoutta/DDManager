@@ -89,6 +89,7 @@ def test_file_format(cache_file: Path) -> None:
         ("project_mtime", None),
         ("localization_signature", "3:1710504000"),
         ("workshop_timeupdated", "17317"),
+        ("content_roots_mtime_ns", 1710504000123456789),
     ],
 )
 def test_each_signature_field_invalidates(field: str, value: object, cache_file: Path) -> None:
@@ -188,3 +189,31 @@ def test_save_is_atomic(cache_file: Path, monkeypatch: pytest.MonkeyPatch) -> No
         cache.save()
     assert cache_file.read_bytes() == original
     assert sorted(p.name for p in cache_file.parent.iterdir()) == ["mod_info.v1.json"]
+
+
+def test_a_legacy_shaped_entry_without_the_content_root_stamp_still_loads(cache_file: Path) -> None:
+    """Entries written before ``content_roots_mtime_ns`` existed hit for the same four fields and
+    miss as soon as a stamp is known (the next commit upgrades them)."""
+    info = rich_info()
+    cache = fresh(cache_file)
+    cache.commit({key_of(info): info})
+    cache.save()
+    doc = json.loads(cache_file.read_text("utf-8"))
+    entry = doc["entries"][key_of(info)]
+    del entry["signature"]["content_roots_mtime_ns"]
+    del entry["info"]["signature"]["content_roots_mtime_ns"]
+    cache_file.write_text(json.dumps(doc), "utf-8")
+    loaded = fresh(cache_file)
+    assert loaded.lookup(key_of(info), info.signature) == info
+    stamped = dataclasses.replace(info.signature, content_roots_mtime_ns=5)
+    assert loaded.lookup(key_of(info), stamped) is None
+
+
+def test_commit_reports_whether_anything_changed(cache_file: Path) -> None:
+    first, second = rich_info("a", "C:/mods/a"), rich_info("b", "C:/mods/b")
+    cache = fresh(cache_file)
+    assert cache.commit({key_of(first): first, key_of(second): second}) is True
+    assert cache.commit({}, keep=[key_of(first), key_of(second)]) is False, "nothing to sweep"
+    assert cache.commit({}) is False
+    assert cache.commit({}, keep=[key_of(first)]) is True, "an entry was dropped"
+    assert len(cache) == 1

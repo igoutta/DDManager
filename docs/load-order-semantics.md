@@ -19,10 +19,11 @@ Each entry has two string fields:
 **Decision (maintainer, 2026-09-29): the first entry wins.** When two enabled mods ship the same
 file, the mod with the lower rank (closer to the top) is the one the game uses.
 
-The app stores this as a setting, not a constant:
+The app stores this as a setting, not a constant (`DD Manager Data/settings.json`; change it in
+`View > Priority direction` or `Tools > Settings...`):
 
 ```json
-{ "load_order": { "priority_direction": "first_wins", "verified": true } }
+{ "priority": { "direction": "first_wins", "verified": true } }
 ```
 
 Everything that depends on direction (the "wins conflicts" label, `core.file_overlap`,
@@ -52,7 +53,7 @@ Protocol (each step is one game launch):
 5. Check whether B's unlisted file took effect (whether the game loads only `modfiles.txt`
    entries).
 
-Record the outcome in the table below and set `verified` accordingly in Settings ▸ Load order.
+Record the outcome in the table below and set `verified` accordingly (`View > Priority direction > Direction verified`, or `Tools > Settings...`).
 
 ## Results
 

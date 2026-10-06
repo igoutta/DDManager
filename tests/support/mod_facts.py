@@ -461,6 +461,12 @@ def snapshot_from_dir(
         acf_timeupdated=acf_timeupdated,
         preview_path=PurePath(str(preview)) if has_preview else None,
         preview_mtime_ns=preview.stat().st_mtime_ns if has_preview else None,
+        content_roots_mtime_ns=max(
+            [
+                folder.stat().st_mtime_ns,
+                *(c.stat().st_mtime_ns for c in folder.iterdir() if c.is_dir()),
+            ]
+        ),
     )
 
 

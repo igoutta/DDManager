@@ -1,11 +1,13 @@
 """On-disk cache of derived ``ModInfo`` (``<data>/cache/mod_info.v1.json``).
 
 A lookup is pure (it never mutates the cache); the caller commits explicitly and then saves.
-Entries are validated by ``MetadataSignature``; anything unreadable is a miss.
+Entries are validated by ``MetadataSignature``; anything unreadable is a miss.  Lookups, commits
+and saves are serialised by a lock: scans run in worker threads and may overlap for a moment.
 """
 
 import json
 import logging
+import threading
 from collections.abc import Collection, Mapping
 from dataclasses import asdict
 from pathlib import Path, PurePath
@@ -105,6 +107,7 @@ class MetadataCache:
     def __init__(self, path: Path, entries: dict[str, dict[str, Any]] | None = None) -> None:
         self._path = path
         self._entries: dict[str, dict[str, Any]] = entries or {}
+        self._lock = threading.Lock()
 
     @classmethod
     def load(cls, path: Path) -> tuple[MetadataCache, list[Finding]]:
@@ -125,7 +128,8 @@ class MetadataCache:
 
     def lookup(self, key: str, signature: MetadataSignature) -> ModInfo | None:
         """The cached info when its stored signature equals ``signature``; never mutates."""
-        entry = self._entries.get(key)
+        with self._lock:
+            entry = self._entries.get(key)
         if entry is None:
             return None
         try:
@@ -138,16 +142,26 @@ class MetadataCache:
 
     def commit(
         self, updates: Mapping[str, ModInfo], *, keep: Collection[str] | None = None
-    ) -> None:
-        """Store ``updates``; with ``keep`` every other entry is dropped (a stale-entry sweep)."""
-        for key, info in updates.items():
-            self._entries[key] = {"signature": asdict(info.signature), "info": info_to_json(info)}
-        if keep is not None:
-            wanted = set(keep) | set(updates)
-            self._entries = {k: v for k, v in self._entries.items() if k in wanted}
+    ) -> bool:
+        """Store ``updates``; with ``keep`` every other entry is dropped (a stale-entry sweep).
+
+        True when an entry was added, replaced or dropped (so a save is worth its write).
+        """
+        with self._lock:
+            entries = dict(self._entries)
+            for key, info in updates.items():
+                entries[key] = {"signature": asdict(info.signature), "info": info_to_json(info)}
+            if keep is not None:
+                wanted = set(keep) | set(updates)
+                entries = {k: v for k, v in entries.items() if k in wanted}
+            changed = bool(updates) or entries.keys() != self._entries.keys()
+            self._entries = entries
+        return changed
 
     def save(self) -> None:
-        document = {"format": FORMAT, "format_version": FORMAT_VERSION, "entries": self._entries}
+        with self._lock:
+            entries = dict(self._entries)
+        document = {"format": FORMAT, "format_version": FORMAT_VERSION, "entries": entries}
         self._path.parent.mkdir(parents=True, exist_ok=True)
         atomic_write_text(self._path, json.dumps(document, ensure_ascii=False, indent=None))
 

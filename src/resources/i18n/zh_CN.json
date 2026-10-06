@@ -449,6 +449,7 @@
   "ui.patch.col.change": "变化",
   "ui.patch.col.entry": "条目",
   "ui.patch.errors": "加载顺序中有 {count} 个错误",
+  "ui.patch.missing_excluded": "{count} 个已启用的模组不在磁盘上，不会写入存档",
   "ui.patch.override": "尽管有 {count} 个错误仍然修补",
   "ui.patch.override.tip": "勾选后，即使加载顺序存在错误也允许修补",
   "ui.patch.save_path": "存档文件：{path}",

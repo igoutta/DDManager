@@ -62,6 +62,11 @@ probe-kit dest:
 build:
     ./packaging/build.ps1
 
+# Self-test the already-built frozen exe (dist/DD Manager/DD Manager.exe --self-test); run `just build` first
+[windows]
+build-check:
+    ./packaging/build.ps1 -SelfTestOnly
+
 # Remove build artifacts and caches (never touches "DD Manager Data")
 clean:
     uv run python tools/clean.py

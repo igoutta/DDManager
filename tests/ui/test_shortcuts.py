@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtTest import QTest
+
 from src.ui.widgets.mod_views import LoadOrderView
 
 MOVE_KEYS = {

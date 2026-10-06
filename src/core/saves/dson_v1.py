@@ -24,7 +24,7 @@ class DsonV1Format:
     anchor_block: ClassVar[str] = "persistent_ugcs"
 
     def sniff(self, raw: bytes) -> bool:
-        """64+ bytes with ``header_length == 64`` and ``meta1_offset == 64`` (magic NOT required)."""
+        """64+ bytes, ``header_length == 64`` and ``meta1_offset == 64`` (magic NOT required)."""
         if len(raw) < dson.HEADER_SIZE:
             return False
         header_length = struct.unpack_from("<i", raw, 8)[0]
@@ -85,7 +85,9 @@ class DsonV1Format:
                 offset=entry.offset,
             )
 
-    def _rewrite(self, doc: dson.DsonDocument, wanted: tuple[SaveIdentity, ...]) -> dson.DsonDocument:
+    def _rewrite(
+        self, doc: dson.DsonDocument, wanted: tuple[SaveIdentity, ...]
+    ) -> dson.DsonDocument:
         """Replace the root's applied block, or insert one before the anchor block."""
         target = doc.find_child(0, self.applied_block)
         if target is not None:
