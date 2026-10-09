@@ -28,10 +28,8 @@ TARGET = ROOT / "packaging" / "ddmanager.ico"
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 
-def _flame(
-    cx: float, bottom: float, height: float, half_width: float, lean: float
-) -> QPainterPath:
-    """A teardrop flame in unit coordinates: wide at ``bottom``, tip ``height`` above, leaning right."""
+def _flame(cx: float, bottom: float, height: float, half_width: float, lean: float) -> QPainterPath:
+    """A teardrop tongue: wide at ``bottom``, tip ``height`` above it, leaning ``lean`` right."""
     top = bottom - height
     path = QPainterPath()
     path.moveTo(cx, bottom)
