@@ -15,7 +15,7 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from PySide6.QtCore import QByteArray, QLibraryInfo, QTranslator
-from PySide6.QtGui import QGuiApplication, QImageReader
+from PySide6.QtGui import QGuiApplication, QIcon, QImageReader
 from PySide6.QtSvg import QSvgRenderer
 
 import src
@@ -140,6 +140,11 @@ def check_icons() -> list[str]:
         for item in icons
         if not QSvgRenderer(QByteArray(item.read_bytes())).isValid()
     ]
+    app_icon = _resource_root() / "icons" / "app.ico"
+    if not app_icon.is_file():
+        problems.append("icon app.ico is not bundled")
+    elif QIcon(str(app_icon)).isNull():
+        problems.append("icon app.ico cannot be loaded")
     return problems
 
 

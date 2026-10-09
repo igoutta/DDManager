@@ -17,7 +17,7 @@ from src.ui.dialogs.shortcuts_dialog import ShortcutsDialog
 from src.ui.i18n import Translator
 from src.ui.theme.tokens import DENSITY, ThemeTokens
 from src.ui.viewmodels import NoticeVM, StatusVM
-from src.ui.widgets.actions import IconSet
+from src.ui.widgets.actions import IconSet, application_icon
 from src.ui.widgets.available_pane import AvailablePane
 from src.ui.widgets.details_pane import DetailsPane
 from src.ui.widgets.health_dock import HealthDock
@@ -294,6 +294,8 @@ class MainWindow(QMainWindow):
     def retranslate_ui(self) -> None:
         tr = self.translator.tr
         self.setWindowTitle(tr("app_title"))
+        if self.windowIcon().isNull():
+            self.setWindowIcon(application_icon())
         self.hub.retranslate()
         self.chrome.retranslate()
         self.available.retranslate_ui()

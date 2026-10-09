@@ -111,3 +111,10 @@ def make_action(spec: ActionSpec, parent: QObject, tr: Tr, icons: IconSet) -> QA
     action.triggered.connect(lambda _checked=False: spec.slot())
     retranslate_action(action, tr)
     return action
+
+
+def application_icon() -> QIcon:
+    """The app icon (``src/resources/icons/app.ico``): title bars, taskbar, dialogs."""
+    path = resources.files("src") / "resources" / "icons" / "app.ico"
+    with resources.as_file(path) as real:
+        return QIcon(str(real))

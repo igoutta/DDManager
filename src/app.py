@@ -31,7 +31,7 @@ from src.ui.i18n import Translator
 from src.ui.theme.theme import apply_theme
 from src.ui.theme.tokens import DARK_TOKENS
 from src.ui.thumbnails import ThumbnailProvider
-from src.ui.widgets.actions import IconSet
+from src.ui.widgets.actions import IconSet, application_icon
 from src.ui.widgets.main_window import MainWindow
 from src.ui.widgets.manage_actions import offer_plugin_approval
 from src.ui.widgets.prompter import QtPrompter
@@ -71,6 +71,7 @@ def create_application() -> QApplication:
     app.setApplicationName(APP_NAME)
     app.setOrganizationName(APP_NAME)
     app.setApplicationVersion(__version__)
+    app.setWindowIcon(application_icon())
     return app
 
 
