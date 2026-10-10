@@ -99,7 +99,10 @@ def retranslate_action(action: QAction, tr: Tr) -> None:
 
 
 def make_action(spec: ActionSpec, parent: QObject, tr: Tr, icons: IconSet) -> QAction:
-    action = QAction(icons.get(spec.icon, "amber" if spec.danger else "text"), "", parent)
+    # A checkable action carries no icon: in a menu the icon would replace the check or radio
+    # indicator, which is the only thing that tells the user which choice is current.
+    icon = QIcon() if spec.checkable else icons.get(spec.icon, "amber" if spec.danger else "text")
+    action = QAction(icon, "", parent)
     action.setObjectName(f"act_{spec.key}")
     action.setProperty("ddm_key", spec.key)
     action.setCheckable(spec.checkable)

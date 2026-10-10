@@ -311,6 +311,7 @@
   "ui.details.source": "来源：{source}",
   "ui.details.tag.tip": "标签：{tag}",
   "ui.details.tier": "层级：{tier}（{category}）",
+  "ui.details.tier_only": "层级：{tier}",
   "ui.details.version": "版本 / 更新：{version}",
   "ui.diag.copy": "复制",
   "ui.diag.copy.tip": "将整份报告复制到剪贴板",

@@ -23,7 +23,9 @@ from src.ui.widgets.mod_views import ModListView, select_ids, selected_ids
 from src.ui.widgets.tier_chips import ChipSpec, TierChips
 
 DEBOUNCE_MS = 150
+MIN_WIDTH_PX = 280
 _ALL_SOURCES = ""
+_COMBO_CHARS = 10
 
 
 class AvailablePane(QWidget):
@@ -65,12 +67,20 @@ class AvailablePane(QWidget):
         self.search.setClearButtonEnabled(True)
         self.chips = TierChips(self)
         self.source_combo = QComboBox(self)
+        # The combo yields first: its minimum is a few characters, so the checkbox next to it
+        # always keeps its full width (it was clipped at the pane's edge before).
+        self.source_combo.setSizeAdjustPolicy(
+            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
+        )
+        self.source_combo.setMinimumContentsLength(_COMBO_CHARS)
         self.show_active = QCheckBox(self)
         self.count_label = QLabel(self)
         set_role(self.count_label, "muted")
         row = QHBoxLayout()
+        row.setContentsMargins(0, 0, tokens.spacing.xs, 0)
         row.addWidget(self.source_combo, 1)
-        row.addWidget(self.show_active)
+        row.addWidget(self.show_active, 0)
+        self.setMinimumWidth(MIN_WIDTH_PX)
         self.view = ModListView(tr, self)
         self.view.setModel(self._c.available_proxy)
         self.delegate = ModRowDelegate(self.view, self._c.thumbnails, tokens, tr)

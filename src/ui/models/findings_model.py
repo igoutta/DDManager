@@ -70,8 +70,12 @@ class FindingsModel(QAbstractItemModel):
 
     # ---- mutation ---------------------------------------------------------------
     def set_findings(self, findings: Iterable[FindingVM]) -> None:
+        """Replace the findings; an identical set is a no-op (no reset, the view keeps still)."""
+        new = tuple(findings)
+        if new == self._all:
+            return
         self.beginResetModel()
-        self._all = tuple(findings)
+        self._all = new
         self._rebuild()
         self.endResetModel()
 

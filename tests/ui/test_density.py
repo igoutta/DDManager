@@ -87,11 +87,15 @@ def test_the_load_order_rows_take_the_mode_height_and_icon_size(rig, mode):
 
 
 @pytest.mark.parametrize("mode", MODES)
-def test_the_available_rows_take_the_mode_height(rig, mode):
+def test_the_available_rows_take_the_mode_height_but_never_less_than_two_lines(rig, mode):
+    from src.ui.widgets.delegates import text_block_height
+
     choose(rig, mode)
     view = rig.window.available.view
     rig.window.show()
-    assert view.sizeHintForRow(0) == ROW_PX[mode]
+    two_lines = text_block_height(view.font())
+    assert view.sizeHintForRow(0) == max(ROW_PX[mode], two_lines)
+    assert view.sizeHintForRow(0) >= two_lines, "title + subtitle must never overlap the next row"
 
 
 @pytest.mark.parametrize("mode", MODES)

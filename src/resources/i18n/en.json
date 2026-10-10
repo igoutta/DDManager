@@ -311,6 +311,7 @@
   "ui.details.source": "Source: {source}",
   "ui.details.tag.tip": "Tag: {tag}",
   "ui.details.tier": "Tier: {tier} ({category})",
+  "ui.details.tier_only": "Tier: {tier}",
   "ui.details.version": "Version / updated: {version}",
   "ui.diag.copy": "Copy",
   "ui.diag.copy.tip": "Copy the whole report to the clipboard",

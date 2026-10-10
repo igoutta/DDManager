@@ -59,7 +59,10 @@ def test_the_load_order_survives_the_round_trip(original) -> None:
 def test_scan_discovers_every_mod_the_state_knows_paths_for(original) -> None:
     clock = FixedClock(datetime.now(UTC).astimezone())
     result = ScanService(BUILTIN_SOURCES, clock=clock).scan(make_install([Path(MODS_ROOT)]))
-    known = set(original.get("mod_paths", {}))  # type: ignore[call-overload]
+    paths = original.get("mod_paths", {})  # type: ignore[call-overload]
+    # mod_paths may still name mods that were uninstalled since the state was written (the app
+    # never prunes); only folders that exist today must be discovered.
+    known = {key for key, path in paths.items() if Path(str(path)).is_dir()}
     assert known - set(result.mods) == set()
 
 

@@ -311,6 +311,7 @@
   "ui.details.source": "Origem: {source}",
   "ui.details.tag.tip": "Etiqueta: {tag}",
   "ui.details.tier": "Nível: {tier} ({category})",
+  "ui.details.tier_only": "Nível: {tier}",
   "ui.details.version": "Versão / atualização: {version}",
   "ui.diag.copy": "Copiar",
   "ui.diag.copy.tip": "Copia o relatório completo para a área de transferência",

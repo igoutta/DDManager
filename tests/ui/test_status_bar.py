@@ -101,3 +101,43 @@ def test_retranslation_keeps_the_state(main_window, bar, translator):
     translator.set_language("es_ES")
     translator.set_language("en")
     assert any("never" in t.lower() for t in texts(bar))
+
+
+# ---------------------------------------------------------------------------- geometry
+
+
+def rects(bar):
+    names = ("profile", "save_path", "backup", "counts")
+    return [(n, getattr(bar, n).geometry()) for n in names if getattr(bar, n).isVisible()]
+
+
+def assert_apart(bar):
+    items = rects(bar)
+    assert len(items) == 4
+    for i, (n1, r1) in enumerate(items):
+        for n2, r2 in items[i + 1 :]:
+            assert not r1.intersects(r2), (n1, r1, n2, r2)
+
+
+def test_permanent_widgets_never_overlap_even_with_a_long_path(main_window, bar):
+    from PySide6.QtCore import QCoreApplication
+
+    push(main_window, save_path=LONG, last_backup=stamp(16 * 24 * 60), profile_label="Slot 3 · w25")
+    QCoreApplication.processEvents()
+    assert_apart(bar)
+    path = bar.save_path
+    assert 160 <= path.width() <= 420
+    assert path.minimumSizeHint().width() >= 160
+    assert path.sizeHint().width() <= 420
+    assert "…" in path.elided_text()
+
+
+def test_a_narrow_window_keeps_them_apart_too(main_window, bar, qtbot):
+    from PySide6.QtCore import QCoreApplication
+
+    push(main_window, save_path=LONG, last_backup=stamp(5), profile_label="Slot 3 · week 25")
+    main_window.resize(900, 600)
+    qtbot.wait(30)
+    QCoreApplication.processEvents()
+    assert_apart(bar)
+    assert bar.save_path.width() >= 160

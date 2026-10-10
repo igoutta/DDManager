@@ -94,7 +94,11 @@ class ModListView(QListView):
         self.setDropIndicatorShown(True)
         self.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        # Every row has the delegate's (density-dependent) height; the delegate elides the text,
+        # so rows are always exactly viewport-wide and nothing ever scrolls sideways.
         self.setUniformItemSizes(True)
+        self.setTextElideMode(Qt.TextElideMode.ElideRight)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
 
     def set_key_handler(self, key: int, handler: Callable[[], None]) -> None:

@@ -1,15 +1,20 @@
-"""The right pane: everything known about the selected mod (read-only, from view models)."""
+"""The right pane: everything known about the selected mod (read-only, from view models).
 
+A stacked widget holds three pages: the placeholder, the multi-selection summary and the
+single-mod sheet.  The sheet keeps one widget per field and only updates their texts, so
+selecting mod after mod never leaves anything behind; the two variable parts (tags, findings)
+are rebuilt with :func:`clear_layout`, which hides what it removes before Qt deletes it.
+"""
+
+from collections.abc import Callable
 from typing import Final
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
-    QLabel,
-    QLayout,
     QScrollArea,
+    QStackedWidget,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -22,35 +27,27 @@ from src.ui.i18n import Translator
 from src.ui.theme.theme import set_role
 from src.ui.viewmodels import DetailsVM, FindingVM, MultiDetailsVM
 from src.ui.widgets.actions import IconSet
+from src.ui.widgets.details_widgets import ThumbLabel, clear_layout, make_label, tag_chip
 from src.ui.widgets.elided_label import ElidedLabel
 from src.ui.widgets.tier_chips import FlowLayout
 
+type Tr = Callable[..., str]
+
 THUMB_PX: Final = 256
+MIN_WIDTH_PX: Final = 220
 _SEVERITY_TONE: Final = {
     Severity.ERROR: "error",
     Severity.WARNING: "warning",
     Severity.INFO: "info",
 }
+_BUTTONS: Final = (
+    ("copy", "ui.details.copy", "ui.details.copy.tip", "check"),
+    ("folder", "ui.details.open_folder", "ui.details.open_folder.tip", "folder"),
+    ("page", "ui.details.open_page", "ui.details.open_page.tip", "link"),
+)
 
 
-def _clear(layout: QLayout) -> None:
-    while (item := layout.takeAt(0)) is not None:
-        widget = item.widget()
-        if widget is not None:
-            widget.deleteLater()
-
-
-def _label(text: str, role: str | None = None, *, selectable: bool = True) -> QLabel:
-    label = QLabel(text)
-    label.setWordWrap(True)
-    if selectable:
-        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-    if role:
-        set_role(label, role)
-    return label
-
-
-class DetailsPane(QScrollArea):
+class DetailsPane(QWidget):
     def __init__(
         self,
         controller: MainController,
@@ -63,110 +60,152 @@ class DetailsPane(QScrollArea):
         self._tr = translator
         self._icons = icons
         self._vm: DetailsVM | MultiDetailsVM | None = None
-        self._body = QWidget()
-        self._layout = QVBoxLayout(self._body)
-        self._layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.setWidget(self._body)
-        self.setWidgetResizable(True)
-        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setMinimumWidth(MIN_WIDTH_PX)
+        self._build()
         controller.thumbnails.ready.connect(self._on_thumb)
         self.show_details(None)
+
+    # ------------------------------------------------------------------ construction
+
+    def _build(self) -> None:
+        self.stack = QStackedWidget(self)
+        self.placeholder = make_label("", "muted")
+        self.placeholder.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.multi_page = QWidget()
+        multi = QVBoxLayout(self.multi_page)
+        multi.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.multi_title = make_label("", "heading")
+        self.multi_breakdown = make_label("", "muted")
+        multi.addWidget(self.multi_title)
+        multi.addWidget(self.multi_breakdown)
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.sheet = QWidget()
+        self._build_sheet(self.sheet)
+        self.scroll_area.setWidget(self.sheet)
+        for page in (self.placeholder, self.multi_page, self.scroll_area):
+            self.stack.addWidget(page)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.stack)
+
+    def _build_sheet(self, sheet: QWidget) -> None:
+        layout = QVBoxLayout(sheet)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.thumb = ThumbLabel(THUMB_PX)
+        self.title = make_label("", "heading")
+        self.rank = make_label("", "muted")
+        self.identity = ElidedLabel("")
+        set_role(self.identity, "mono")
+        self.folder = make_label("")
+        self.source = make_label("")
+        self.version = make_label("")
+        self.tier = make_label("")
+        self.buttons: dict[str, QToolButton] = {}
+        actions = QWidget()
+        flow = FlowLayout(actions, spacing=4)
+        for name, _text, _tip, icon in _BUTTONS:
+            button = QToolButton()
+            button.setObjectName(f"details_{name}")
+            button.setIcon(self._icons.get(icon))
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+            flow.addWidget(button)
+            self.buttons[name] = button
+        self.buttons["copy"].clicked.connect(self._copy)
+        self.buttons["folder"].clicked.connect(self._open_folder)
+        self.buttons["page"].clicked.connect(self._open_page)
+        self.tags = QWidget()
+        self._tags_flow = FlowLayout(self.tags, spacing=4)
+        self.findings_title = make_label("", "heading")
+        self.findings = QWidget()
+        self._findings_box = QVBoxLayout(self.findings)
+        self._findings_box.setContentsMargins(0, 0, 0, 0)
+        for widget in (
+            self.thumb,
+            self.title,
+            self.rank,
+            self.identity,
+            self.folder,
+            self.source,
+            self.version,
+            self.tier,
+            actions,
+            self.tags,
+            self.findings_title,
+            self.findings,
+        ):
+            layout.addWidget(widget)  # fmt: skip
 
     # ------------------------------------------------------------------ public
 
     def show_details(self, vm: DetailsVM | MultiDetailsVM | None) -> None:
         self._vm = vm
-        _clear(self._layout)
         if isinstance(vm, DetailsVM):
             self._render_single(vm)
+            self.stack.setCurrentWidget(self.scroll_area)
         elif isinstance(vm, MultiDetailsVM):
             self._render_multi(vm)
+            self.stack.setCurrentWidget(self.multi_page)
         else:
-            self._layout.addWidget(_label(self._tr.tr("ui.details.empty"), "muted"))
+            self.stack.setCurrentWidget(self.placeholder)
 
     def retranslate_ui(self) -> None:
+        tr = self._tr.tr
+        self.placeholder.setText(tr("ui.details.empty"))
+        for name, text_key, tip_key, _icon in _BUTTONS:
+            self.buttons[name].setText(tr(text_key))
+            self.buttons[name].setToolTip(tr(tip_key))
+        self.findings_title.setText(tr("ui.details.findings"))
         self.show_details(self._vm)
 
     # ------------------------------------------------------------------ rendering
 
     def _render_multi(self, vm: MultiDetailsVM) -> None:
         tr = self._tr.tr
-        self._layout.addWidget(_label(tr("ui.details.multi", count=vm.count), "heading"))
-        for tier, count in vm.tier_breakdown:
-            self._layout.addWidget(_label(f"{tier}: {count}", "muted"))
+        self.multi_title.setText(tr("ui.details.multi", count=vm.count))
+        self.multi_breakdown.setText("\n".join(f"{tier}: {n}" for tier, n in vm.tier_breakdown))
 
     def _render_single(self, vm: DetailsVM) -> None:
         tr = self._tr.tr
-        self._thumb = QLabel()
-        self._thumb.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._thumb.setMinimumHeight(THUMB_PX // 2)
         self._set_thumb(vm)
-        self._layout.addWidget(self._thumb)
-        self._layout.addWidget(_label(vm.title, "heading"))
-        self._layout.addWidget(_label(vm.rank_text, "muted"))
-        self._layout.addLayout(self._identity_row(vm))
-        self._layout.addWidget(_label(tr("ui.details.folder", folder=vm.folder)))
-        self._layout.addLayout(self._source_row(vm))
-        if vm.version_text:
-            self._layout.addWidget(_label(tr("ui.details.version", version=vm.version_text)))
-        self._layout.addWidget(
-            _label(tr("ui.details.tier", tier=vm.tier_label, category=vm.category_label))
-        )
-        self._layout.addWidget(self._tags(vm.tags))
+        self.title.setText(vm.title)
+        self.rank.setText(vm.rank_text)
+        self.identity.setText(vm.identity_text)
+        self.identity.setToolTip(tr("ui.details.identity.tip", identity=vm.identity_text))
+        self.folder.setText(tr("ui.details.folder", folder=vm.folder))
+        self.source.setText(tr("ui.details.source", source=vm.source_label))
+        self.version.setText(tr("ui.details.version", version=vm.version_text))
+        self.version.setVisible(bool(vm.version_text))
+        self.tier.setText(tier_text(tr, vm.tier_label, vm.category_label))
+        self.buttons["page"].setVisible(bool(vm.workshop_url))
+        self._render_tags(vm.tags)
         self._render_findings(vm.findings)
 
     def _set_thumb(self, vm: DetailsVM) -> None:
         pixmap = self._c.thumbnails.pixmap(vm.mod_id, vm.icon_path, vm.icon_stamp, THUMB_PX)
         if isinstance(pixmap, QPixmap):
-            self._thumb.setPixmap(pixmap)
+            self.thumb.set_source(pixmap)
         else:
-            self._thumb.setText(self._tr.tr("ui.details.no_preview"))
-            set_role(self._thumb, "muted")
+            self.thumb.set_source(None, self._tr.tr("ui.details.no_preview"))
 
     def _on_thumb(self, mod_id: str) -> None:
         if isinstance(self._vm, DetailsVM) and self._vm.mod_id == ModId(mod_id):
             self._set_thumb(self._vm)
 
-    def _identity_row(self, vm: DetailsVM) -> QHBoxLayout:
-        row = QHBoxLayout()
-        identity = ElidedLabel(vm.identity_text)
-        identity.setToolTip(self._tr.tr("ui.details.identity.tip", identity=vm.identity_text))
-        set_role(identity, "mono")
-        copy = self._button("ui.details.copy", "ui.details.copy.tip", "check")
-        copy.clicked.connect(lambda: self._copy(vm.identity_text))
-        row.addWidget(identity, 1)
-        row.addWidget(copy)
-        return row
-
-    def _source_row(self, vm: DetailsVM) -> QHBoxLayout:
-        row = QHBoxLayout()
-        row.addWidget(_label(self._tr.tr("ui.details.source", source=vm.source_label)), 1)
-        folder = self._button("ui.details.open_folder", "ui.details.open_folder.tip", "folder")
-        folder.clicked.connect(lambda: self._c.open_folder(vm.mod_id))
-        row.addWidget(folder)
-        if vm.workshop_url:
-            page = self._button("ui.details.open_page", "ui.details.open_page.tip", "link")
-            page.clicked.connect(lambda: self._c.open_workshop_page(vm.mod_id))
-            row.addWidget(page)
-        return row
-
-    def _tags(self, tags: tuple[str, ...]) -> QWidget:
-        holder = QWidget()
-        flow = FlowLayout(holder, spacing=4)
+    def _render_tags(self, tags: tuple[str, ...]) -> None:
+        clear_layout(self._tags_flow)
         for tag in tags:
-            chip = QLabel(tag)
-            chip.setToolTip(self._tr.tr("ui.details.tag.tip", tag=tag))
-            chip.setStyleSheet(
-                "padding: 1px 6px; border: 1px solid palette(mid); border-radius: 8px;"
-            )
-            flow.addWidget(chip)
-        return holder
+            self._tags_flow.addWidget(tag_chip(tag, self._tr.tr("ui.details.tag.tip", tag=tag)))
+        self.tags.setVisible(bool(tags))
+        self.tags.updateGeometry()
 
     def _render_findings(self, findings: tuple[FindingVM, ...]) -> None:
         tr = self._tr.tr
-        self._layout.addWidget(_label(tr("ui.details.findings"), "heading"))
+        clear_layout(self._findings_box)
         if not findings:
-            self._layout.addWidget(_label(tr("ui.lo.no_findings"), "muted"))
+            self._findings_box.addWidget(make_label(tr("ui.lo.no_findings"), "muted"))
         for finding in findings:
             tone = _SEVERITY_TONE.get(finding.severity, "info")
             button = QToolButton()
@@ -176,16 +215,32 @@ class DetailsPane(QScrollArea):
             button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             button.setToolTip(tr("ui.details.finding.tip", rule=finding.rule_id))
             button.clicked.connect(lambda _c=False, key=finding.key: self._c.focus_finding(key))
-            self._layout.addWidget(button)
+            self._findings_box.addWidget(button)
 
-    def _button(self, text_key: str, tip_key: str, icon: str) -> QToolButton:
-        button = QToolButton()
-        button.setIcon(self._icons.get(icon))
-        button.setText(self._tr.tr(text_key))
-        button.setToolTip(self._tr.tr(tip_key))
-        button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        return button
+    # ------------------------------------------------------------------ button slots
 
-    def _copy(self, text: str) -> None:
-        QGuiApplication.clipboard().setText(text)
-        self._c.post("ui.notice.copied")
+    def _single(self) -> DetailsVM | None:
+        return self._vm if isinstance(self._vm, DetailsVM) else None
+
+    def _copy(self) -> None:
+        vm = self._single()
+        if vm is not None:
+            QGuiApplication.clipboard().setText(vm.identity_text)
+            self._c.post("ui.notice.copied")
+
+    def _open_folder(self) -> None:
+        vm = self._single()
+        if vm is not None:
+            self._c.open_folder(vm.mod_id)
+
+    def _open_page(self) -> None:
+        vm = self._single()
+        if vm is not None:
+            self._c.open_workshop_page(vm.mod_id)
+
+
+def tier_text(tr: Tr, tier: str, category: str) -> str:
+    """``Tier: X (Y)``, or just ``Tier: X`` when the category label says the same thing."""
+    if not category or category == tier:
+        return tr("ui.details.tier_only", tier=tier)
+    return tr("ui.details.tier", tier=tier, category=category)

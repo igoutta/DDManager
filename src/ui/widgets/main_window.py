@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import override
 
-from PySide6.QtCore import QSettings, Qt
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QCloseEvent, QShowEvent
 from PySide6.QtWidgets import QAbstractButton, QMainWindow, QMessageBox, QSplitter
 
 from src.__about__ import __version__
@@ -25,6 +25,7 @@ from src.ui.widgets.load_order_pane import LoadOrderPane
 from src.ui.widgets.status_bar import AppStatusBar
 from src.ui.widgets.window_actions import DENSITY_SLUGS, LANGUAGES, ActionHub
 from src.ui.widgets.window_menus import WindowChrome
+from src.ui.widgets.window_state import apply_default_split, restore_ui_state, save_ui_state
 
 _STRETCH = (3, 5, 3)
 # Qt's own chrome buttons (dock close/float, toolbar overflow, ...) and their generic tooltips.
@@ -205,6 +206,7 @@ class MainWindow(QMainWindow):
 
     def _on_language(self, *_args: object) -> None:
         self.retranslate_ui()
+        self._sync_checks()
 
     def _on_selection(self, ids: list[ModId]) -> None:
         self.controller.select(ids)
@@ -313,22 +315,18 @@ class MainWindow(QMainWindow):
         return _CHROME_KEYS.get(button.objectName(), "ui.window.control.tip")
 
     def save_ui_state(self) -> None:
-        settings = QSettings(str(self._ui_ini), QSettings.Format.IniFormat)
-        settings.setValue("window/geometry", self.saveGeometry())
-        settings.setValue("window/state", self.saveState())
-        settings.setValue("window/splitter", self.splitter.saveState())
-        settings.sync()
+        save_ui_state(self, self.splitter, self._ui_ini)
 
     def restore_ui_state(self) -> None:
-        settings = QSettings(str(self._ui_ini), QSettings.Format.IniFormat)
-        for key, restore in (
-            ("window/geometry", self.restoreGeometry),
-            ("window/state", self.restoreState),
-            ("window/splitter", self.splitter.restoreState),
-        ):
-            value = settings.value(key)
-            if value is not None:
-                restore(value)
+        """Restore ui.ini; without a saved splitter the first show applies the default split."""
+        self._default_split = not restore_ui_state(self, self.splitter, self._ui_ini)
+
+    @override
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if self._default_split:
+            self._default_split = False
+            apply_default_split(self.splitter)
 
     @override
     def closeEvent(self, event: QCloseEvent) -> None:

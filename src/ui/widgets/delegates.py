@@ -34,7 +34,24 @@ STRIPE_PX: Final = 4
 PAD: Final = 6
 CHECK_PX: Final = 16
 PILL_PAD: Final = 6
+ROW_PAD: Final = 4
+LINE_GAP: Final = 2
 _UNASSIGNED: Final = "unassigned"
+
+
+def row_fonts(base: QFont) -> tuple[QFont, QFont]:
+    """The bold title font and the one-point-smaller subtitle font of an Available row."""
+    title = QFont(base)
+    title.setBold(True)
+    sub = QFont(base)
+    sub.setPointSizeF(max(sub.pointSizeF() - 1, 7))
+    return title, sub
+
+
+def text_block_height(base: QFont) -> int:
+    """Title line + gap + subtitle line + padding: the height two lines of text really need."""
+    title, sub = row_fonts(base)
+    return 2 * ROW_PAD + QFontMetrics(title).height() + LINE_GAP + QFontMetrics(sub).height()
 
 
 def severity_color(tokens: ThemeTokens, severity: int) -> str:
@@ -82,9 +99,15 @@ class ModRowDelegate(QStyledItemDelegate):
     def set_density(self, icon_px: int, row_px: int) -> None:
         self._icon_px, self._row_px = icon_px, row_px
 
+    def row_height(self, font: QFont) -> int:
+        """The density row height, but never less than the two text lines need."""
+        return max(self._row_px, text_block_height(font))
+
     @override
     def sizeHint(self, option: QStyleOptionViewItem, index: AnyIndex) -> QSize:
-        return QSize(option.rect.width(), self._row_px)
+        # Width 0: the list makes every row as wide as its viewport, so the content never grows
+        # past it (a wider hint would feed back into the contents width and show a scrollbar).
+        return QSize(0, self.row_height(option.font))
 
     def _check_rect(self, rect: QRect) -> QRect:
         return QRect(
@@ -140,26 +163,33 @@ class ModRowDelegate(QStyledItemDelegate):
     ) -> None:
         palette = self._tokens.palette
         selected = bool(option.state & QStyle.StateFlag.State_Selected)
-        main = palette.select_text if selected else (palette.muted if vm.enabled else palette.text)
-        title_font = QFont(option.font)
-        title_font.setBold(True)
+        if selected:
+            main = palette.select_text
+        elif vm.enabled:
+            main = palette.muted
+        else:
+            main = palette.text
+        title_font, sub_font = row_fonts(option.font)
         metrics = QFontMetrics(title_font)
+        # The two lines sit vertically centred in whatever height the density gives the row.
+        top = area.top() + max(ROW_PAD, (area.height() - text_block_height(option.font)) // 2 + 1)
         right = area.right()
-        right = self._paint_pills(painter, option, vm, area.top() + 4, right)
+        right = self._paint_pills(painter, option, vm, top, right)
         painter.setFont(title_font)
         painter.setPen(QColor(main))
-        title_rect = QRect(area.left(), area.top() + 4, right - area.left(), metrics.height())
+        title_rect = QRect(area.left(), top, right - area.left(), metrics.height())
         painter.drawText(
             title_rect,
             int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
             metrics.elidedText(vm.title, Qt.TextElideMode.ElideRight, title_rect.width()),
         )
-        sub_font = QFont(option.font)
-        sub_font.setPointSizeF(max(sub_font.pointSizeF() - 1, 7))
         painter.setFont(sub_font)
         painter.setPen(QColor(palette.select_text if selected else palette.muted))
         sub_rect = QRect(
-            area.left(), title_rect.bottom() + 2, area.width(), QFontMetrics(sub_font).height()
+            area.left(),
+            title_rect.bottom() + LINE_GAP,
+            area.width(),
+            QFontMetrics(sub_font).height(),
         )
         painter.drawText(
             sub_rect,
@@ -217,6 +247,13 @@ class TierBadgeDelegate(QStyledItemDelegate):
         self._tokens = tokens
 
     @override
+    def sizeHint(self, option: QStyleOptionViewItem, index: AnyIndex) -> QSize:
+        """The pill plus padding, so a ResizeToContents column never clips the badge."""
+        text = str(index.data(Qt.ItemDataRole.DisplayRole) or "")
+        height = QFontMetrics(option.font).height() + 2
+        return QSize(pill_width(option.font, text) + 2 * PAD, height + 2 * ROW_PAD)
+
+    @override
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: AnyIndex) -> None:
         style = option.widget.style() if option.widget else QApplication.style()
         style.drawPrimitive(
@@ -238,6 +275,12 @@ class FindingsBadgeDelegate(QStyledItemDelegate):
     def __init__(self, parent: QWidget, tokens: ThemeTokens) -> None:
         super().__init__(parent)
         self._tokens = tokens
+
+    @override
+    def sizeHint(self, option: QStyleOptionViewItem, index: AnyIndex) -> QSize:
+        height = QFontMetrics(option.font).height() + 2
+        width = max(height, pill_width(option.font, str(index.data(Role.FINDING_COUNT) or "")))
+        return QSize(width + 2 * PAD, height + 2 * ROW_PAD)
 
     @override
     def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: AnyIndex) -> None:

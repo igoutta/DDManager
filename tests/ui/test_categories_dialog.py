@@ -101,9 +101,11 @@ def test_every_row_has_a_swatch_of_its_color(rig, open_dialog):
 def test_the_preview_shows_the_color_of_the_selected_row(rig, open_dialog):
     dialog = open_dialog()
     select(dialog, ZEBRA)
-    assert dialog.preview.text() == rig.translator.tr("category_editor_color", color="#112233")
+    assert dialog.preview.text() == "#112233", "the swatch shows the colour: hex value only"
+    assert dialog.preview.toolTip() == rig.translator.tr("category_editor_color", color="#112233")
     select(dialog, "UI")
-    assert dialog.preview.text() == rig.translator.tr("category_editor_color", color="#8FA6B8")
+    assert dialog.preview.text() == "#8FA6B8"
+    assert "Color:" not in dialog.preview.text()
 
 
 def test_every_text_of_the_dialog_is_in_the_catalog(rig, open_dialog):
@@ -163,7 +165,7 @@ def test_set_color_stores_uppercase_hex_starting_from_the_current_color(rig, ope
     assert (
         dialog.list.item(dialog.list.currentRow()).foreground().color().name().upper() == "#ABCDEF"
     )
-    assert dialog.preview.text() == rig.translator.tr("category_editor_color", color="#ABCDEF")
+    assert dialog.preview.text() == "#ABCDEF"
     save(dialog)
     assert rig.flush().category_colors["UI"] == "#ABCDEF"
 

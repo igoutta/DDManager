@@ -2,12 +2,13 @@
 
 from typing import Final
 
-from PySide6.QtCore import QModelIndex, Qt
+from PySide6.QtCore import QItemSelectionModel, QModelIndex, Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QDockWidget,
     QHBoxLayout,
+    QHeaderView,
     QToolButton,
     QTreeView,
     QVBoxLayout,
@@ -17,7 +18,7 @@ from PySide6.QtWidgets import (
 from src.core.findings import Severity
 from src.ui.controller import MainController
 from src.ui.i18n import Translator
-from src.ui.models.findings_model import FindingsModel
+from src.ui.models.findings_model import FCol, FindingsModel
 from src.ui.viewmodels import FindingVM
 from src.ui.widgets.actions import IconSet
 
@@ -26,6 +27,14 @@ _FILTERS: Final = (
     (Severity.WARNING, "warning", "ui.health.severity.warning"),
     (Severity.INFO, "info", "ui.health.severity.info"),
 )
+_MODS_COL_PX: Final = 200
+# The message stretches; the short columns follow their contents (header text included).
+COLUMN_MODES: Final = {
+    FCol.SEVERITY: QHeaderView.ResizeMode.ResizeToContents,
+    FCol.RULE: QHeaderView.ResizeMode.ResizeToContents,
+    FCol.MESSAGE: QHeaderView.ResizeMode.Stretch,
+    FCol.MODS: QHeaderView.ResizeMode.Interactive,
+}
 
 
 def report_text(findings: tuple[FindingVM, ...], translator: Translator) -> str:
@@ -53,6 +62,8 @@ class HealthDock(QDockWidget):
         self._tr = translator
         self._model: FindingsModel = controller.findings_model
         self._filters: dict[Severity, QToolButton] = {}
+        self._kept_key: str | None = None
+        self._kept_scroll = 0
         self._build(icons)
         self.retranslate_ui()
 
@@ -87,6 +98,7 @@ class HealthDock(QDockWidget):
         self.tree.setUniformRowHeights(True)
         self.tree.setAlternatingRowColors(True)
         self.tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._configure_header()
         layout.addLayout(bar)
         layout.addWidget(self.tree, 1)
         self.setWidget(body)
@@ -97,7 +109,17 @@ class HealthDock(QDockWidget):
         self.rerun_button.clicked.connect(self._c.validate)
         self.copy_button.clicked.connect(self._copy)
         self.fix_button.clicked.connect(self._fix)
+        self._model.modelAboutToBeReset.connect(self._before_reset)
         self._model.modelReset.connect(self._on_reset)
+
+    def _configure_header(self) -> None:
+        header = self.tree.header()
+        if header is None:
+            return
+        header.setStretchLastSection(False)
+        for column, mode in COLUMN_MODES.items():
+            header.setSectionResizeMode(column, mode)
+        self.tree.setColumnWidth(FCol.MODS, _MODS_COL_PX)
 
     def _current(self) -> FindingVM | None:
         return self._model.finding_at(self.tree.currentIndex())
@@ -107,10 +129,27 @@ class HealthDock(QDockWidget):
             s for s, button in self._filters.items() if button.isChecked()
         )
 
+    def _before_reset(self) -> None:
+        """Remember what the user is looking at: a re-validation must not move it away."""
+        current = self._current()
+        self._kept_key = current.key if current is not None else None
+        self._kept_scroll = self.tree.verticalScrollBar().value()
+
     def _on_reset(self) -> None:
+        """Groups are always open; the selected finding and the scroll position come back."""
         self.tree.expandAll()
-        for column in range(self._model.columnCount()):
-            self.tree.resizeColumnToContents(column)
+        if self._kept_key is not None:
+            index = self._model.index_for_key(self._kept_key)
+            if index.isValid():
+                self.tree.setCurrentIndex(index)
+                selection = self.tree.selectionModel()
+                if selection is not None:
+                    selection.select(
+                        index,
+                        QItemSelectionModel.SelectionFlag.ClearAndSelect
+                        | QItemSelectionModel.SelectionFlag.Rows,
+                    )
+        self.tree.verticalScrollBar().setValue(self._kept_scroll)
         self._refresh_fix()
         self._update_titles()
 

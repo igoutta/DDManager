@@ -6,6 +6,7 @@ from typing import Final
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QLabel,
     QProgressBar,
@@ -27,6 +28,7 @@ _MINUTE: Final = 60
 _HOUR: Final = 3600
 _DAY: Final = 86400
 _TONES: Final = ("error", "warning", "info")
+_SAVE_PATH_MIN_PX: Final = 160
 _SAVE_PATH_MAX_PX: Final = 420
 
 
@@ -60,7 +62,7 @@ class AppStatusBar(QStatusBar):
         self._tokens = tokens
         self._vm: StatusVM | None = None
         self.profile = QLabel(self)
-        self.save_path = ElidedLabel("", self)
+        self.save_path = ElidedLabel("", self, minimum_px=_SAVE_PATH_MIN_PX)
         self.backup = QLabel(self)
         self._icons = icons
         self.counts = QToolButton(self)
@@ -75,21 +77,26 @@ class AppStatusBar(QStatusBar):
         self.busy_bar.setTextVisible(False)
         self.conflict = self._conflict_banner()
         self.save_path.doubleClicked.connect(self.saveFolderRequested)
-        self.save_path.setMinimumWidth(80)
         self.save_path.setMaximumWidth(_SAVE_PATH_MAX_PX)
-        # Everything is permanent: a transient ``showMessage`` must never hide any of it.
-        for widget in (
-            self.profile,
-            self.save_path,
-            self.backup,
-            self.counts,
-            self.busy_text,
-            self.busy_bar,
-            self.conflict,
-        ):
+        # Everything is permanent: a transient ``showMessage`` must never hide any of it.  The
+        # labels keep their size hints (the path shrinks to its minimum first) and a thin line
+        # separates them, so they never overlap.
+        self.addPermanentWidget(self.conflict)
+        for widget in (self.profile, self.save_path, self.backup, self.counts):
+            self.addPermanentWidget(self._separator())
+            self.addPermanentWidget(widget)
+        for widget in (self.busy_text, self.busy_bar):
             self.addPermanentWidget(widget)
         self.setSizeGripEnabled(False)
         self.retranslate_ui()
+
+    def _separator(self) -> QFrame:
+        line = QFrame(self)
+        line.setFrameShape(QFrame.Shape.VLine)
+        line.setFrameShadow(QFrame.Shadow.Plain)
+        line.setFixedWidth(1)
+        line.setStyleSheet(f"color: {self._tokens.palette.border};")
+        return line
 
     def _conflict_banner(self) -> QWidget:
         banner = QWidget(self)

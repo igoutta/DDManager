@@ -130,7 +130,7 @@ CHECKLIST: dict[str, tuple[str, ...]] = {
             "test_the_four_canonical_modes_and_their_sizes",
             "test_choosing_a_mode_persists_it_under_its_canonical_key",
             "test_the_load_order_rows_take_the_mode_height_and_icon_size",
-            "test_the_available_rows_take_the_mode_height",
+            "test_the_available_rows_take_the_mode_height_but_never_less_than_two_lines",
             "test_the_model_asks_for_thumbnails_of_the_mode_size_or_none",
             "test_a_window_opened_on_a_saved_mode_starts_in_it",
         ),

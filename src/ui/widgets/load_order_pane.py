@@ -27,7 +27,9 @@ from src.ui.viewmodels import StatusVM
 from src.ui.widgets.delegates import FindingsBadgeDelegate, RankDelegate, TierBadgeDelegate
 from src.ui.widgets.mod_views import LoadOrderView, select_ids, selected_ids
 
-_NARROW = {Col.RANK: 48, Col.TIER: 64, Col.SOURCE: 110, Col.FINDINGS: 56}
+_RANK_PX = 48
+# Badge and source columns follow their contents (header text included), the title stretches.
+_FIT = (Col.TIER, Col.SOURCE, Col.FINDINGS)
 
 
 class ChipLabel(QLabel):
@@ -105,9 +107,10 @@ class LoadOrderPane(QWidget):
             return
         header.setStretchLastSection(False)
         header.setSectionResizeMode(Col.TITLE, QHeaderView.ResizeMode.Stretch)
-        for col, width in _NARROW.items():
-            header.setSectionResizeMode(col, QHeaderView.ResizeMode.Fixed)
-            self.view.setColumnWidth(col, width)
+        header.setSectionResizeMode(Col.RANK, QHeaderView.ResizeMode.Fixed)
+        self.view.setColumnWidth(Col.RANK, _RANK_PX)
+        for col in _FIT:
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
 
     def _wire(self) -> None:
         selection = self.view.selectionModel()

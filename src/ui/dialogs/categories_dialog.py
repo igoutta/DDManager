@@ -171,10 +171,13 @@ class CategoriesDialog(LiveDialog):
         rows = self._p.rows()
         if not 0 <= row < len(rows):
             self.preview.setText(tr("category_editor_no_category"))
+            self.preview.setToolTip("")
             self._paint_preview(self._icons.color("panel_deep"))
             return
         color = rows[row].color
-        self.preview.setText(tr("category_editor_color", color=color))
+        # The swatch already shows the colour: only the hex value, the wording goes to the tip.
+        self.preview.setText(color)
+        self.preview.setToolTip(tr("category_editor_color", color=color))
         self._paint_preview(color)
 
     def _paint_preview(self, color: str) -> None:

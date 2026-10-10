@@ -92,3 +92,11 @@ def test_severity_filter_hides_groups(model):
     labels = group_labels(model)
     assert any("Errors" in label for label in labels)
     assert not any("Warnings" in label or "Info" in label for label in labels)
+
+
+def test_identical_findings_do_not_reset_the_model(model, qtbot):
+    model.set_findings(mixed())
+    with qtbot.assertNotEmitted(model.modelReset):
+        model.set_findings(mixed())
+    with qtbot.waitSignal(model.modelReset, timeout=1000):
+        model.set_findings(mixed(n_info=2))
