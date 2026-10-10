@@ -1,4 +1,4 @@
-"""Generate ``packaging/ddmanager.ico``: an engraved-style torch with a gold gear mark.
+"""Generate ``packaging/ddmanager.ico``: a heraldic torch in gold engraving with a gear mark.
 
 Run it once (``uv run python tools/make_icon.py``) and commit the result; the build only reads
 the file. The tile, the line-work and the gear use the app's palette tokens; the flame's heart
@@ -32,30 +32,39 @@ BUNDLED = ROOT / "src" / "resources" / "icons" / "app.ico"  # window/taskbar ico
 SIZES = (16, 24, 32, 48, 64, 128, 256)
 
 # Icon-only accents: a restrained ember pair for the heart of the flame. Everything else is
-# the palette's gold line-work on the dark tile, in the spirit of the game's engraved UI.
+# the palette's gold line-work on the dark tile, in the spirit of illuminated emblems.
 EMBER = "#C8552A"
 EMBER_LIGHT = "#E8A54A"
 GEAR_TEETH = 8
-TORCH_X = 0.44  # the torch sits left of centre to leave room for the gear
-GEAR_AT = (0.765, 0.765)
-GEAR_RADIUS = 0.17
+TORCH_X = 0.43  # the torch sits left of centre to leave room for the gear
+GEAR_AT = (0.775, 0.775)
+GEAR_RADIUS = 0.16
+
+# Heraldic flame: (dx, bottom, height, half width, lean) in unit coordinates, back to front.
+TONGUES = (
+    (-0.150, 0.49, 0.18, 0.050, -0.050),
+    (0.155, 0.49, 0.21, 0.050, 0.050),
+    (-0.075, 0.49, 0.31, 0.080, -0.055),
+    (0.085, 0.49, 0.34, 0.080, 0.060),
+    (0.000, 0.49, 0.45, 0.110, 0.015),
+)
 
 
 def _flame(cx: float, bottom: float, height: float, half_width: float, lean: float) -> QPainterPath:
-    """A teardrop tongue: wide at ``bottom``, tip ``height`` above it, leaning ``lean`` right."""
+    """A pointed tongue: wide at ``bottom``, tip ``height`` above it, leaning ``lean`` sideways."""
     top = bottom - height
     path = QPainterPath()
     path.moveTo(cx, bottom)
     path.cubicTo(
         cx - half_width * 1.45,
         bottom - height * 0.22,
-        cx - half_width * 0.95,
+        cx - half_width * 0.95 + lean * 0.4,
         bottom - height * 0.78,
         cx + lean,
         top,
     )
     path.cubicTo(
-        cx + half_width * 1.05,
+        cx + half_width * 1.05 + lean * 0.4,
         bottom - height * 0.72,
         cx + half_width * 1.35,
         bottom - height * 0.18,
@@ -102,7 +111,7 @@ def _draw_background(painter: QPainter, size: int) -> None:
     painter.setPen(QPen(QColor(palette.gold), border))
     painter.setBrush(QColor(palette.ink))
     painter.drawRoundedRect(body, size * 0.16, size * 0.16)
-    glow = QRadialGradient(size * TORCH_X, size * 0.36, size * 0.42)
+    glow = QRadialGradient(size * TORCH_X, size * 0.34, size * 0.42)
     halo = QColor(EMBER)
     halo.setAlpha(70)
     glow.setColorAt(0.0, halo)
@@ -112,59 +121,95 @@ def _draw_background(painter: QPainter, size: int) -> None:
     painter.drawRoundedRect(body, size * 0.16, size * 0.16)
 
 
-def _shaft_width(size: int, y: float) -> float:
-    """Half-width of the tapered shaft at unit height ``y`` (0.60 top .. 0.93 bottom)."""
-    t = (y - 0.60) / 0.33
-    return size * (0.050 - 0.020 * t)
-
-
-def _draw_handle(painter: QPainter, size: int) -> None:
-    """Engraved shaft: slim tapered outline, three wrap lines and a flared cup under the flame."""
+def _draw_shaft(painter: QPainter, size: int) -> None:
+    """A turned shaft: tapered stem, a knop half-way down and a flared foot."""
     palette = DARK_TOKENS.palette
     cx = size * TORCH_X
-    shaft = QPainterPath()
-    shaft.moveTo(cx - _shaft_width(size, 0.60), size * 0.60)
-    shaft.lineTo(cx + _shaft_width(size, 0.60), size * 0.60)
-    shaft.lineTo(cx + _shaft_width(size, 0.93), size * 0.93)
-    shaft.lineTo(cx - _shaft_width(size, 0.93), size * 0.93)
-    shaft.closeSubpath()
     painter.setPen(_line_pen(size))
     painter.setBrush(QColor(palette.panel))
-    painter.drawPath(shaft)
+    stem = QPainterPath()
+    stem.moveTo(cx - size * 0.040, size * 0.62)
+    stem.lineTo(cx + size * 0.040, size * 0.62)
+    stem.lineTo(cx + size * 0.028, size * 0.90)
+    stem.lineTo(cx - size * 0.028, size * 0.90)
+    stem.closeSubpath()
+    painter.drawPath(stem)
+    foot = QPainterPath()
+    foot.moveTo(cx - size * 0.028, size * 0.88)
+    foot.lineTo(cx + size * 0.028, size * 0.88)
+    foot.lineTo(cx + size * 0.075, size * 0.94)
+    foot.lineTo(cx - size * 0.075, size * 0.94)
+    foot.closeSubpath()
+    painter.drawPath(foot)
+    knop = QRectF(cx - size * 0.065, size * 0.715, size * 0.13, size * 0.075)
+    painter.drawEllipse(knop)
     if size >= 32:
-        for y in (0.66, 0.70, 0.74):
-            half = _shaft_width(size, y)
-            painter.drawLine(QPointF(cx - half, size * y), QPointF(cx + half, size * y))
-    cup = QPainterPath()
-    cup.moveTo(cx - size * 0.115, size * 0.525)
-    cup.lineTo(cx + size * 0.115, size * 0.525)
-    cup.lineTo(cx + size * 0.070, size * 0.605)
-    cup.lineTo(cx - size * 0.070, size * 0.605)
-    cup.closeSubpath()
+        painter.drawLine(
+            QPointF(cx - size * 0.038, size * 0.655), QPointF(cx + size * 0.038, size * 0.655)
+        )
+        painter.drawLine(
+            QPointF(cx - size * 0.031, size * 0.835), QPointF(cx + size * 0.031, size * 0.835)
+        )
+
+
+def _draw_cup(painter: QPainter, size: int) -> None:
+    """A fluted chalice-shaped socket with a scalloped rim."""
+    palette = DARK_TOKENS.palette
+    cx = size * TORCH_X
+    painter.setPen(_line_pen(size))
     painter.setBrush(QColor(palette.panel))
+    cup = QPainterPath()
+    cup.moveTo(cx - size * 0.150, size * 0.49)
+    cup.lineTo(cx + size * 0.150, size * 0.49)
+    cup.cubicTo(
+        cx + size * 0.150,
+        size * 0.57,
+        cx + size * 0.070,
+        size * 0.58,
+        cx + size * 0.045,
+        size * 0.63,
+    )
+    cup.lineTo(cx - size * 0.045, size * 0.63)
+    cup.cubicTo(
+        cx - size * 0.070,
+        size * 0.58,
+        cx - size * 0.150,
+        size * 0.57,
+        cx - size * 0.150,
+        size * 0.49,
+    )
+    cup.closeSubpath()
     painter.drawPath(cup)
+    rim = QRectF(cx - size * 0.150, size * 0.465, size * 0.30, size * 0.05)
+    painter.drawRoundedRect(rim, size * 0.02, size * 0.02)
+    if size >= 32:
+        painter.setPen(_line_pen(size, 0.6))
+        for dx in (-0.075, 0.0, 0.075):
+            painter.drawLine(
+                QPointF(cx + size * dx, size * 0.52), QPointF(cx + size * dx * 0.55, size * 0.605)
+            )
 
 
 def _draw_flame(painter: QPainter, size: int) -> None:
-    """A gold-outlined flame: dark body warming to ember at the base, a bright inner tongue."""
+    """Heraldic flame: five gold-outlined tongues, dark bodies warming to ember, a bright heart."""
     palette = DARK_TOKENS.palette
     cx = size * TORCH_X
-    body = QLinearGradient(0.0, size * 0.10, 0.0, size * 0.54)
+    body = QLinearGradient(0.0, size * 0.06, 0.0, size * 0.50)
     body.setColorAt(0.0, QColor(palette.ink))
     body.setColorAt(0.55, QColor(palette.crimson))
     body.setColorAt(1.0, QColor(EMBER))
     painter.setPen(_line_pen(size))
     painter.setBrush(body)
-    painter.drawPath(_flame(cx, size * 0.54, size * 0.46, size * 0.21, size * 0.04))
-    painter.setPen(_line_pen(size, 0.7))
-    painter.setBrush(Qt.BrushStyle.NoBrush)
-    painter.drawPath(_flame(cx + size * 0.01, size * 0.53, size * 0.34, size * 0.135, size * 0.03))
-    core = QLinearGradient(0.0, size * 0.30, 0.0, size * 0.53)
-    core.setColorAt(0.0, QColor(palette.text_bright))
-    core.setColorAt(1.0, QColor(EMBER_LIGHT))
+    for dx, bottom, height, half_width, lean in TONGUES:
+        painter.drawPath(
+            _flame(cx + size * dx, size * bottom, size * height, size * half_width, size * lean)
+        )
+    heart = QLinearGradient(0.0, size * 0.27, 0.0, size * 0.48)
+    heart.setColorAt(0.0, QColor(palette.text_bright))
+    heart.setColorAt(1.0, QColor(EMBER_LIGHT))
     painter.setPen(_line_pen(size, 0.6))
-    painter.setBrush(core)
-    painter.drawPath(_flame(cx + size * 0.015, size * 0.52, size * 0.22, size * 0.07, size * 0.015))
+    painter.setBrush(heart)
+    painter.drawPath(_flame(cx + size * 0.01, size * 0.48, size * 0.22, size * 0.055, size * 0.01))
 
 
 def _draw_gear(painter: QPainter, size: int) -> None:
@@ -182,13 +227,14 @@ def _draw_gear(painter: QPainter, size: int) -> None:
 
 
 def render(size: int) -> QImage:
-    """One icon image: an engraved torch with a gold gear mark for 'mods'."""
+    """One icon image: a heraldic torch with a gold gear mark for 'mods'."""
     image = QImage(size, size, QImage.Format.Format_ARGB32)
     image.fill(Qt.GlobalColor.transparent)
     painter = QPainter(image)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     _draw_background(painter, size)
-    _draw_handle(painter, size)
+    _draw_shaft(painter, size)
+    _draw_cup(painter, size)
     _draw_flame(painter, size)
     _draw_gear(painter, size)
     painter.end()
