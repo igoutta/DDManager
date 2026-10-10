@@ -3,8 +3,7 @@
 DD Manager 0.3.0 replaces the Tkinter app (`dd2.py` and its modules) with the layered PySide6
 application in `src/`. This document is the contract that keeps your data safe across that
 change, the checklist that proves nothing was lost, the places where behavior intentionally
-differs, and the rollback procedure. "v0.2.1" is git tag `v0.2.1` (commit `31e85d6`), the last
-release of the Tkinter app.
+differs, and the rollback procedure. "v0.2.1" is the last release of the Tkinter app.
 
 ## Data compatibility and rollback contract
 
@@ -20,7 +19,7 @@ Each point is enforced by code and by the tests named after it.
    codes, `#RRGGBB` colors). The only addition is `schema_version: 1`. `enabled` is written as an
    explicit bool for every `order` entry and read the way v0.2.1 reads it (a missing flag means
    enabled). Unknown keys pass through untouched and keep their position. The file is written with
-   `json.dumps(indent=2)`, byte-for-byte the style of v0.2.1. (`tests/core/test_legacy_state.py`,
+   `json.dumps(indent=2)`, byte-for-byte the style of v0.2.1. (`tests/core/test_state_file.py`,
    `tests/services/test_state_repo.py`)
 3. **First launch** of 0.3.0 copies `mod_state.json` to `mod_state.pre-0.3.0.json`, once, never
    overwriting it. Every write is atomic (temp file, fsync, read-back, replace). The previous good
@@ -40,28 +39,30 @@ Each point is enforced by code and by the tests named after it.
    `tests/services/test_scan.py`)
 6. **Identity parity.** What the game sees does not change: a Workshop mod is written as
    `(PublishedFileId, "Steam")` and a local mod as `(Title or folder name without numeric prefix,
-   "mod_local_source")`, computed by a verbatim port of v0.2.1's `read_mod_metadata` and
-   `save_identity_for_mod`. (`tests/core/test_identity.py`, `tests/golden/identity/`)
-7. **Bytes parity.** For the same list of enabled mods, `write_applied` produces exactly the bytes
-   v0.2.1's `dson_patch_mod_list_resize` produced. The priority direction changes labels and rule
-   verdicts only, never bytes. (`tests/core/saves/test_dson_parity.py`,
-   `tests/core/saves/test_goldens.py`)
+   "mod_local_source")`, computed by `derive_mod_info` / `resolve_save_identity`, frozen in the
+   identity goldens and checked against the identities your own state file holds by the corpus
+   test. (`tests/core/test_identity.py`, `tests/golden/identity/`,
+   `tests/services/test_corpus_state.py`)
+7. **Bytes.** For the same list of enabled mods `write_applied` produces the same bytes as before
+   (the goldens freeze them), and a save the game wrote survives its own identity rewrite byte for
+   byte (the corpus check). The priority direction changes labels and rule verdicts only, never
+   bytes. (`tests/core/saves/test_goldens.py`, `tests/core/saves/test_corpus.py`)
 8. **Backups** are written to `DD Manager Data/backups/<save folder>-<8 hex>/
    persist.game.backup.<YYYYMMDD-HHMMSS>[-N].json`, outside the folder Steam Cloud syncs. After a
    backup or patch `last_backup_path` and `last_save_path` are still written as absolute paths, so
    v0.2.1's `Restore Last Backup` works on a rollback. Retention (newest 20, newest 3, younger than
-   30 days) never deletes the newest backup and never touches the legacy `persist.game.backup.*`
-   files beside a save, which stay listed and restorable. Restore validates the backup, makes a
+   30 days) never deletes the newest backup and never touches the `persist.game.backup.*` files
+   v0.2.x wrote beside a save, which stay listed and restorable. Restore validates the backup, makes a
    pre-restore backup and writes atomically with a fresh modification time.
    (`tests/services/test_backup.py`)
 9. **The frozen layout is unchanged**: `DD Manager Portable/{DD Manager.exe, _internal/, README.md,
    DD Manager Data/{README.txt, icon_cache/.keep}}`. The zip never contains `mod_state.json`
    (the build fails if it would). Extract over the old folder; stale Tcl/Tk files in `_internal/`
    are harmless and you may delete `_internal/` first. (`BUILD.md`)
-10. **The legacy oracle is read from git, never from the working tree.** `tools/legacy_oracle.py`
-    extracts `dd2.py`, `state.py`, `categories.py`, `localization.py`, `paths.py` and
-    `legacy_loadout.py` from commit `31e85d6` into a temporary folder, so the files could be deleted
-    from the repository while the differential tests keep working.
+10. **The game is the reference.** `just corpus-refresh` copies your own saves and state file into
+    `<repo>/.corpus` (the originals are only read) and `just corpus` checks the codec, the state
+    reader and the scan against them. (`tests/core/saves/test_corpus.py`,
+    `tests/services/test_corpus_state.py`)
 
 A missing mod that is **enabled** is an Error finding with a one-click Disable, and it is
 **excluded** from patching: the entries written to the save skip it, and the identity v0.2.1 cached
@@ -94,11 +95,10 @@ plugin trust), `ui.ini`, `profiles/`, `backups/`, `rules/`, `plugins/`, `logs/`,
 
 ### Why the v0.2.1 exe still works on the same folder
 
-- It finds the same file name in the same place and understands every key. The pinned v0.2.1 loader
-  (`state.load_state_file` and `migrate_state_data`) is run against files 0.3.0 renders, on seeded
-  random orders, and must load them without notices and with the identical active list; a rendered
-  file is already in migrated form. (`tests/core/test_legacy_state.py`,
-  `tests/services/test_state_repo.py::test_the_rendered_file_is_accepted_by_the_pinned_legacy_loader`)
+- It finds the same file name in the same place and understands every key: a rendered file is
+  already in migrated form (every one of the 22 keys present, canonical values, `enabled` explicit
+  for every entry), so its own migration has nothing left to do. (`tests/core/test_state_file.py`,
+  `tests/services/test_state_repo.py`)
 - `order` keeps disabled mods in their slots and `enabled` carries explicit bools, so v0.2.1's own
   filter (`order` entries whose `enabled` is not false) yields exactly the list 0.3.0 would write.
 - `schema_version` is just an extra key; the 22 keys are all still present.
@@ -133,7 +133,7 @@ every row: **done**. Test files are relative to `tests/`.
 | P16 | Patch Chosen Save; Patch Auto-Detected | `Patch Other File...`, `Patch Latest Detected Save`; a non-default file name needs an acknowledgement | done | `services/test_save_patch.py`, `ui/test_patch_targets.py`, `ui/test_dialogs.py`, `ui/test_controller.py` |
 | P17 | Generate Save Code with Copy | Save code dialog (names now JSON-escaped) | done | `ui/test_save_code_dialog.py`, `core/saves/test_applied_text.py` |
 | P18 | Apply Order to Local Mods (`NNNN_` renames, two-phase, rollback, re-key) | Preview, monotonic prefixes, two-phase rename with rollback, every state map re-keyed including nicknames | done | `ui/test_apply_order_flow.py`, `core/test_folder_order.py`, `services/test_folder_renamer.py` |
-| P19 | Restore Last Backup | Backups tab: managed and legacy backups, validated restore with a pre-restore backup | done | `ui/test_backups_tab.py`, `services/test_backup.py` |
+| P19 | Restore Last Backup | Backups tab: managed and beside-save backups, validated restore with a pre-restore backup | done | `ui/test_backups_tab.py`, `services/test_backup.py` |
 | P20 | Check Setup; Copy Debug Info | Copyable report from `core/diagnostics` (English on purpose) | done | `ui/test_diagnostics_dialog.py`, `core/test_diagnostics.py` |
 | P21 | Launch Game; Open Local Mods folder | Menu and toolbar via `platform_actions` | done | `ui/test_platform_actions.py`, `services/test_platform_actions.py` |
 | P22 | Auto Sort; Auto Categorize; silent categorize on load | Auto-Sort with preview; Auto Categorize with summary; silent classify assigns categories only | done | `ui/test_auto_categorize.py`, `ui/test_controller.py`, `core/test_sorting.py` |
@@ -143,7 +143,7 @@ every row: **done**. Test files are relative to `tests/`.
 | P26 | Status line (enabled / disabled / uncategorized) | Status bar: slot, save, last backup, finding counts, summary, transient messages | done | `ui/test_status_bar.py` |
 | P27 | Scroll position and selection kept across refresh | Persistent indexes and selection by id | done | `ui/test_load_order_model.py`, `ui/test_parity_gaps.py` |
 | P28 | Dark Darkest Dungeon theme, serif headings, crimson and gold | The palette ported value for value, Fusion style, palette and stylesheet from tokens | done | `ui/test_theme.py` |
-| P29 | Legacy `dd_mod_loadout.json` (dormant) | Import only, through the Profile Manager | done | `ui/test_legacy_loadout_import.py`, `services/test_profiles.py` |
+| P29 | `dd_mod_loadout.json` loadouts (dormant) | Import only, through the Profile Manager | done | `ui/test_loadout_v02_import.py`, `services/test_profiles.py` |
 | P30 | Portable data folder; `mod_state.json` with backup rotation; save on every change | Same names, atomic writes, 500 ms debounce, conflict detection, never prune | done | `services/test_app_paths.py`, `services/test_state_repo.py`, `ui/test_controller.py`, `ui/test_forget_missing.py` |
 | - | `Start New Campaign` (hidden, never shippable) | Dropped | dropped | none |
 
@@ -172,7 +172,7 @@ save for a given list of enabled mods.
 | No splash window; a background scan with a busy indicator; crash dialog for the whole session. | A frozen windowed app had no error surface after start-up. |
 | `Generate Save Code` JSON-escapes names. | Names with quotes or backslashes produced invalid text. |
 | The save slot's week ignores `persist.game.backup.*` and temp files. | A backup could feed a stale week. |
-| `metadata` and `mod_paths` in `mod_state.json` are no longer rewritten; 0.3.0 keeps its own cache in `cache/mod_info.v1.json`, whose signature adds the newest top-level folder mtime to the four legacy fields and looks the Workshop update time up by the resolved Workshop id. | The new app reads folders itself; the old caches are v0.2.1's, and it rebuilds them. |
+| `metadata` and `mod_paths` in `mod_state.json` are no longer rewritten; 0.3.0 keeps its own cache in `cache/mod_info.v1.json`, whose signature adds the newest top-level folder mtime to the four 0.2.x fields and looks the Workshop update time up by the resolved Workshop id. | The new app reads folders itself; the old caches are v0.2.1's, and it rebuilds them. |
 | `enabled` is explicit for every entry; `schema_version: 1` is added; writes are atomic. | v0.2.1 defaulted differently when discovering (disabled) and reading (enabled), and could cut a write in half. |
 | The default priority direction is "First entry wins" (`PrioritySetting(FIRST_WINS, verified=True)`), kept as a setting with a probe protocol. | It is the maintainer's statement (2026-09-29); `docs/load-order-semantics.md` explains how to verify it. |
 | `Start New Campaign` is dropped. | It was hidden and unshippable in v0.2.1. |

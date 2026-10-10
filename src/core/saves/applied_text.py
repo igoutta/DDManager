@@ -11,16 +11,16 @@ _INDENT3 = " " * 16
 
 
 def _escape(text: str) -> str:
-    """JSON-escape quotes, backslashes and control characters (the legacy did not escape)."""
+    """JSON-escape quotes, backslashes and control characters (keeps the text valid JSON)."""
     return json.dumps(text, ensure_ascii=False)[1:-1]
 
 
 def render_applied_text(entries: Sequence[SaveIdentity]) -> str:
-    """Reproduce the ``generate_save_code`` layout (dd2.py:7164-7182) exactly.
+    """Render the applied block in the text layout of a decoded save.
 
     8/12/16-space indents, the last child without a trailing comma, the block closed with ``},``
     so it can be pasted after ``never_again`` in a decoded save.  Names and sources are
-    JSON-escaped, which the legacy text was not.
+    JSON-escaped.
     """
     lines = [f'{_INDENT1}"applied_ugcs_1_0" : {{']
     last = len(entries) - 1

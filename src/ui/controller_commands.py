@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from src.core.ids import ModId
 from src.core.json_values import JsonValue
-from src.core.legacy_state import StateSettings
+from src.core.state_file import StateSettings
 from src.ui.controller_core import ControllerCore
 
 if TYPE_CHECKING:

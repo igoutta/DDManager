@@ -416,10 +416,10 @@ def test_after_save_the_rows_tiers_and_colors_follow(rig, open_dialog):
     assert rows[ModId(ZEBRA_MOD)].category_label == QUAGGA
     assert rows[ModId(ZEBRA_MOD)].tier_id == f"custom:{QUAGGA}"
     session = rig.controller.session
-    assert session.table == TierTable.from_legacy(
+    assert session.table == TierTable.from_categories(
         session.doc.category_order, session.doc.custom_categories
     )
-    assert session.table != TierTable.from_legacy(DEFAULT_CATEGORIES, (ZEBRA,))
+    assert session.table != TierTable.from_categories(DEFAULT_CATEGORIES, (ZEBRA,))
     assert rig.messages.with_key("ui.notice.categories_updated")
 
 
@@ -454,7 +454,7 @@ def test_the_editor_follows_the_language_live(rig, open_dialog, language):
     select(dialog, ZEBRA)
     result = follow_language(dialog, rig.translator, language)
     assert result.checked >= 8, "title, 7 buttons, save and cancel are catalog texts"
-    assert result.changed >= 8, "the legacy catalog translates the editor in every language"
+    assert result.changed >= 8, "the base keys translate the editor in every language"
     assert dialog.list.names()[dialog.list.currentRow()] == ZEBRA, "the selection survives"
 
 

@@ -2,6 +2,25 @@
 
 All notable changes to this project should be listed here.
 
+## v0.3.1 - 2026-10-10
+
+### Fixed
+- Runtime layout bugs found with real data: the Available rows, the Details pane, the menus, the status bar, the Health dock and the category colour hex shown in the editor.
+- Bit 31 of a meta2 info word (a flag the game sets and never documents) is preserved for every entry that already existed in `applied_ugcs_1_0`; game-written saves survive the identity rewrite byte for byte. New entries still get it clear.
+- First-chance COM exceptions in `faulthandler.log` are labelled as non-fatal.
+
+### Changed
+- The torch icon is recoloured (orange and purple) and carries a gear "mod" badge; it is also the window icon.
+- The source of truth is the game, not the previous version, and the code now says so. Renames: `core/legacy_state` is `core/state_file` (`legacy_migrate` is `migrate_state`, `LEGACY_KEYS` is `STATE_KEYS`, `build_default_state` is `default_state`); `core/loadorder_legacy` is `core/loadout_v02` (`parse_loadout_v02`, `LoadoutV02Extras`, `import_loadout_v02`); `save_slots.legacy_slot_label` is `slot_label`; `fsutil.legacy_timestamp` is `backup_timestamp`; `TierTable.from_legacy` is `from_categories`, `Tier.legacy_category` is `Tier.category` and the tier reason `"legacy"` is `"category"`; `ProjectInfo.legacy_tags` is `tags`; the validator's lower level is "structural" (`SaveValidationReport.structural_errors`, `ddmanager save inspect` prints `structural`); backups next to the save are "beside-save backups" (`BackupRecord.location == "beside_save"`, `BESIDE_SAVE_BACKUP_RE`, `list(include_beside_save=)`), and the Backups tab shows the location translated (`ui.backups.location.*`). The unused catalog key `tool_patch_autodetected_legacy` is gone.
+- The goldens under `tests/golden/` are frozen outputs of this program: `tools/regen_goldens.py` (`just regen-goldens`) rebuilds them from the current code, prints what differs and refuses to overwrite a changed golden unless `--update` is passed. Their bytes are unchanged.
+
+### Added
+- Corpus tooling: `tools/make_corpus.py` (`just corpus-refresh`) copies the game's own saves, including the game's `backup/` copy next to each one, and the active `mod_state.json` into `<repo>/.corpus` using the app's own detection, never touching the originals, and records every source and SHA-256 in `manifest.json`; `just corpus` runs the corpus tests against it, with `tools/corpus_env.py` supplying `DDM_SAVE_CORPUS`, `DDM_STATE_CORPUS` and `DDM_MODS_ROOT` when they are unset. New corpus tests: `write_applied` reorder/add/remove round trips on every real save (re-validated strictly, read back exactly, original restored), and a full scan of the mods folder compared with the identities the state file holds.
+- A "Source of truth" section in the README and `docs/architecture.md`.
+
+### Removed
+- The differential tests against the 0.2.1 code read from git history: `tools/legacy_oracle.py`, `tools/export_legacy_i18n.py`, the `legacy` pytest marker and fixture, and `tests/core/saves/test_dson_parity.py`. The behaviour they compared is pinned by the goldens and the corpus check instead.
+
 ## v0.3.0 - 2026-10-06
 
 DD Manager is rewritten on PySide6 (Qt) in a layered `src/` package. Everything v0.2.1 could do is still there, the data folder and `mod_state.json` stay compatible, and the release is still `DD Manager.exe` in the same portable layout. Details: `docs/architecture.md` and `docs/migration.md`.

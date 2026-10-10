@@ -1,13 +1,13 @@
 """Managed save backups, kept OUTSIDE the Steam Cloud folder.
 
-Legacy (``dd2.py:520-543``) wrote ``persist.game.backup.<ts>.json`` next to the save, inside the
-folder Steam Cloud syncs, and never pruned them.  New backups go to
+DD Manager 0.2.x wrote ``persist.game.backup.<ts>.json`` next to the save, inside the folder
+Steam Cloud syncs, and never pruned them.  New backups go to
 ``<data>/backups/<save dir name>-<hash>/`` with the same file name pattern plus an ``index.json``;
-legacy backups beside the save are still listed (never pruned, never deleted).
+the backups beside the save are still listed (never pruned, never deleted).
 
-``restore`` ports ``restore_last_backup`` (``dd2.py:2593-2619``) but validates the backup first,
-backs up what it is about to overwrite and writes through the atomic path, so the restored file
-has a FRESH mtime (``shutil.copy2`` preserved the old one, which hid the restore from Steam).
+``restore`` validates the backup first, backs up what it is about to overwrite and writes through
+the atomic path, so the restored file has a FRESH mtime (a plain ``shutil.copy2`` would preserve
+the old one, which hides the restore from Steam).
 """
 
 import builtins
@@ -37,13 +37,15 @@ from src.services.errors import (
     GameRunningError,
     SaveNotFoundError,
 )
-from src.services.fsutil import atomic_write_bytes, legacy_timestamp, unique_path
+from src.services.fsutil import atomic_write_bytes, backup_timestamp, unique_path
 from src.services.ports import Clock, ProcessProbe, RunState
 from src.services.settings_repo import RetentionPolicy
 
 _LOG: Final = logging.getLogger(__name__)
 
-LEGACY_BACKUP_RE: Final = re.compile(r"^persist\.game\.backup\.(\d{8}-\d{6})(?:-(\d+))?\.json$")
+BESIDE_SAVE_BACKUP_RE: Final = re.compile(
+    r"^persist\.game\.backup\.(\d{8}-\d{6})(?:-(\d+))?\.json$"
+)
 GAME_IMAGES: Final = frozenset({"darkest.exe", "darkestdungeon.exe", "darkest"})
 _STAMP_FORMAT: Final = "%Y%m%d-%H%M%S"
 
@@ -62,7 +64,7 @@ class BackupRecord:
     reason: BackupReason | None
     size: int
     sha256: str | None
-    location: Literal["managed", "legacy"]
+    location: Literal["managed", "beside_save"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +122,7 @@ class BackupService:
         slot = self.slot_dir(save_path)
         slot.mkdir(parents=True, exist_ok=True)
         now = self._clock.now()
-        target = unique_path(slot / f"persist.game.backup.{legacy_timestamp(now)}.json")
+        target = unique_path(slot / f"persist.game.backup.{backup_timestamp(now)}.json")
         atomic_write_bytes(target, data)
         entry = IndexEntry(
             target.name, now.isoformat(), reason.value, len(data), hashlib.sha256(data).hexdigest()
@@ -155,11 +157,13 @@ class BackupService:
 
     # ------------------------------------------------------------------ list
 
-    def list(self, save_path: Path, *, include_legacy: bool = True) -> builtins.list[BackupRecord]:
-        """Newest first; managed records carry index metadata, legacy ones sit beside the save."""
+    def list(
+        self, save_path: Path, *, include_beside_save: bool = True
+    ) -> builtins.list[BackupRecord]:
+        """Newest first; managed records carry index metadata, beside-save ones sit by the save."""
         records = self._managed(save_path)
-        if include_legacy:
-            records.extend(self._legacy(save_path))
+        if include_beside_save:
+            records.extend(self._beside_save(save_path))
         return sorted(records, key=self._sort_key, reverse=True)
 
     def latest(self, save_path: Path) -> BackupRecord | None:
@@ -167,7 +171,7 @@ class BackupService:
         return records[0] if records else None
 
     def _sort_key(self, record: BackupRecord) -> tuple[datetime, int, str]:
-        match = LEGACY_BACKUP_RE.match(record.path.name)
+        match = BESIDE_SAVE_BACKUP_RE.match(record.path.name)
         counter = int(match.group(2) or 1) if match else 1
         return (record.created, counter, record.path.name)
 
@@ -182,12 +186,12 @@ class BackupService:
             records.append(self._managed_record(path, save_path, entry))
         return records
 
-    def _legacy(self, save_path: Path) -> builtins.list[BackupRecord]:
+    def _beside_save(self, save_path: Path) -> builtins.list[BackupRecord]:
         records: list[BackupRecord] = []
         for path in self._matching(save_path.absolute().parent):
             created = self._stamp(path.name) or self._clock.now()
             records.append(
-                BackupRecord(path, save_path, created, None, _size(path), None, "legacy")
+                BackupRecord(path, save_path, created, None, _size(path), None, "beside_save")
             )
         return records
 
@@ -196,7 +200,7 @@ class BackupService:
             names = sorted(entry for entry in directory.iterdir() if entry.is_file())
         except OSError:
             return []
-        return [path for path in names if LEGACY_BACKUP_RE.match(path.name)]
+        return [path for path in names if BESIDE_SAVE_BACKUP_RE.match(path.name)]
 
     def _managed_record(self, path: Path, save_path: Path, entry: IndexEntry) -> BackupRecord:
         created = self._parse_created(entry.created) or self._stamp(path.name) or self._clock.now()
@@ -215,7 +219,7 @@ class BackupService:
         return parsed
 
     def _stamp(self, name: str) -> datetime | None:
-        match = LEGACY_BACKUP_RE.match(name)
+        match = BESIDE_SAVE_BACKUP_RE.match(name)
         if match is None:
             return None
         naive = datetime.strptime(match.group(1), _STAMP_FORMAT)  # noqa: DTZ007 - tz set below
@@ -254,7 +258,7 @@ class BackupService:
         self, save_path: Path, *, protect: Collection[Path] = (), dry_run: bool = False
     ) -> PruneReport:
         """Delete managed backups outside ALL of: newest ``keep_last``, newest ``min_keep``, newer
-        than ``keep_days``, ``protect``.  Legacy backups are never touched."""
+        than ``keep_days``, ``protect``.  Beside-save backups are never touched."""
         return self._prune_records(save_path, self._managed(save_path), protect, dry_run)
 
     def _prune_records(

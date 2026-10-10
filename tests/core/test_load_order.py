@@ -4,17 +4,12 @@
 included) and ``active()`` is what the save patcher writes as ``applied_ugcs_1_0``. Moves act on
 ``active()`` and are spliced back, so inactive slots never move.
 
-Parity: cross-side moves vs the pinned ``dd2.ModManager.move_selection_between_sides``
-(dd2.py:6742-6766, which calls ``reorder_visible_group`` 6684-6712 over the target side) and the
-``load_mods`` merge rule (dd2.py:6021, 6044-6050). Documented divergences (enable appends after
-the last active entry, disable keeps the slot, reconcile never prunes, casefold instead of lower)
-are locked by name.
+Documented behaviours (enable appends after the last active entry, disable keeps the slot,
+reconcile never prunes, casefold ordering) are locked by name.
 """
 
 import random
-from collections.abc import Iterable, Sequence
-from types import ModuleType, SimpleNamespace
-from typing import Any
+from collections.abc import Iterable
 
 import pytest
 
@@ -29,7 +24,6 @@ from src.core.load_order import (
     missing_active,
 )
 from src.core.reorder import move_block, move_down, move_to_bottom, move_to_top, move_up
-from tools.legacy_oracle import LegacyOracle
 
 FIRST = PriorityDirection.FIRST_WINS
 LAST = PriorityDirection.LAST_WINS
@@ -237,8 +231,7 @@ def test_move_seeded_invariants_match_reorder_functions() -> None:
 
 
 def test_enable_appends_after_the_last_active_entry_by_default() -> None:
-    """Documented divergence: the legacy click-toggle (dd2.py:5669-5676) only flipped the flag,
-    re-enabling a mod in its remembered slot; the drag path (6742-6766) appended."""
+    """Enabling without a gap appends; it does not restore a remembered slot."""
     order = _order("a b* c d*")
     result = order.enable([M("b")])
     assert result.active() == _ids("a c b")
@@ -278,7 +271,7 @@ def test_enable_rejects_unknown_ids_and_ignores_enabled_ones() -> None:
 
 
 def test_disable_keeps_the_slot_in_entries() -> None:
-    """Documented divergence: the legacy re-slotted a disabled mod inside the disabled list."""
+    """A disabled mod is not re-slotted inside the disabled list."""
     order = _order("a b c* d")
     result = order.disable({M("b")})
     assert result.entries == order.entries
@@ -355,8 +348,8 @@ def test_reconcile_appends_unknown_present_ids_sorted_casefold_and_disabled() ->
 
 
 def test_reconcile_never_prunes_or_re_sorts() -> None:
-    """Regression lock vs dd2.py:6044-6050: the legacy dropped saved mods that were not on disk
-    (a briefly unmounted drive wiped their order slot); core keeps every entry and reports it."""
+    """Saved mods that are not on disk are kept and reported (a briefly unmounted drive must not
+    wipe their order slot)."""
     order = _order("c a b*")
     rec = order.reconcile(_ids("a"))
     assert rec.order == order
@@ -378,17 +371,17 @@ def test_reconcile_accepts_any_iterable_and_is_idempotent() -> None:
 
 
 def test_reconcile_sorts_added_ids_by_casefold_not_lower() -> None:
-    """Documented divergence: the legacy sorted discovered folders with ``str.lower``
-    (dd2.py:6021); ``"ß".casefold()`` is ``"ss"`` so it now sorts before ``"st"``."""
+    """Discovered folders sort by ``casefold``, not ``str.lower``; ``"ß".casefold()`` is ``"ss"``
+    so it sorts before ``"st"``."""
     rec = LoadOrder((), frozenset()).reconcile([M(x) for x in ("st", "ß", "Sz", "sa")])
     assert rec.added == _ids("sa ß st Sz")
     assert rec.order.enabled == frozenset()
 
 
-def test_reconcile_seeded_against_the_legacy_merge_rule() -> None:
-    """Inline port of dd2.py:6021 (``sorted(mods, key=str.lower)``) and 6044-6050 with ASCII
-    names (where ``lower`` and ``casefold`` agree): added == legacy new_mods; entries minus the
-    missing ones == legacy merged_order; nothing else changes."""
+def test_reconcile_seeded_against_a_reference_merge() -> None:
+    """Inline reference merge (``sorted(mods, key=str.lower)``) with ASCII
+    names (where ``lower`` and ``casefold`` agree): added == the new mods; entries minus the
+    missing ones == the merged order; nothing else changes."""
     rng = random.Random(6044)
     pool = [f"Mod{i}" if i % 3 else f"mod{i}" for i in range(20)]
     for _ in range(300):
@@ -451,121 +444,3 @@ def test_applied_entries_leaves_mods_missing_from_disk_out_even_with_a_cached_id
     )
     assert missing_active(order, missing) == (M("gone"),), "disabled missing mods do not count"
     assert missing_active(order, missing, present=True) == _ids("alpha bravo charlie")
-
-
-# ----------------------------------------------------------------- legacy parity
-
-
-def _legacy_manager(dd2: ModuleType, order: LoadOrder) -> Any:
-    """A ``ModManager`` without Tk: only what ``move_selection_between_sides`` (dd2.py:6742-6766)
-    and ``visible_mods_for_side_from_state`` (4496-4546) read."""
-    mgr = object.__new__(dd2.ModManager)
-    mgr.state = {
-        "order": list(order.entries),
-        "enabled": {m: order.is_enabled(m) for m in order.entries},
-        "categories": {},
-        "metadata": {},
-    }
-    mgr.recent_new_mods = set()  # 4537: no NEW-window promotion
-    mgr.current_filter_category = lambda: "All"  # 4501
-    mgr.search_text = SimpleNamespace(get=lambda: "")  # 4502
-    mgr.confirm_disable_active_mods = lambda mods: True  # 6747: no active-save prompt
-    mgr.refresh = lambda: None
-    mgr.schedule_save_state = lambda: None
-    mgr.restore_drag_selection = lambda side, mods: None
-    return mgr
-
-
-def _legacy_order(mgr: Any) -> LoadOrder:
-    state = mgr.state
-    entries = tuple(ModId(m) for m in state["order"])
-    return LoadOrder(entries, frozenset(ModId(m) for m, on in state["enabled"].items() if on))
-
-
-def _random_cross_side_case(
-    rng: random.Random, source: Sequence[ModId]
-) -> tuple[list[ModId], int | None]:
-    ids = [m for m in source if rng.random() < 0.5] or [rng.choice(source)]
-    gap: int | None = rng.choice([None, rng.randint(0, 20)])
-    return ids, gap
-
-
-@pytest.mark.legacy
-def test_enable_parity_with_legacy_disabled_to_enabled_moves(legacy: LegacyOracle) -> None:
-    """``enable(ids, at=gap)`` == ``move_selection_between_sides("disabled", "enabled", ids, gap)``
-    on the full order, for explicit gaps (clamped like the legacy) and for ``None``."""
-    dd2 = legacy.module("dd2")
-    rng = random.Random(6742)
-    compared = 0
-    for _ in range(500):
-        order = _random_order(rng)
-        if not order.inactive():
-            continue
-        ids, gap = _random_cross_side_case(rng, order.inactive())
-        if gap is not None:
-            gap = min(gap, len(order.active()))
-        mgr = _legacy_manager(dd2, order)
-        mgr.move_selection_between_sides("disabled", "enabled", list(ids), gap)
-        assert order.enable(ids, at=gap) == _legacy_order(mgr)
-        compared += 1
-    assert compared > 300
-
-
-@pytest.mark.legacy
-def test_disable_divergence_lock_legacy_re_slots_the_mod(legacy: LegacyOracle) -> None:
-    """Documented divergence: the legacy moved a disabled mod to the end of the disabled list
-    (dd2.py:6752-6762); core keeps its slot. The active sequence agrees."""
-    dd2 = legacy.module("dd2")
-    order = _order("a b c* d")
-    mgr = _legacy_manager(dd2, order)
-    mgr.move_selection_between_sides("enabled", "disabled", ["a"], None)
-    legacy_result = _legacy_order(mgr)
-    assert legacy_result.entries == _ids("c b a d")
-    core = order.disable({M("a")})
-    assert core.entries == order.entries
-    assert core.active() == legacy_result.active() == _ids("b d")
-    assert set(core.inactive()) == set(legacy_result.inactive())
-
-
-@pytest.mark.legacy
-def test_toggle_parity_disable_keeps_the_slot_like_the_legacy_click_toggle(
-    legacy: LegacyOracle,
-) -> None:
-    """``toggle_mod_enabled`` (dd2.py:5669-5676) only flips the flag, so ``disable`` is a verbatim
-    port of that path (whole-value equality) while ``enable`` diverges by appending."""
-    dd2 = legacy.module("dd2")
-    rng = random.Random(5669)
-    for _ in range(200):
-        order = _random_order(rng)
-        mod = rng.choice(order.entries)
-        mgr = _legacy_manager(dd2, order)
-        mgr.toggle_mod_enabled(mod)
-        toggled = _legacy_order(mgr)
-        assert toggled.entries == order.entries
-        if order.is_enabled(mod):
-            assert order.disable({mod}) == toggled
-        else:
-            core = order.enable([mod])
-            assert core.enabled == toggled.enabled
-            assert core.active()[-1] == mod
-            assert [m for m in core.active() if m != mod] == [
-                m for m in toggled.active() if m != mod
-            ]
-
-
-@pytest.mark.legacy
-def test_disable_parity_on_the_active_sequence(legacy: LegacyOracle) -> None:
-    dd2 = legacy.module("dd2")
-    rng = random.Random(6752)
-    for _ in range(300):
-        order = _random_order(rng)
-        if not order.active():
-            continue
-        ids, gap = _random_cross_side_case(rng, order.active())
-        mgr = _legacy_manager(dd2, order)
-        mgr.move_selection_between_sides("enabled", "disabled", list(ids), gap)
-        legacy_result = _legacy_order(mgr)
-        core = order.disable(set(ids))
-        assert core.active() == legacy_result.active()
-        assert core.enabled == legacy_result.enabled
-        assert sorted(core.entries) == sorted(legacy_result.entries)

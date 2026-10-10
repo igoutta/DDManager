@@ -1,4 +1,4 @@
-"""Finding ``persist.game.json`` files on disk (``paths.py:267-353``)."""
+"""Finding ``persist.game.json`` files on disk."""
 
 import logging
 from collections.abc import Iterable, Sequence
@@ -53,7 +53,7 @@ def _proton_saves(libraries: Sequence[Path]) -> list[Path]:
 
 
 def windows_documents_roots(env: Environment) -> list[Path]:
-    """``paths.py:82-101``: Documents folders (profile, OneDrive, ``~/Documents``, known folder)."""
+    """Documents folders (profile, OneDrive, ``~/Documents``, known folder)."""
     candidates = [base / "Documents" for name in _ONEDRIVE_VARS if (base := env.env_path(name))]
     candidates.append(env.home / "Documents")
     if env.known_documents_dir is not None:
@@ -78,7 +78,7 @@ def _platform_saves(env: Environment, libraries: Sequence[Path]) -> list[Path]:
 def discover_save_files(
     env: Environment, steam_roots: Sequence[Path], libraries: Sequence[Path]
 ) -> list[Path]:
-    """``paths.py:267-333``: Steam Cloud copies first, then the platform's local save folders."""
+    """Steam Cloud copies first, then the platform's local save folders."""
     found = [*_steam_userdata_saves(steam_roots), *_platform_saves(env, libraries)]
     return unique_paths(found)
 
@@ -86,6 +86,6 @@ def discover_save_files(
 def order_save_candidates(
     selected: Path | None, last: Path | None, detected: Iterable[Path]
 ) -> list[Path]:
-    """``paths.py:336-353``: selected, last, then detected; existing files only, no duplicates."""
+    """Selected, last, then detected; existing files only, no duplicates."""
     wanted = [path for path in (selected, last) if path is not None]
     return unique_paths(path for path in [*wanted, *detected] if path.is_file())

@@ -7,7 +7,7 @@ from PySide6.QtCore import QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.core.load_order import applied_entries
-from src.core.loadorder_file import LegacyLoadoutExtras, LoadOrderDocument
+from src.core.loadorder_file import LoadOrderDocument, LoadoutV02Extras
 from src.core.saves.applied_text import render_applied_text
 from src.ui import controller_diagnostics as diagnostics
 from src.ui.controller_apply import ApplyOrderFlow
@@ -70,8 +70,8 @@ class ToolsPresenter(QObject):
 
         diagnostics.collect(c, copy)
 
-    # ------------------------------------------------------------------ legacy import
+    # ------------------------------------------------------------------ 0.2 loadout import
 
-    def import_legacy(self, doc: LoadOrderDocument, extras: LegacyLoadoutExtras) -> None:
-        """Apply a legacy ``dd_mod_loadout.json``: the order after its preview, then the extras."""
-        self._loadout.import_legacy(doc, extras)
+    def import_loadout_v02(self, doc: LoadOrderDocument, extras: LoadoutV02Extras) -> None:
+        """Apply a 0.2 ``dd_mod_loadout.json``: the order after its preview, then the extras."""
+        self._loadout.import_loadout_v02(doc, extras)

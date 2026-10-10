@@ -1,4 +1,4 @@
-"""P19: the Backups tab lists managed and legacy backups, restores them validated and confirmed."""
+"""P19: the Backups tab lists managed and beside-save ones; restores validated and confirmed."""
 
 from datetime import datetime
 from pathlib import Path
@@ -22,7 +22,7 @@ def when(day, hour, minute=0):
 def records(fake_services, tmp_path):
     save = fake_services.save_path
     folder = tmp_path / "backups"
-    legacy = save.parent
+    beside = save.parent
     return [
         BackupRecord(
             folder / "persist.game.backup.20260503-101500.json",
@@ -43,13 +43,13 @@ def records(fake_services, tmp_path):
             "managed",
         ),
         BackupRecord(
-            legacy / "persist.game.backup.20260420-180000.json",
+            beside / "persist.game.backup.20260420-180000.json",
             save,
             when(20, 18),
             None,
             5 * 1024 * 1024,
             None,
-            "legacy",
+            "beside_save",
         ),
     ]
 
@@ -93,14 +93,14 @@ def select(dialog, row):
 # ---------------------------------------------------------------------------- listing
 
 
-def test_managed_and_legacy_backups_are_listed_newest_first_with_their_details(
+def test_managed_and_beside_save_backups_are_listed_newest_first_with_their_details(
     rig, records, open_manager
 ):
     dialog = open_manager()
     assert cells(dialog.backups_tab.table) == [
-        [records[0].created.strftime(STAMP), "pre-patch", "2 KiB", "managed"],
-        [records[1].created.strftime(STAMP), "manual", "10 B", "managed"],
-        [records[2].created.strftime(STAMP), "", "5120 KiB", "legacy"],
+        [records[0].created.strftime(STAMP), "pre-patch", "2 KiB", "Managed"],
+        [records[1].created.strftime(STAMP), "manual", "10 B", "Managed"],
+        [records[2].created.strftime(STAMP), "", "5120 KiB", "Beside the save"],
     ]
     assert rig.services.backups.list_calls >= 1
 
@@ -238,4 +238,7 @@ def test_a_folder_that_cannot_be_opened_is_a_notice_not_a_crash(rig, open_manage
 def test_the_tab_follows_the_language_live(rig, open_manager, language):
     dialog = open_manager()
     follow_language(dialog, rig.translator, language)
-    assert cells(dialog.backups_tab.table)[0][3] == "managed", "data cells are not translated"
+    expected = rig.translator.tr("ui.backups.location.managed")
+    assert cells(dialog.backups_tab.table)[0][3] == expected, (
+        "the location cell follows the language"
+    )

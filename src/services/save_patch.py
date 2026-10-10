@@ -1,9 +1,7 @@
 """Patching the applied-mods block of a save: ``plan()`` computes, ``apply()`` writes.
 
-Ports ``ModManager.patch_selected_save_file`` (``dd2.py:1748-1785``).  The legacy order was
-compute -> backup (``shutil.copy2`` of the file) -> temp file -> re-validate -> ``os.replace``.
-Here the same order holds but both gates are explicit and the backup is made from the EXACT
-bytes that were patched:
+The order is compute -> backup -> temp file -> re-validate -> ``os.replace``, with both gates
+explicit and the backup made from the EXACT bytes that were patched:
 
 1. ``plan`` reads the save, detects its format, validates it, patches IN MEMORY (the format's
    ``write_applied`` runs its own input/output/round-trip gates) and lists the risks;

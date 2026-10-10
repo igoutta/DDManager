@@ -1,15 +1,10 @@
-"""The mod_state.json schema (src/core/legacy_state.py).
+"""The mod_state.json schema (src/core/state_file.py).
 
-The 22 legacy keys come from ``state.py:8-32``; ``legacy_migrate`` ports ``state.py:35-76``
-verbatim and ``mod_metadata_is_complete`` ports ``dd2.py:557-573``.  ``parse_state`` is the
-tolerant reader (migrate crashes on a non-dict root or badly typed values; the port must not) and
-``render_state`` writes the file back with the legacy key semantics, an explicit bool per order
-entry (``dd2.py:1754`` reads ``enabled_map.get(m, True)``) and an additive ``schema_version``.
-
-Parity (marker ``legacy``): ``legacy_migrate`` vs ``state.migrate_state_data`` on seeded random
-states; ``render_state`` output accepted by ``state.migrate_state_data`` and
-``state.load_state_file`` with identical order/enabled; ``render_state_json`` byte-equal to
-``state.save_state_file``.
+The 22 state keys; ``migrate_state`` completes a state document and
+``mod_metadata_is_complete`` checks a metadata entry.  ``parse_state`` is the
+tolerant reader (migrate raises on a non-dict root or badly typed values; the reader must not)
+and ``render_state`` writes the file back with the state keys, an explicit bool per order
+entry (a missing flag means enabled) and an additive ``schema_version``.
 """
 
 import copy
@@ -23,22 +18,21 @@ import pytest
 
 from src.core.categories import DEFAULT_CATEGORIES
 from src.core.ids import ModId, SaveIdentity
-from src.core.legacy_state import (
-    LEGACY_KEYS,
+from src.core.load_order import LoadOrder
+from src.core.state_file import (
     SCHEMA_VERSION,
+    STATE_KEYS,
     VIEW_MODES,
     StateChanges,
     StateDoc,
-    build_default_state,
-    legacy_migrate,
+    default_state,
+    migrate_state,
     mod_metadata_is_complete,
     parse_state,
     render_state,
     render_state_json,
 )
-from src.core.load_order import LoadOrder
 from src.core.validation import Finding, Severity
-from tools.legacy_oracle import LegacyOracle
 
 FIXTURE = Path(__file__).absolute().parent.parent / "fixtures" / "mod_state_v0.json"
 EXPECTED_KEYS = (
@@ -103,16 +97,16 @@ def _assert_state_findings(findings: Sequence[Finding]) -> None:
 # ----------------------------------------------------------------- constants and defaults
 
 
-def test_legacy_keys_are_the_22_state_py_defaults() -> None:
-    assert LEGACY_KEYS == EXPECTED_KEYS
-    assert len(set(LEGACY_KEYS)) == 22
+def test_state_keys_are_the_22_defaults() -> None:
+    assert STATE_KEYS == EXPECTED_KEYS
+    assert len(set(STATE_KEYS)) == 22
     assert SCHEMA_VERSION == 1
     assert VIEW_MODES == ("No Icons", "Compact", "Comfortable", "Visual")
 
 
-def test_build_default_state_is_the_state_py_dict() -> None:
-    state = build_default_state("en", DEFAULT_CATEGORIES)
-    assert tuple(state) == LEGACY_KEYS
+def test_default_state_is_the_documented_dict() -> None:
+    state = default_state("en", DEFAULT_CATEGORIES)
+    assert tuple(state) == STATE_KEYS
     assert state["language"] == "en"
     assert state["view_mode"] == "Comfortable"
     assert state["first_run_summary_shown"] is False
@@ -123,9 +117,9 @@ def test_build_default_state_is_the_state_py_dict() -> None:
     assert state["custom_categories"] == []
 
 
-def test_build_default_state_returns_fresh_containers() -> None:
-    first: dict[str, Any] = build_default_state("en", DEFAULT_CATEGORIES)
-    second: dict[str, Any] = build_default_state("en", DEFAULT_CATEGORIES)
+def test_default_state_returns_fresh_containers() -> None:
+    first: dict[str, Any] = default_state("en", DEFAULT_CATEGORIES)
+    second: dict[str, Any] = default_state("en", DEFAULT_CATEGORIES)
     first["order"].append("x")
     first["category_order"].append("Custom")
     assert second["order"] == []
@@ -134,8 +128,8 @@ def test_build_default_state_returns_fresh_containers() -> None:
 
 def test_fixture_has_the_22_keys_plus_one_unknown() -> None:
     state = _fixture()
-    assert set(LEGACY_KEYS) <= set(state)
-    assert set(state) - set(LEGACY_KEYS) == {UNKNOWN_KEY}
+    assert set(STATE_KEYS) <= set(state)
+    assert set(state) - set(STATE_KEYS) == {UNKNOWN_KEY}
     assert len(state["order"]) >= 5
     assert set(state["enabled"]) == set(state["order"])
     assert all(isinstance(v, bool) for v in state["enabled"].values())
@@ -180,159 +174,68 @@ def test_mod_metadata_is_complete_rejects_non_dicts(value: object) -> None:
     assert not mod_metadata_is_complete(value)
 
 
-# ----------------------------------------------------------------- legacy_migrate
+# ----------------------------------------------------------------- migrate_state
 
 
-def test_legacy_migrate_fills_defaults_and_keeps_order_of_existing_keys() -> None:
+def test_migrate_state_fills_defaults_and_keeps_order_of_existing_keys() -> None:
     state = {"view_mode": "Visual", "order": ["b", "a"], "zzz": 1}
-    out = legacy_migrate(state, "fr", DEFAULT_CATEGORIES)
+    out = migrate_state(state, "fr", DEFAULT_CATEGORIES)
     assert list(out)[:3] == ["view_mode", "order", "zzz"]
     assert out["language"] == "fr"
     assert out["view_mode"] == "Visual"
     assert out["order"] == ["b", "a"]
     assert out["category_order"] == list(DEFAULT_CATEGORIES)
     assert out["zzz"] == 1
-    assert set(LEGACY_KEYS) <= set(out)
+    assert set(STATE_KEYS) <= set(out)
 
 
-def test_legacy_migrate_does_not_mutate_its_input() -> None:
+def test_migrate_state_does_not_mutate_its_input() -> None:
     state: dict[str, Any] = {"categories": {"m": "Custom"}, "custom_categories": []}
     snapshot = copy.deepcopy(state)
-    legacy_migrate(state, "en", DEFAULT_CATEGORIES)
+    migrate_state(state, "en", DEFAULT_CATEGORIES)
     assert state == snapshot
 
 
-def test_legacy_migrate_normalizes_colors_and_drops_invalid_ones() -> None:
+def test_migrate_state_normalizes_colors_and_drops_invalid_ones() -> None:
     state = {"category_colors": {"UI": "abcdef", "Class": "#12AB34", "Bad": "red", "Empty": ""}}
-    out = legacy_migrate(state, "en", DEFAULT_CATEGORIES)
+    out = migrate_state(state, "en", DEFAULT_CATEGORIES)
     assert out["category_colors"] == {"UI": "#ABCDEF", "Class": "#12AB34"}
 
 
-def test_legacy_migrate_category_order_dedupes_case_insensitively_and_drops_pseudo() -> None:
+def test_migrate_state_category_order_dedupes_case_insensitively_and_drops_pseudo() -> None:
     state = {"category_order": ["Class", "class", "All", "Unassigned", "", "UI", "Extra"]}
-    out: dict[str, Any] = legacy_migrate(state, "en", DEFAULT_CATEGORIES)
+    out: dict[str, Any] = migrate_state(state, "en", DEFAULT_CATEGORIES)
     assert out["category_order"][:3] == ["Class", "UI", "Extra"]
     rest = [c for c in DEFAULT_CATEGORIES if c not in ("Class", "UI")]
     assert out["category_order"] == ["Class", "UI", "Extra", *rest]
 
 
-def test_legacy_migrate_discovers_custom_categories_from_assignments() -> None:
+def test_migrate_state_discovers_custom_categories_from_assignments() -> None:
     state = {
         "categories": {"a": "Overhaul", "b": "overhaul", "c": "Unassigned", "d": "All", "e": ""},
         "custom_categories": ["Patch"],
     }
-    out = legacy_migrate(state, "en", DEFAULT_CATEGORIES)
+    out = migrate_state(state, "en", DEFAULT_CATEGORIES)
     assert out["custom_categories"] == ["Patch", "Overhaul"]
     assert out["category_order"] == [*DEFAULT_CATEGORIES, "Patch", "Overhaul"]
 
 
-def test_legacy_migrate_is_idempotent_on_the_fixture(fixture_state: dict[str, Any]) -> None:
-    once = legacy_migrate(fixture_state, "en", DEFAULT_CATEGORIES)
+def test_migrate_state_is_idempotent_on_the_fixture(fixture_state: dict[str, Any]) -> None:
+    once = migrate_state(fixture_state, "en", DEFAULT_CATEGORIES)
     assert once == fixture_state
     assert list(once) == list(fixture_state)
-    assert legacy_migrate(once, "en", DEFAULT_CATEGORIES) == once
-
-
-def _random_category_name(rng: random.Random) -> str:
-    pool = [*DEFAULT_CATEGORIES, "Overhaul", "Patch", "All", "Unassigned", "", "ui", "class", "Mix"]
-    return rng.choice(pool)
-
-
-def _random_state(rng: random.Random) -> dict[str, Any]:
-    """A migrate-safe random state: containers typed as migrate expects, contents messy."""
-    state: dict[str, Any] = {}
-    if rng.random() < 0.8:
-        state["category_order"] = [_random_category_name(rng) for _ in range(rng.randint(0, 12))]
-    if rng.random() < 0.8:
-        state["custom_categories"] = [_random_category_name(rng) for _ in range(rng.randint(0, 4))]
-    if rng.random() < 0.8:
-        state["categories"] = {
-            f"mod{i}": _random_category_name(rng) for i in range(rng.randint(0, 8))
-        }
-    if rng.random() < 0.8:
-        colors = ["#ABCDEF", "abcdef", "#abc", "red", "", "123456", "#12345G", " #A1B2C3 "]
-        state["category_colors"] = {
-            _random_category_name(rng) or "X": rng.choice(colors) for _ in range(rng.randint(0, 5))
-        }
-    for key in ("language", "view_mode", "mods_path"):
-        if rng.random() < 0.5:
-            state[key] = rng.choice(["", "en", "es", "Compact", "x"])
-    if rng.random() < 0.5:
-        state["order"] = [f"mod{rng.randint(0, 9)}" for _ in range(rng.randint(0, 6))]
-    if rng.random() < 0.3:
-        state["unknown_key"] = rng.randint(0, 9)
-    return state
-
-
-@pytest.mark.legacy
-def test_legacy_migrate_matches_state_py_on_seeded_random_states(legacy: LegacyOracle) -> None:
-    state_mod = legacy.module("state")
-    dd2 = legacy.module("dd2")
-    rng = random.Random(20250914)
-    for _ in range(300):
-        state = _random_state(rng)
-        expected = state_mod.migrate_state_data(
-            copy.deepcopy(state), "en", list(DEFAULT_CATEGORIES), dd2.normalize_hex_color
-        )
-        actual = legacy_migrate(copy.deepcopy(state), "en", DEFAULT_CATEGORIES)
-        assert actual == expected, state
-        assert list(actual) == list(expected), state
-
-
-MIXED_NAME_STATES: dict[str, dict[str, Any]] = {
-    "custom_none": {"custom_categories": [None]},
-    "custom_int": {"custom_categories": [5]},
-    "custom_empty": {"custom_categories": [""]},
-    "order_falsy_skipped": {"category_order": [None, "", 0, "Mix"]},
-    "order_int": {"category_order": [5]},
-    "assigned_falsy_skipped": {"categories": {"m": None, "n": "Mix", "o": ""}},
-    "assigned_int": {"categories": {"m": 5}},
-    "colors_mixed": {"category_colors": {"UI": None, "Class": 0, "Skins": "#abcdef"}},
-}
+    assert migrate_state(once, "en", DEFAULT_CATEGORIES) == once
 
 
 @pytest.mark.parametrize("state", [{"custom_categories": [None]}, {"custom_categories": [5]}])
-def test_legacy_migrate_raises_on_non_text_custom_categories(state: dict[str, Any]) -> None:
-    """state.py:56 calls ``.lower()`` on every custom name; the port raises instead of inventing
+def test_migrate_state_raises_on_non_text_custom_categories(state: dict[str, Any]) -> None:
+    """Every custom name is lower-cased later, so ``migrate_state`` raises instead of inventing
     the names ``'None'`` / ``'5'``.  ``parse_state`` stays the tolerant path."""
     with pytest.raises(TypeError):
-        legacy_migrate(state, "en", DEFAULT_CATEGORIES)
+        migrate_state(state, "en", DEFAULT_CATEGORIES)
     doc, findings = parse_state(state)
     assert doc.custom_categories == ()
     assert any(f.rule_id == "state.bad_entry" for f in findings)
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("name", list(MIXED_NAME_STATES))
-def test_legacy_migrate_failure_modes_match_state_py(legacy: LegacyOracle, name: str) -> None:
-    """Where the legacy crashes on a value the port raises ``TypeError``; where the legacy skips
-    a falsy name silently the port does too."""
-    state = MIXED_NAME_STATES[name]
-    state_mod = legacy.module("state")
-    dd2 = legacy.module("dd2")
-    try:
-        expected = state_mod.migrate_state_data(
-            copy.deepcopy(state), "en", list(DEFAULT_CATEGORIES), dd2.normalize_hex_color
-        )
-    except AttributeError, TypeError:
-        with pytest.raises(TypeError):
-            legacy_migrate(copy.deepcopy(state), "en", DEFAULT_CATEGORIES)
-        return
-    actual = legacy_migrate(copy.deepcopy(state), "en", DEFAULT_CATEGORIES)
-    assert actual == expected, name
-    assert list(actual) == list(expected), name
-
-
-@pytest.mark.legacy
-def test_legacy_migrate_matches_state_py_on_the_fixture(
-    legacy: LegacyOracle, fixture_state: dict[str, Any]
-) -> None:
-    state_mod = legacy.module("state")
-    dd2 = legacy.module("dd2")
-    expected = state_mod.migrate_state_data(
-        copy.deepcopy(fixture_state), "en", list(DEFAULT_CATEGORIES), dd2.normalize_hex_color
-    )
-    assert legacy_migrate(fixture_state, "en", DEFAULT_CATEGORIES) == expected
 
 
 # ----------------------------------------------------------------- parse_state
@@ -344,7 +247,7 @@ def test_parse_state_raw_is_the_migrated_file_and_a_private_copy(
     source = copy.deepcopy(fixture_state)
     doc, findings = parse_state(source)
     assert findings == []
-    assert dict(doc.raw) == legacy_migrate(fixture_state, "en", DEFAULT_CATEGORIES)
+    assert dict(doc.raw) == migrate_state(fixture_state, "en", DEFAULT_CATEGORIES)
     assert list(doc.raw) == list(fixture_state)
     source["order"].append("late")
     source["metadata"]["2248772895"]["title"] = "mutated"
@@ -361,7 +264,7 @@ def test_parse_state_order_and_enabled(parsed: StateDoc, fixture_state: dict[str
     assert parsed.order.is_enabled(M("Mi_Mod_Español"))
 
 
-def test_parse_state_enabled_uses_legacy_truthiness_with_default_true() -> None:
+def test_parse_state_enabled_uses_truthiness_with_default_true() -> None:
     state = {
         "order": ["a", "b", "c", "d", "e", "f"],
         "enabled": {"a": 0, "b": "", "c": "no", "d": 1, "e": None},
@@ -392,7 +295,7 @@ def test_parse_state_metadata_identities_only_for_complete_entries(parsed: State
     assert identities[M("0003_1_Black_Reliquary")] == SaveIdentity(
         "Black Reliquary", "mod_local_source"
     )
-    assert M("3012345678") not in identities  # incomplete metadata (dd2.py:557-573)
+    assert M("3012345678") not in identities  # incomplete metadata
     assert M("Mi_Mod_Español") not in identities  # no metadata at all
 
 
@@ -414,7 +317,7 @@ def test_parse_state_settings(parsed: StateDoc, fixture_state: dict[str, Any]) -
 def test_parse_state_empty_dict_is_the_default_state() -> None:
     doc, findings = parse_state({}, default_language="fr")
     assert findings == []
-    assert dict(doc.raw) == build_default_state("fr", DEFAULT_CATEGORIES)
+    assert dict(doc.raw) == default_state("fr", DEFAULT_CATEGORIES)
     assert doc.order.entries == ()
     assert doc.settings.language == "fr"
     assert doc.settings.view_mode == "Comfortable"
@@ -424,7 +327,7 @@ def test_parse_state_empty_dict_is_the_default_state() -> None:
 @pytest.mark.parametrize("root", [None, [], "text", 7, [{"order": []}], True])
 def test_parse_state_non_dict_root_yields_defaults_and_a_warning(root: object) -> None:
     doc, findings = parse_state(root)
-    assert dict(doc.raw) == build_default_state("en", DEFAULT_CATEGORIES)
+    assert dict(doc.raw) == default_state("en", DEFAULT_CATEGORIES)
     assert findings, "a non-dict root must be reported"
     _assert_state_findings(findings)
     assert any(f.severity >= Severity.WARNING for f in findings)
@@ -460,7 +363,7 @@ def test_parse_state_bad_container_falls_back_to_default_with_warning(
     key: str, bad: object
 ) -> None:
     doc, findings = parse_state({key: bad})
-    defaults = build_default_state("en", DEFAULT_CATEGORIES)
+    defaults = default_state("en", DEFAULT_CATEGORIES)
     assert doc.raw[key] == defaults[key]
     assert findings, key
     _assert_state_findings(findings)
@@ -469,7 +372,7 @@ def test_parse_state_bad_container_falls_back_to_default_with_warning(
 @pytest.mark.parametrize("key", ["language", "mods_path", "view_mode", "first_run_summary_shown"])
 def test_parse_state_bad_scalar_falls_back_to_default_with_warning(key: str) -> None:
     doc, findings = parse_state({key: {"nested": 1}})
-    defaults = build_default_state("en", DEFAULT_CATEGORIES)
+    defaults = default_state("en", DEFAULT_CATEGORIES)
     assert doc.raw[key] == defaults[key]
     assert getattr(doc.settings, key) == defaults[key]
     assert findings, key
@@ -492,13 +395,13 @@ def _garbage(rng: random.Random, depth: int = 0) -> Any:
         return _SCALARS[kind](rng)
     if kind == 6:
         return [_garbage(rng, depth + 1) for _ in range(rng.randint(0, 4))]
-    keys = [*LEGACY_KEYS, "junk", "m1", "m2", ""]
+    keys = [*STATE_KEYS, "junk", "m1", "m2", ""]
     return {rng.choice(keys): _garbage(rng, depth + 1) for _ in range(rng.randint(0, 6))}
 
 
 def _garbage_state(rng: random.Random) -> dict[str, Any]:
     state: dict[str, Any] = {}
-    for key in LEGACY_KEYS:
+    for key in STATE_KEYS:
         if rng.random() < 0.6:
             state[key] = _garbage(rng)
     if rng.random() < 0.3:
@@ -513,7 +416,7 @@ def test_parse_state_never_raises_on_garbage() -> None:
         doc, findings = parse_state(obj)
         assert isinstance(doc, StateDoc)
         assert isinstance(doc.order, LoadOrder)
-        assert set(LEGACY_KEYS) <= set(doc.raw)
+        assert set(STATE_KEYS) <= set(doc.raw)
         _assert_state_findings(findings)
         # whatever was read back is itself renderable and parseable again
         rendered = render_state(doc, StateChanges())
@@ -647,89 +550,8 @@ def test_render_state_json_byte_style() -> None:
     text = render_state_json(doc)
     assert text == json.dumps(doc, indent=2)
     assert not text.endswith("\n")
-    assert "\\u00f1" in text  # default ensure_ascii, like state.py:123
+    assert "\\u00f1" in text  # default ensure_ascii
     assert json.loads(text) == doc
 
 
-# ----------------------------------------------------------------- render parity vs state.py
-
-
-def _legacy_load(
-    legacy: LegacyOracle, tmp_path: Path, text: str
-) -> tuple[dict[str, Any], list[Any]]:
-    state_mod = legacy.module("state")
-    dd2 = legacy.module("dd2")
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    state_file = tmp_path / "mod_state.json"
-    state_file.write_text(text, encoding="utf-8")
-    return state_mod.load_state_file(
-        str(state_file), str(tmp_path), "en", list(DEFAULT_CATEGORIES), dd2.normalize_hex_color
-    )
-
-
-@pytest.mark.legacy
-def test_rendered_state_is_accepted_by_legacy_load_and_migrate(
-    legacy: LegacyOracle, tmp_path: Path, fixture_state: dict[str, Any]
-) -> None:
-    doc, _ = parse_state(copy.deepcopy(fixture_state))
-    new_order = doc.order.disable({M("2248772895")}).enable([M("1739565783")])
-    rendered = render_state(doc, StateChanges(order=new_order, nicknames={M("2248772895"): "C"}))
-    loaded, notices = _legacy_load(legacy, tmp_path, render_state_json(rendered))
-    assert notices == []
-    assert loaded["order"] == list(new_order.entries)
-    enabled_map = loaded["enabled"]
-    assert [m for m in loaded["order"] if enabled_map.get(m, True)] == list(new_order.active())
-    assert loaded["schema_version"] == SCHEMA_VERSION
-    migrated = legacy.module("state").migrate_state_data(
-        copy.deepcopy(rendered),
-        "en",
-        list(DEFAULT_CATEGORIES),
-        legacy.module("dd2").normalize_hex_color,
-    )
-    assert migrated == rendered  # the rendered file is already in migrated form
-
-
-@pytest.mark.legacy
-def test_render_state_json_matches_legacy_save_state_file_bytes(
-    legacy: LegacyOracle, tmp_path: Path, fixture_state: dict[str, Any]
-) -> None:
-    doc, _ = parse_state(copy.deepcopy(fixture_state))
-    rendered = render_state(doc, StateChanges())
-    state_file = tmp_path / "mod_state.json"
-    legacy.module("state").save_state_file(rendered, str(state_file), str(tmp_path))
-    assert state_file.read_text(encoding="utf-8") == render_state_json(rendered)
-
-
-@pytest.mark.legacy
-def test_render_parity_over_seeded_random_changes(
-    legacy: LegacyOracle, tmp_path: Path, fixture_state: dict[str, Any]
-) -> None:
-    rng = random.Random(7)
-    doc, _ = parse_state(copy.deepcopy(fixture_state))
-    entries = list(doc.order.entries)
-    for i in range(40):
-        rng.shuffle(entries)
-        enabled = frozenset(m for m in entries if rng.random() < 0.6)
-        order = LoadOrder(tuple(entries), enabled)
-        rendered = render_state(doc, StateChanges(order=order))
-        loaded, notices = _legacy_load(legacy, tmp_path / str(i), render_state_json(rendered))
-        assert notices == []
-        assert loaded["order"] == list(order.entries)
-        assert [m for m in loaded["order"] if loaded["enabled"].get(m, True)] == list(
-            order.active()
-        )
-        reparsed, _ = parse_state(loaded)
-        assert reparsed.order == order
-
-
-@pytest.mark.legacy
-def test_legacy_load_state_file_and_parse_state_agree_on_the_fixture(
-    legacy: LegacyOracle, tmp_path: Path
-) -> None:
-    text = FIXTURE.read_text(encoding="utf-8")
-    loaded, notices = _legacy_load(legacy, tmp_path, text)
-    assert notices == []
-    doc, findings = parse_state(json.loads(text))
-    assert findings == []
-    assert dict(doc.raw) == loaded
-    assert list(doc.raw) == list(loaded)
+# ----------------------------------------------------------------- render

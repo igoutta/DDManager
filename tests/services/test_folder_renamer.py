@@ -9,7 +9,7 @@ from src.core.folder_order import RenamePlan, RenameStep
 from src.core.ids import ModId
 from src.services.errors import RenameFailedError
 from src.services.folder_renamer import FolderRenamer
-from src.services.fsutil import legacy_timestamp
+from src.services.fsutil import backup_timestamp
 from tests.services.helpers import NOW, tree_bytes
 
 
@@ -89,13 +89,13 @@ def test_swaps_and_chains_work_because_of_the_two_phases(mods: Path) -> None:
     assert (mods / "foo" / "id.txt").read_text("utf-8") == "baz"
 
 
-def test_the_temporary_names_follow_the_legacy_pattern(
+def test_the_temporary_names_follow_the_documented_pattern(
     mods: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     spy = RenameSpy()
     spy.install(monkeypatch)
     run(mods, make_plan(("foo", "0001_foo"), ("bar", "0002_bar")))
-    stamp = f"__temp__{legacy_timestamp(NOW)}__"
+    stamp = f"__temp__{backup_timestamp(NOW)}__"
     phase_one, phase_two = spy.calls[:2], spy.calls[2:4]
     assert phase_one == [("foo", f"{stamp}foo"), ("bar", f"{stamp}bar")]
     assert phase_two == [(f"{stamp}foo", "0001_foo"), (f"{stamp}bar", "0002_bar")]

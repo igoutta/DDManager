@@ -107,7 +107,7 @@ def test_parse_modfiles_txt_on_the_sample_mods(sample_mods_dir: Path) -> None:
 # ----------------------------------------------------------------- value types
 
 
-def test_metadata_signature_is_the_legacy_four_field_key_plus_the_content_root_stamp() -> None:
+def test_metadata_signature_is_the_four_field_key_plus_the_content_root_stamp() -> None:
     sig = MetadataSignature(
         metadata_path="c:\\mods\\x",
         project_mtime=1.5,
@@ -121,7 +121,7 @@ def test_metadata_signature_is_the_legacy_four_field_key_plus_the_content_root_s
         "workshop_timeupdated",
         "content_roots_mtime_ns",
     ]
-    assert sig.content_roots_mtime_ns is None, "a legacy-shaped value still constructs"
+    assert sig.content_roots_mtime_ns is None, "a value without the stamp still constructs"
     assert sig != dataclasses.replace(sig, content_roots_mtime_ns=1)
     assert hasattr(sig, "__slots__")
     with pytest.raises(dataclasses.FrozenInstanceError):

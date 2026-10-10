@@ -1,4 +1,4 @@
-"""``DsonV1Format``: the binary DSON layout the legacy app patched (dd2.py:1312, 1054)."""
+"""``DsonV1Format``: the binary DSON layout of Darkest Dungeon 1 saves."""
 
 import struct
 from collections.abc import Collection, Sequence
@@ -36,8 +36,8 @@ class DsonV1Format:
 
     def check(self, raw: bytes) -> None:
         report = dson.validate(raw)
-        if report.legacy_errors:
-            first = report.legacy_errors[0]
+        if report.structural_errors:
+            first = report.structural_errors[0]
             raise DsonFormatError(first.message, code=first.code, offset=first.offset)
 
     def read_applied(self, raw: bytes) -> tuple[SaveIdentity, ...]:
@@ -55,20 +55,20 @@ class DsonV1Format:
         return dson.read_name_source_object(doc, target)
 
     def write_applied(self, raw: bytes, entries: Sequence[SaveIdentity]) -> bytes:
-        """Rewrite the applied block; byte-identical to the legacy patcher on well-formed saves.
+        """Rewrite the applied block, keeping every byte outside it intact.
 
         The one deliberate exception is bit 31 of the block's info words (an unknown game flag):
-        the legacy cleared it, this keeps it per pre-existing entry (see ``dson/flags.py``), so a
-        game-written save survives its own identity rewrite byte for byte.
+        DD Manager 0.2.x cleared it, this keeps it per pre-existing entry (see ``dson/flags.py``),
+        so a game-written save survives its own identity rewrite byte for byte.
 
-        Gates: the input must be legacy-valid; the output must be legacy-valid and not strict-worse
-        than the input ("never make a save worse"); reading the output back must give ``entries``
-        exactly (full equality, not a count).  Empty ``entries`` are allowed.
+        Gates: the input must be structurally valid; the output must be structurally valid and
+        not strict-worse than the input ("never make a save worse"); reading the output back must
+        give ``entries`` exactly (full equality, not a count).  Empty ``entries`` are allowed.
         """
         wanted = tuple(entries)
         before = dson.validate(raw)
-        if before.legacy_errors:
-            first = before.legacy_errors[0]
+        if before.structural_errors:
+            first = before.structural_errors[0]
             raise DsonFormatError(
                 f"input save is not valid: {first.message}",
                 code="input_invalid",
@@ -118,10 +118,10 @@ class DsonV1Format:
     def _gate(
         self, before: SaveValidationReport, out: bytes, wanted: tuple[SaveIdentity, ...]
     ) -> None:
-        """Post-write gates: output legacy-valid, never strict-worse, entries read back exactly."""
+        """Post-write gates: output structurally valid, never strict-worse, entries read back."""
         after = dson.validate(out)
-        if after.legacy_errors:
-            first = after.legacy_errors[0]
+        if after.structural_errors:
+            first = after.structural_errors[0]
             raise RoundTripError(
                 f"patched save failed validation: {first.message}",
                 code="output_invalid",

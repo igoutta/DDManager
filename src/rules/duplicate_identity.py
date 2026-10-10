@@ -6,10 +6,9 @@ Two checks:
     written to ``applied_ugcs_1_0`` twice (ERROR; the fix keeps the highest-precedence copy).
 
 (b) *Local + Workshop copies*: a local copy and a Workshop copy of one mod, detected by sharing
-    a duplicate-detection key.  The grouping is a port of
-    ``ModManager.detect_local_workshop_duplicates`` (dd2.py:4118-4158) restricted to active mods,
-    with ``duplicate_keys`` (dd2.py:4092-4116) providing the keys; groups are deduplicated by
-    their (locals, workshop) signature and sorted by the legacy sort name.  WARNING; the fix
+    a duplicate-detection key.  The grouping is restricted to active mods,
+    with ``duplicate_keys`` providing the keys; groups are deduplicated by
+    their (locals, workshop) signature and sorted by the sort name.  WARNING; the fix
     disables the local copies.
 """
 
@@ -76,7 +75,7 @@ class _DuplicateGroup:
 def _index_by_key(
     ctx: ValidationContext,
 ) -> tuple[dict[str, list[ModId]], dict[str, list[ModId]]]:
-    """dd2.py:4119-4128: bucket active mods by every duplicate-detection key, per source kind."""
+    """Bucket active mods by every duplicate-detection key, per source kind."""
     workshop_by_key: defaultdict[str, list[ModId]] = defaultdict(list)
     local_by_key: defaultdict[str, list[ModId]] = defaultdict(list)
     for mod, info in ctx.active_infos():
@@ -87,7 +86,7 @@ def _index_by_key(
 
 
 def _duplicate_groups(ctx: ValidationContext) -> list[_DuplicateGroup]:
-    """dd2.py:4130-4157: pair local buckets with Workshop buckets, dedupe, sort like legacy."""
+    """Pair local buckets with Workshop buckets, dedupe and sort them."""
     workshop_by_key, local_by_key = _index_by_key(ctx)
     groups: list[_DuplicateGroup] = []
     seen_pairs: set[tuple[tuple[ModId, ...], tuple[ModId, ...]]] = set()
@@ -107,7 +106,7 @@ def _duplicate_groups(ctx: ValidationContext) -> list[_DuplicateGroup]:
 
 
 def _sort_name(ctx: ValidationContext, mod: ModId) -> str:
-    """Legacy ``sort_name`` (dd2.py:3924-3928) without nicknames, which rules cannot see."""
+    """The ``sort_name`` without nicknames, which rules cannot see."""
     info = ctx.info(mod)
     return sort_key(info, None) if info is not None else str(mod).lower()
 

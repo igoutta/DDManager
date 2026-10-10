@@ -174,7 +174,7 @@ def _errors(report: ValidationReport) -> tuple[Finding, ...]:
 
 
 def last_save_settings(save: Path, backup: Path) -> dict[str, str]:
-    """``dd2.py:1778-1782``: remember the save and its backup in the state."""
+    """Remember the save and its backup in the state."""
     return {
         "last_save_path": str(save),
         "last_backup_path": str(backup),

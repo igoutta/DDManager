@@ -175,10 +175,10 @@ def test_profile_export_import_list_and_apply(
     assert state["enabled"] == {"alpha": True, "charlie": True, "bravo": False}
 
 
-def test_profile_import_of_a_legacy_loadout(world: World, tmp_path: Path) -> None:
-    legacy = {"order": ["alpha", "bravo"], "enabled": {"alpha": True, "bravo": False}}
+def test_profile_import_of_a_v02_loadout(world: World, tmp_path: Path) -> None:
+    loadout = {"order": ["alpha", "bravo"], "enabled": {"alpha": True, "bravo": False}}
     source = tmp_path / "dd_mod_loadout.json"
-    source.write_text(json.dumps(legacy), "utf-8")
+    source.write_text(json.dumps(loadout), "utf-8")
     assert world.run("profile", "import", str(source)) == 0
     assert ProfileRepository(world.data / "profiles").list()
 

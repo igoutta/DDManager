@@ -95,12 +95,12 @@ class AppPaths:
 
     @property
     def icon_cache_dir(self) -> Path:
-        """Legacy name kept so an existing cache keeps working."""
+        """The 0.2.x folder name, kept so an existing cache keeps working."""
         return self.data_dir / "icon_cache"
 
     @property
     def crash_log(self) -> Path:
-        """Legacy name kept."""
+        """The 0.2.x file name, kept."""
         return self.data_dir / "startup_crash.log"
 
     def ensure(self) -> None:

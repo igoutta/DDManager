@@ -2,7 +2,7 @@
 
 Every helper edits the tables with ``struct`` and the header offsets alone, so each result is what
 a differently-behaved writer could have produced rather than anything the codec would build.  All
-of them keep the file LEGACY-valid (the pinned validator accepts it); the docstrings name the
+of them keep the file STRUCTURAL-valid (the validator accepts it); the docstrings name the
 STRICT problem each one provokes.
 """
 
@@ -37,7 +37,7 @@ def with_i32(raw: bytes, at: int, value: int) -> bytes:
 
 
 def bump_root_all_children(raw: bytes, delta: int = 1) -> bytes:
-    """Root ``all_children`` off by ``delta``: the legacy never checks it (STRICT-only)."""
+    """Root ``all_children`` off by ``delta``: STRUCTURAL never checks it (STRICT-only)."""
     at = HEADER_SIZE + 12
     return with_i32(raw, at, _i32(raw, at) + delta)
 
@@ -46,9 +46,9 @@ def swap_meta1_records(raw: bytes, a: FieldLayout, b: FieldLayout) -> bytes:
     """Swap the meta1 records of two objects and re-point their meta2 infos at the new slots.
 
     Each record still describes its object (parent, meta2 index and counts travel with it) and the
-    legacy validator compares parents with running object numbers, so it accepts the result; only
-    the meta1 ORDER no longer follows the field order (STRICT ``meta1_order``).  Records of other
-    objects that name ``a`` or ``b`` as their parent are left alone on purpose.
+    STRUCTURAL validator compares parents with running object numbers, so it accepts the result;
+    only the meta1 ORDER no longer follows the field order (STRICT ``meta1_order``).  Records of
+    other objects that name ``a`` or ``b`` as their parent are left alone on purpose.
     """
     assert a.meta1_index is not None and b.meta1_index is not None
     out = bytearray(raw)
@@ -68,7 +68,7 @@ def duplicate_meta2_record(raw: bytes, field: FieldLayout) -> bytes:
     """Insert a second copy of a root-level scalar's meta2 record right after it (same offset).
 
     The root gains one direct child and one descendant, later objects' meta2 indices move up by
-    one and the header grows by one record.  Equal offsets are "sorted" for the legacy, which
+    one and the header grows by one record.  Equal offsets are "sorted" for STRUCTURAL, which
     accepts the file (STRICT ``offsets_not_increasing``).
     """
     assert field.meta1_index is None and len(field.path) == 2
@@ -91,8 +91,8 @@ def duplicate_meta2_record(raw: bytes, field: FieldLayout) -> bytes:
 def with_second_root(raw: bytes, name: str) -> bytes:
     """Append a second top-level object (parent -1) after the first root's subtree.
 
-    The legacy walk lets a new object open once the root has closed and only requires its parent
-    to be -1, so the file stays legacy-valid (STRICT ``root_count``).
+    The structural walk lets a new object open once the root has closed and only requires its parent
+    to be -1, so the file stays structurally valid (STRICT ``root_count``).
     """
     meta1_count, meta2_count = _i32(raw, 20), _i32(raw, 44)
     meta1_offset, meta2_offset = _i32(raw, 24), _i32(raw, 48)
@@ -119,7 +119,7 @@ def with_second_root(raw: bytes, name: str) -> bytes:
 def set_info_bit31(raw: bytes, meta2_indices: Iterable[int], *, on: bool) -> bytes:
     """Set (``on``) or clear bit 31 of the info word of the given meta2 records, nothing else.
 
-    Bit 31 is outside every field of the format, so the legacy validator and STRICT are blind to
+    Bit 31 is outside every field of the format, so the STRUCTURAL validator is blind to
     it; this is how a test states "the same file, with the unknown flag flipped here".
     """
     meta2_offset = _i32(raw, 48)
@@ -142,8 +142,8 @@ def info_bit31_indices(raw: bytes) -> frozenset[int]:
 def or_object_infos(raw: bytes, mask: int) -> bytes:
     """OR ``mask`` into the info word of every object field (spare bits the format never reads).
 
-    Bit 1 and bit 31 are outside the name-length / object-index / is-object fields, so the legacy
-    validator accepts the file and STRICT has nothing to say either.
+    Bit 1 and bit 31 are outside the name-length / object-index / is-object fields, so the
+    STRUCTURAL validator accepts the file and STRICT has nothing to say either.
     """
     meta2_count, meta2_offset = _i32(raw, 44), _i32(raw, 48)
     out = bytearray(raw)

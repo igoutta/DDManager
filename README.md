@@ -5,7 +5,7 @@ It finds your Workshop and local mods, lets you enable and order them, checks th
 problems, and writes the result into your save's `applied_ugcs_1_0` list (the list the game reads
 to load mods) with a backup first.
 
-Version 0.3.0 is a rewrite on PySide6 (Qt). Every feature of v0.2.1 is still there, your existing
+Version 0.3 is a rewrite on PySide6 (Qt). Every feature of v0.2.1 is still there, your existing
 data is read as it is, and v0.2.1 can still open the same data folder if you need to go back
 ([`docs/migration.md`](docs/migration.md)).
 
@@ -185,8 +185,9 @@ entry is matched to an installed mod by exact save identity, then Workshop id, t
 }
 ```
 
-The legacy `dd_mod_loadout.json` can be imported through the same Import button; its order goes
-through the preview and its nicknames and categories are applied after you accept.
+A `dd_mod_loadout.json` written by DD Manager 0.2.x can be imported through the same Import
+button; its order goes through the preview and its nicknames and categories are applied after
+you accept.
 
 ## Backups and restore
 
@@ -198,8 +199,8 @@ Backups are kept out of the Steam Cloud folder on purpose. `File > Backup Save` 
 - **Retention:** a managed backup is deleted only when it is outside all three protections: the
   newest 20, the newest 3, and anything younger than 30 days. The newest backup (the last one
   made) is never deleted. Adjust in `Tools > Settings... > Backups`; it applies at the next start.
-- **Legacy backups** (`persist.game.backup.*.json` beside the save, made by v0.2.x) are listed and
-  can be restored, and are never pruned or deleted.
+- **Beside-save backups** (`persist.game.backup.*.json` next to the save, written by DD Manager
+  0.2.x) are listed and can be restored, and are never pruned or deleted.
 - **Restore** (Profile Manager > Backups > Restore): the backup must still be a valid save, the
   current file is backed up first, and the restored file is written atomically with a fresh
   modification time. Restore refuses while the game is running.
@@ -398,7 +399,20 @@ uv run just build       # Windows only: frozen app + portable zip (see BUILD.md)
 ```
 
 (Activate `.venv` to type plain `just`.) `just --list` shows every recipe: `lint`, `fmt`,
-`typecheck`, `test`, `cli`, `regen-goldens`, `corpus`, `probe-kit <dest>`, `build-check`, `clean`.
+`typecheck`, `test`, `cli`, `regen-goldens`, `corpus`, `corpus-refresh`, `corpus-env`,
+`probe-kit <dest>`, `build-check`, `clean`.
+
+### Source of truth
+
+The reference for what DD Manager writes is the game itself: the `persist.game.json` files it
+saves and the mod folders it loads. `just corpus-refresh` copies your own saves (and the game's
+`backup/` copy next to each one) and the active `mod_state.json` into `<repo>/.corpus` using the
+app's own detection, never touching the originals; `just corpus` then runs the corpus tests
+against them: `write_applied` reorder/add/remove round trips on every real save, re-validated
+strictly and read back exactly, and the state file parsed, rendered and compared with a full scan
+of the mods folder. The files under `tests/golden/` are frozen outputs of this program for fixed
+inputs: `just regen-goldens` rebuilds them from the current code and refuses to overwrite a golden
+whose content changed unless `--update` is passed.
 
 The package folder is literally `src/` (`from src.core.load_order import LoadOrder`). Layers:
 `src/core` (pure domain, stdlib only), `src/rules` (health rules), `src/services` (all I/O),

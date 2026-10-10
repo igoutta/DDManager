@@ -13,7 +13,8 @@ from src.services.ports import ProcessProbe, RunState
 
 log = logging.getLogger(__name__)
 
-LEGACY_APP_IMAGES: Final = frozenset({"dd manager.exe"})
+MANAGER_IMAGES: Final = frozenset({"dd manager.exe"})
+"""The image name of the DD Manager executable itself (every packaged version)."""
 _TH32CS_SNAPPROCESS: Final = 0x00000002
 _MAX_PATH: Final = 260
 

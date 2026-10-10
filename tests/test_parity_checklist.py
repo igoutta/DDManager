@@ -3,7 +3,7 @@
 ``CHECKLIST`` is the table: an id, then ``tests/<file>::<function>`` node ids.  The checks fail
 when an id is missing or unmapped, when a mapped file or function does not exist, when a node is
 not a top-level ``test_*`` function, or when it could silently not run (skip / skipif / xfail,
-or the ``legacy`` oracle marker, which skips where git history or tkinter is unavailable).
+or the ``corpus`` marker, which skips without the maintainer's local corpus).
 """
 
 import ast
@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).absolute().parent.parent
-FORBIDDEN_MARKS = frozenset({"skip", "skipif", "xfail", "legacy"})
+FORBIDDEN_MARKS = frozenset({"skip", "skipif", "xfail", "corpus"})
 
 
 def nodes(path: str, *names: str) -> tuple[str, ...]:
@@ -165,7 +165,7 @@ CHECKLIST: dict[str, tuple[str, ...]] = {
     ),
     "P13": nodes(
         f"{UI}paths_dialog.py",
-        "test_the_editor_has_the_five_legacy_keys_in_legacy_order",
+        "test_the_editor_has_the_five_path_keys_in_state_order",
         "test_clear_empties_only_its_own_field",
         "test_auto_fills_each_field_from_a_fresh_detection_without_manual_overrides",
         "test_browse_picks_a_folder_starting_near_the_current_value",
@@ -185,7 +185,7 @@ CHECKLIST: dict[str, tuple[str, ...]] = {
             "test_profile_manager_has_three_tabs",
             "test_profile_manager_lists_the_detected_slot",
         ),
-        *nodes(f"{SERVICES}save_slots.py", "test_label_shapes_without_the_oracle"),
+        *nodes(f"{SERVICES}save_slots.py", "test_label_shapes"),
         *nodes(f"{SERVICES}profiles.py", "test_import_of_an_exported_document"),
         *nodes(
             f"{UI}controller.py", "test_patch_save_applies_after_confirmation_and_records_paths"
@@ -245,7 +245,7 @@ CHECKLIST: dict[str, tuple[str, ...]] = {
     "P19": (
         *nodes(
             f"{UI}backups_tab.py",
-            "test_managed_and_legacy_backups_are_listed_newest_first_with_their_details",
+            "test_managed_and_beside_save_backups_are_listed_newest_first_with_their_details",
             "test_restore_asks_first_and_names_the_file",
             "test_restore_replaces_the_active_save_with_the_selected_backup",
             "test_a_refused_restore_is_reported_and_remembers_nothing",
@@ -356,20 +356,20 @@ CHECKLIST: dict[str, tuple[str, ...]] = {
     ),
     "P28": nodes(
         f"{UI}theme.py",
-        "test_palette_keeps_the_verbatim_legacy_colors",
+        "test_palette_keeps_the_verbatim_base_colors",
         "test_apply_theme_sets_fusion_palette_and_stylesheet",
         "test_every_known_tier_has_a_token_and_contrasts_with_panel_and_field",
         "test_render_qss_is_complete",
     ),
     "P29": (
         *nodes(
-            f"{UI}legacy_loadout_import.py",
+            f"{UI}loadout_v02_import.py",
             "test_the_order_is_previewed_and_adopted_as_one_undoable_change",
             "test_nicknames_categories_and_memory_are_applied_after_the_preview",
             "test_declining_the_preview_applies_nothing_at_all",
             "test_a_file_that_is_not_a_loadout_is_refused_with_an_error",
         ),
-        *nodes(f"{SERVICES}profiles.py", "test_import_of_a_legacy_loadout"),
+        *nodes(f"{SERVICES}profiles.py", "test_import_of_a_v02_loadout"),
     ),
     "P30": (
         *nodes(

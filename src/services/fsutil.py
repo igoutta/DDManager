@@ -106,7 +106,7 @@ def atomic_copy(src: Path, dst: Path) -> None:
 
 
 def unique_path(path: Path) -> Path:
-    """``dd2.py:524-534``: ``path`` itself, else ``-2``, ``-3`` ... before the extension."""
+    """``path`` itself, else ``-2``, ``-3`` ... before the extension."""
     if not path.exists():
         return path
     counter = 2
@@ -117,7 +117,7 @@ def unique_path(path: Path) -> Path:
         counter += 1
 
 
-def legacy_timestamp(now: datetime) -> str:
+def backup_timestamp(now: datetime) -> str:
     return now.strftime("%Y%m%d-%H%M%S")
 
 

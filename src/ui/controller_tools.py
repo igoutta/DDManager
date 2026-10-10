@@ -24,12 +24,12 @@ PREVIEW_GROUPS: Final = 3
 
 
 def is_assigned(category: str | None) -> bool:
-    """``categories.py:267``: a category counts unless it is empty, ``Unassigned`` or ``All``."""
+    """A category counts unless it is empty, ``Unassigned`` or ``All``."""
     return bool(category) and category not in PSEUDO_CATEGORIES
 
 
 def remember(s: Session, categories: Mapping[ModId, str]) -> None:
-    """Category memory of every identity key of the categorised mods (``dd2.py:3198``)."""
+    """Category memory of every identity key of the categorised mods."""
     for mod, category in categories.items():
         info = s.mods.get(mod)
         if info is not None:

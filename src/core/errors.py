@@ -60,7 +60,7 @@ class AmbiguousSaveFormatError(SaveFormatError):
 
 
 class DsonFormatError(SaveFormatError):
-    """The input is not a (legacy-)valid DSON document, or a lookup hit a malformed field.
+    """The input is not a structurally valid DSON document, or a lookup hit a malformed field.
 
     Reason codes: the validator's problem codes (``file_size_mismatch``, ``hash_mismatch``, ...),
     ``input_invalid`` (``write_applied``'s input gate; ``details["problem"]`` holds the validator

@@ -1,11 +1,9 @@
-"""Repository for ``mod_state.json`` (the legacy 22-key document plus ``schema_version``).
+"""Repository for ``mod_state.json`` (the 22-key document plus ``schema_version``).
 
-Ports ``state.py:79-124`` (load with backup recovery, save with one-file rotation) with the
-data-safety fixes the rewrite requires:
+Load with backup recovery, save with one-file rotation, with these data-safety rules:
 
 * rotation ``main -> mod_state.backup.json`` happens ONLY when the main file still parses as a
-  JSON object, so a corrupt main never overwrites a good backup (``state.py:115-120`` copied
-  blindly);
+  JSON object, so a corrupt main never overwrites a good backup;
 * a corrupt main is preserved as ``mod_state.corrupt.<ts>.json`` before it is replaced;
 * every write is atomic and a stale ``expected`` fingerprint raises :class:`StateConflictError`
   instead of clobbering a concurrent change.
@@ -18,7 +16,7 @@ from pathlib import Path
 from typing import Final, Literal
 
 from src.core.findings import Finding, Severity
-from src.core.legacy_state import (
+from src.core.state_file import (
     StateChanges,
     StateDoc,
     parse_state,
@@ -32,7 +30,7 @@ from src.services.fsutil import (
     atomic_copy,
     atomic_write_bytes,
     atomic_write_text,
-    legacy_timestamp,
+    backup_timestamp,
     unique_path,
 )
 from src.services.ports import Clock
@@ -179,7 +177,7 @@ class StateRepository:
         return written
 
     def _rotate_previous(self) -> None:
-        """``state.py:115-120``: copy main to the backup, but only when main is a good object."""
+        """Copy main to the backup, but only when main is a good object."""
         main = self._paths.state_file
         try:
             raw = main.read_bytes()
@@ -196,7 +194,7 @@ class StateRepository:
             _LOG.warning("cannot copy %s to %s: %s", main, target, exc)
 
     def _corrupt_copy_path(self) -> Path:
-        stamp = legacy_timestamp(self._clock.now())
+        stamp = backup_timestamp(self._clock.now())
         return unique_path(self._paths.corrupt_state_file(stamp))
 
     # ------------------------------------------------------------------ misc
@@ -213,7 +211,7 @@ class StateRepository:
         return not same_content(fp, FileFingerprint.of(self._paths.state_file))
 
     def read_language(self) -> str | None:
-        """``localization.py:556-565``: the saved language of main, else of the backup."""
+        """The saved language of main, else of the backup."""
         for path in (self._paths.state_file, self._paths.state_backup_file):
             obj, _ = _read_object(path)
             language = obj.get("language") if obj is not None else None

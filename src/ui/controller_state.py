@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from src.core.legacy_state import StateChanges
+from src.core.state_file import StateChanges
 from src.services.errors import StateConflictError, StateReadOnlyError
 from src.services.state_repo import StateRepository
 from src.ui.session import Session

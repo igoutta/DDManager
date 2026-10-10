@@ -1,7 +1,5 @@
 """read_scalars: typed scalar reads that raise instead of returning {}."""
 
-from types import ModuleType
-
 import pytest
 
 from src.core.errors import DsonFormatError
@@ -17,7 +15,6 @@ from tests.support.dson_builder import (
     build_save,
     standard_save,
 )
-from tools.legacy_oracle import LegacyOracle
 
 FMT = DsonV1Format()
 STANDARD = standard_save(THREE_ENTRIES)
@@ -123,37 +120,3 @@ def test_payloads_that_are_not_bool_int_or_string_come_back_as_bytes() -> None:
     assert got == RAW_EXPECTED
     for name, value in got.items():
         assert type(value) is type(RAW_EXPECTED[name]), name
-
-
-def _legacy_scalars(dd2: ModuleType, raw: bytes) -> dict[str, object]:
-    """Every scalar of ``raw`` decoded by the pinned ``dson_decode_scalar_field`` (dd2.py:780)."""
-    header = dd2.dson_parse_header(raw)
-    meta2 = dd2.dson_parse_meta2(raw, header)
-    data = raw[header["data_offset"] : header["data_offset"] + header["data_length"]]
-    out: dict[str, object] = {}
-    for index, entry in enumerate(meta2):
-        if dd2.dson_object_index_from_info(entry["info"]) is not None:
-            continue
-        next_offset = meta2[index + 1]["offset"] if index + 1 < len(meta2) else len(data)
-        name = dd2.dson_meta2_name(raw, header, entry)
-        out[name] = dd2.dson_decode_scalar_field(data, entry, next_offset)
-    return out
-
-
-@pytest.mark.legacy
-def test_scalar_decoding_against_the_legacy(legacy: LegacyOracle) -> None:
-    """The legacy agrees on bools, ints, strings and the 2/3-byte raw payloads; it returned the
-    FIRST i32 of any longer payload and None for an empty one, which we do not reproduce."""
-    dd2 = legacy.module("dd2")
-    theirs = _legacy_scalars(dd2, STANDARD)
-    ours = dson.read_scalars(STANDARD, list(ALL_ROOT_SCALARS))
-    assert {name: theirs[name] for name in ours} == ours
-    raw = build_save(RAW_ROOT)
-    theirs = _legacy_scalars(dd2, raw)
-    ours = dson.read_scalars(raw, list(RAW_EXPECTED))
-    for name in ("r2", "r3", "float_like", "last"):
-        assert ours[name] == theirs[name], name
-    assert theirs["r8"] == 0x03020100
-    assert ours["r8"] == bytes(range(8))
-    assert theirs["r0"] is None
-    assert ours["r0"] == b""

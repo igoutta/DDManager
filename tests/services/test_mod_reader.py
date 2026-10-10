@@ -1,10 +1,9 @@
-"""Per-folder disk reading: snapshot fields, and identity parity (oracle + committed goldens)."""
+"""Per-folder disk reading: snapshot fields, and identity parity (committed goldens)."""
 
 import dataclasses
 import json
 import os
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -53,7 +52,7 @@ def record(info: ModInfo, nickname: str | None = None) -> dict[str, object]:
         "project_mtime": info.signature.project_mtime,
         "localization_signature": info.signature.localization_signature,
         "workshop_timeupdated": info.signature.workshop_timeupdated,
-        "legacy_tags": list(info.tags),
+        "tags": list(info.tags),
         "display_name": display_name(info, nickname),
         "display_suffix": display_suffix(info),
         "display_name_with_suffix": display_name_with_suffix(info, nickname),
@@ -98,37 +97,6 @@ def test_identity_matches_the_committed_goldens(
     for nickname, expected in case["nicknames"].items():
         got = record(info, nickname)
         assert {k: got[k] for k in expected} == expected, nickname
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("spec", mf.CASES, ids=[s.id for s in mf.CASES])
-def test_synthetic_cases_match_the_pinned_oracle(
-    legacy: Any, spec: mf.ModDirSpec, case_dirs: dict[str, Path]
-) -> None:
-    dd2, categories = legacy.module("dd2"), legacy.module("categories")
-    folder = case_dirs[spec.id]
-    manager = mf.legacy_manager(dd2, {spec.folder: folder}, acf=dict(spec.acf))
-    expected = mf.legacy_record(manager, categories, dd2, spec.folder)
-    info = derive_mod_info(read(folder, acf=dict(spec.acf)), tz=TZ)
-    assert record(info) == expected
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize(
-    "name", sorted(p.name for p in MODDING.iterdir() if p.is_dir()) if MODDING.is_dir() else []
-)
-def test_every_sample_mod_matches_read_mod_metadata(
-    legacy: Any, name: str, sample_mods_dir: Path
-) -> None:
-    dd2, categories = legacy.module("dd2"), legacy.module("categories")
-    folder = sample_mods_dir / name
-    manager = mf.legacy_manager(dd2, {name: folder})
-    expected = mf.legacy_record(manager, categories, dd2, name)
-    info = derive_mod_info(read(folder), tz=TZ)
-    assert record(info) == expected
-    identity = expected["save_identity"]
-    assert isinstance(identity, list)
-    assert info.save_identity.as_tuple() == tuple(identity)
 
 
 def test_sample_mods_snapshot_without_errors(sample_mods_dir: Path) -> None:

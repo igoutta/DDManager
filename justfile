@@ -45,13 +45,21 @@ run *args:
 cli *args:
     uv run ddmanager {{args}}
 
-# Regenerate parity goldens from the pinned legacy oracle (dev only, never in CI)
-regen-goldens:
-    uv run python tools/regen_goldens.py
+# Regenerate tests/golden from this program; a changed golden is refused unless --update is passed
+regen-goldens *args:
+    uv run python tools/regen_goldens.py {{args}}
 
-# Run local-corpus tests (needs DDM_SAVE_CORPUS / DDM_STATE_CORPUS)
-corpus:
-    uv run pytest -m corpus
+# Real-game corpus tests: DDM_SAVE_CORPUS / DDM_STATE_CORPUS / DDM_MODS_ROOT default to <repo>/.corpus (see corpus-refresh)
+corpus *args:
+    uv run python tools/corpus_env.py -- uv run pytest -m corpus {{args}}
+
+# Copy the game's saves (and its own backup/ copies) and the active mod_state.json into <repo>/.corpus; originals are only read
+corpus-refresh *args:
+    uv run python tools/make_corpus.py {{args}}
+
+# Print the corpus environment the corpus recipe would use
+corpus-env:
+    uv run python tools/corpus_env.py
 
 # Write the load-order probe mods into a folder
 probe-kit dest:

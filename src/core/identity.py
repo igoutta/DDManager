@@ -1,10 +1,9 @@
 """Mod identity: the one place that decides a mod's title, save identity and identity keys.
 
-Ports ``dd2.py:3343`` (month/year label), ``dd2.py:3448-3473`` (updated label),
-``dd2.py:3477-3617`` (``read_mod_metadata`` and the localization / internal-code title
-fallbacks), ``dd2.py:4086-4116`` (save identity, duplicate keys) and ``dd2.py:3142-3204``
-(identity values and category-memory keys).  The text gates (``dd2.py:546-620``, ``3960-3964``)
-live in :mod:`src.core.identity_text` and the display names (``dd2.py:3924-4044``) in
+Covers the month/year and updated labels, the metadata read (with the localization /
+internal-code title fallbacks), the save identity and duplicate keys, and the identity values
+and category-memory keys.  The text gates live in :mod:`src.core.identity_text` and the
+display names in
 :mod:`src.core.display`; both are re-exported here for the contract.  Everything is pure; the
 clock enters only as ``tz``.
 """
@@ -71,7 +70,7 @@ _MAX_LOCALIZATION_TITLE_LEN: Final = 80
 
 
 def _localization_priority(entry_id: str) -> int | None:
-    """``dd2.py:3573-3582``: rank of a localization entry id, ``None`` when it is not a name."""
+    """Rank of a localization entry id, ``None`` when it is not a name."""
     if entry_id.startswith("hero_class_name_"):
         return 0
     if "class_name" in entry_id:
@@ -84,10 +83,10 @@ def _localization_priority(entry_id: str) -> int | None:
 
 
 def localization_title(entries: Sequence[tuple[str, str]]) -> str | None:
-    """``dd2.py:3561-3588``: the best-ranked short, clean name among ``(entry id, raw text)``.
+    """The best-ranked short, clean name among ``(entry id, raw text)``.
 
     Text is stripped, HTML-unescaped and whitespace-collapsed in that order (no second strip,
-    exactly like the legacy); texts that are empty, longer than 80 characters or bad display
+    as the title rules require); texts that are empty, longer than 80 characters or bad display
     titles are skipped.  The winner is the minimum of ``(priority, len(text), text)``; ``None``
     when nothing qualifies.
     """
@@ -104,7 +103,7 @@ def localization_title(entries: Sequence[tuple[str, str]]) -> str | None:
 
 
 def _title_case_code_name(cleaned: str) -> str:
-    """``dd2.py:3607-3613``: capitalise words; short all-lowercase words become acronyms."""
+    """Capitalise words; short all-lowercase words become acronyms."""
     words: list[str] = []
     for part in cleaned.split():
         if part.islower() and len(part) <= 3:
@@ -115,7 +114,7 @@ def _title_case_code_name(cleaned: str) -> str:
 
 
 def internal_code_title(code_subdirs: Sequence[tuple[str, Sequence[str]]]) -> str | None:
-    """``dd2.py:3590-3617``: title from the first Latin subfolder of heroes/monsters/dungeons/raid.
+    """Title from the first Latin subfolder of heroes/monsters/dungeons/raid.
 
     ``None`` when no content directory has a Latin-named child.
     """
@@ -133,7 +132,7 @@ def internal_code_title(code_subdirs: Sequence[tuple[str, Sequence[str]]]) -> st
 def resolve_workshop_id(
     *, under_workshop: bool, path_workshop_id: str, project: ProjectInfo | None
 ) -> str:
-    """The legacy ``published_file_id`` (``dd2.py:3480, 3519-3521``).
+    """The ``published_file_id`` of a mod.
 
     Empty unless the folder lies under the workshop path; there, the project's
     ``PublishedFileId`` wins over the id read from the path.  Services look the ACF
@@ -147,7 +146,7 @@ def resolve_workshop_id(
 
 
 def _project_title_passes(title: str, fallback: str) -> bool:
-    """``dd2.py:3513-3517``: the Latin gate for a project ``<Title>``."""
+    """The Latin gate for a project ``<Title>``."""
     return bool(
         title
         and not is_bad_display_title(title)
@@ -160,7 +159,7 @@ def _project_title_passes(title: str, fallback: str) -> bool:
 def resolve_save_identity(
     *, folder_key: str, under_workshop: bool, path_workshop_id: str, project: ProjectInfo | None
 ) -> SaveIdentity:
-    """``dd2.py:3477-3540`` ``save_name``/``save_source`` plus the ``4086-4090`` fallback.
+    """The ``save_name`` / ``save_source`` pair a mod writes into the save.
 
     Workshop folders write their published id with source ``Steam``; local folders write the
     project title when it passes the gate, else the folder name without numeric prefixes,
@@ -179,7 +178,7 @@ def resolve_save_identity(
 
 
 def _resolve_title(snapshot: ModSnapshot, fallback: str) -> str:
-    """The ``dd2.py:3500-3535`` title chain: project title, localization name, code name."""
+    """The title chain: project title, localization name, code name."""
     project = snapshot.project
     title = fallback
     if project is not None and _project_title_passes(project.title, fallback):
@@ -196,7 +195,7 @@ def _resolve_title(snapshot: ModSnapshot, fallback: str) -> str:
 
 
 def format_month_year(timestamp: str | float, tz: tzinfo) -> str:
-    """``dd2.py:3343-3348``: ``MM/YY`` in ``tz``; ``""`` when the value is not a timestamp."""
+    """``MM/YY`` in ``tz``; ``""`` when the value is not a timestamp."""
     try:
         moment = datetime.fromtimestamp(float(timestamp), tz)
     except ValueError, OverflowError, OSError:
@@ -207,7 +206,7 @@ def format_month_year(timestamp: str | float, tz: tzinfo) -> str:
 def updated_label(
     *, acf_timeupdated: str, newest_mtime: float | None, project_mtime: float | None, tz: tzinfo
 ) -> str:
-    """``dd2.py:3448-3473``: workshop update time, else newest file, else project.xml mtime."""
+    """Workshop update time, else newest file, else project.xml mtime."""
     candidates: list[str | float] = []
     if acf_timeupdated:
         candidates.append(acf_timeupdated)
@@ -223,7 +222,7 @@ def updated_label(
 
 
 def _signature(snapshot: ModSnapshot) -> MetadataSignature:
-    """The cache key of the NEW app (see :class:`MetadataSignature` for the legacy difference)."""
+    """The cache key of the NEW app (see :class:`MetadataSignature`)."""
     return MetadataSignature(
         metadata_path=str(snapshot.path),
         project_mtime=snapshot.project_mtime,
@@ -234,7 +233,7 @@ def _signature(snapshot: ModSnapshot) -> MetadataSignature:
 
 
 def derive_mod_info(snapshot: ModSnapshot, *, tz: tzinfo) -> ModInfo:
-    """Turn disk facts into a ``ModInfo`` exactly as ``dd2.py:3477-3540`` filled its metadata."""
+    """Turn disk facts into a ``ModInfo`` from the project, localization and workshop facts."""
     project = snapshot.project
     fallback = strip_numeric_prefix(snapshot.key)
     workshop_id = resolve_workshop_id(
@@ -266,8 +265,8 @@ def derive_mod_info(snapshot: ModSnapshot, *, tz: tzinfo) -> ModInfo:
             project_mtime=snapshot.project_mtime,
             tz=tz,
         ),
-        black_reliquary=project is not None and is_black_reliquary_tagged(project.legacy_tags),
-        tags=() if project is None else project.legacy_tags,
+        black_reliquary=project is not None and is_black_reliquary_tagged(project.tags),
+        tags=() if project is None else project.tags,
         top_level_dirs=snapshot.top_level_dirs,
         code_subdirs=snapshot.code_subdirs,
         files=snapshot.files,
@@ -288,7 +287,7 @@ def _unique(values: Sequence[str]) -> tuple[str, ...]:
 
 
 def duplicate_keys(info: ModInfo) -> tuple[str, ...]:
-    """Verbatim ``dd2.py:4092-4116`` over ``ModInfo`` fields.
+    """over ``ModInfo`` fields.
 
     Sources in order: workshop id, title, save name, folder without numeric prefixes, folder.
     Each normalised value becomes ``id:<digits>`` or, when at least five characters,
@@ -313,7 +312,7 @@ def duplicate_keys(info: ModInfo) -> tuple[str, ...]:
 
 
 def project_identity_name(info: ModInfo) -> str:
-    """``dd2.py:4063-4081``: published id, else project title, else workshop id, else save name."""
+    """Published id, else project title, else workshop id, else save name."""
     fallback = strip_numeric_prefix(info.id)
     if info.project_title is None:
         return info.workshop_id or fallback
@@ -321,7 +320,7 @@ def project_identity_name(info: ModInfo) -> str:
 
 
 def mod_identity_values(info: ModInfo) -> tuple[str, ...]:
-    """``dd2.py:3142-3167``: every string that has identified this mod, de-duplicated."""
+    """Every string that has identified this mod, de-duplicated."""
     return _unique(
         (
             info.workshop_id,
@@ -335,7 +334,7 @@ def mod_identity_values(info: ModInfo) -> tuple[str, ...]:
 
 
 def category_memory_keys(info: ModInfo) -> tuple[str, ...]:
-    """``dd2.py:3182-3196``: each identity value raw and as ``norm:<normalised>``, de-duplicated."""
+    """Each identity value raw and as ``norm:<normalised>``, de-duplicated."""
     keys: list[str] = []
     for identity in mod_identity_values(info):
         keys.append(identity)

@@ -16,7 +16,7 @@ class CategoryChoiceVM:
 
 @dataclass(frozen=True, slots=True)
 class NicknameVM:
-    """What the nickname dialog starts from (``dd2.py:7041-7111``).
+    """What the nickname dialog starts from.
 
     ``initial`` is the saved nickname, else the default display name; typing the default display
     name back clears the nickname.

@@ -2,15 +2,13 @@
 
 Covers the dump/parse byte contract, parser totality on garbage, document_from_order,
 resolve_document's matching ladder (exact save identity > workshop id > folder > unique
-normalized title) and the legacy ``dd_mod_loadout.json`` importer (legacy_loadout.py:30-46 shape,
-84-118 import rules), with a parity test against the pinned ``legacy_loadout.load_loadout``.
+normalized title) and the importer of ``dd_mod_loadout.json`` files written by DD Manager 0.2.x.
 """
 
 import json
 import random
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -20,20 +18,19 @@ from src.core.load_order import LoadOrder, PriorityDirection, PrioritySetting
 from src.core.loadorder_file import (
     FORMAT,
     FORMAT_VERSION,
-    LegacyLoadoutExtras,
     LoadOrderDocument,
     LoadOrderEntry,
+    LoadoutV02Extras,
     ResolveResult,
     document_from_order,
     dump_load_order,
-    parse_legacy_loadout,
     parse_load_order,
+    parse_loadout_v02,
     resolve_document,
 )
 from src.core.model import ModInfo
 from src.core.validation import Finding, Severity
 from tests.support.factories import load_order, local_mod, workshop_mod
-from tools.legacy_oracle import LegacyOracle
 
 M = ModId
 STEAM = SaveSource.STEAM
@@ -468,7 +465,7 @@ def test_document_from_order_active_only_and_with_disabled() -> None:
     active_doc = document_from_order(order, mods, include_disabled=False, **common)
     assert [e.save_identity.name for e in active_doc.entries] == [
         "2248772895",
-        "Crusader HU SWF compat",  # local mods write their title (dd2.py:3521-3527)
+        "Crusader HU SWF compat",  # local mods write their title
     ]
     assert all(e.enabled for e in active_doc.entries)
     assert active_doc.name == "Weekly"
@@ -598,7 +595,7 @@ def test_resolve_findings_are_findings() -> None:
 
 
 def test_resolve_identity_name_stands_in_for_a_missing_folder_same_kind_only() -> None:
-    """A legacy local save name IS the folder: an entry without ``folder`` whose identity name
+    """A local save name IS the folder: an entry without ``folder`` whose identity name
     equals an installed local folder matches it even though the title changed; a Steam entry
     with that name does not (kind gate)."""
     local = local_mod("my_mod", title="Renamed Title")
@@ -684,10 +681,10 @@ def test_parse_keeps_same_identity_entries_that_differ_by_folder() -> None:
     assert [f.rule_id for f in _errors(findings)] == ["loadorder.duplicate_identity"] * 2
 
 
-# ----------------------------------------------------------------- legacy loadout import
+# ----------------------------------------------------------------- 0.2 loadout import
 
 
-def _legacy_loadout(
+def _loadout_v02_obj(
     order: list[str], enabled: dict[str, Any] | None = None, **extra: Any
 ) -> dict[str, Any]:
     enabled_map = dict.fromkeys(order, True) if enabled is None else enabled
@@ -705,15 +702,15 @@ def _legacy_loadout(
     return doc
 
 
-def test_parse_legacy_loadout_shape() -> None:
-    obj = _legacy_loadout(
+def test_parse_loadout_v02_shape() -> None:
+    obj = _loadout_v02_obj(
         ["0001_a", "b", "2248772895"],
         {"0001_a": True, "b": False},
         nicknames={"b": "Bee"},
         categories={"0001_a": "Class", "b": "Unassigned"},
         category_memory={"norm:a": "Class"},
     )
-    doc, extras, findings = parse_legacy_loadout(obj)
+    doc, extras, findings = parse_loadout_v02(obj)
     assert doc is not None
     assert extras is not None
     assert _errors(findings) == []
@@ -724,15 +721,15 @@ def test_parse_legacy_loadout_shape() -> None:
         SaveIdentity("2248772895", ""),
     ]
     assert [e.enabled for e in doc.entries] == [True, False, True]  # missing -> True
-    assert isinstance(extras, LegacyLoadoutExtras)
+    assert isinstance(extras, LoadoutV02Extras)
     assert dict(extras.nicknames) == {"b": "Bee"}
     assert dict(extras.categories) == {"0001_a": "Class", "b": "Unassigned"}
     assert dict(extras.category_memory) == {"norm:a": "Class"}
 
 
-def test_parse_legacy_loadout_enabled_values_are_truthiness() -> None:
-    obj = _legacy_loadout(["a", "b", "c"], {"a": 0, "b": "yes", "c": None})
-    doc, _, _ = parse_legacy_loadout(obj)
+def test_parse_loadout_v02_enabled_values_are_truthiness() -> None:
+    obj = _loadout_v02_obj(["a", "b", "c"], {"a": 0, "b": "yes", "c": None})
+    doc, _, _ = parse_loadout_v02(obj)
     assert doc is not None
     assert [e.enabled for e in doc.entries] == [False, True, False]
 
@@ -751,16 +748,16 @@ def test_parse_legacy_loadout_enabled_values_are_truthiness() -> None:
         {"order": []},
     ],
 )
-def test_parse_legacy_loadout_rejects_invalid_shape_like_legacy(obj: object) -> None:
-    doc, extras, findings = parse_legacy_loadout(obj)
+def test_parse_loadout_v02_rejects_invalid_shapes(obj: object) -> None:
+    doc, extras, findings = parse_loadout_v02(obj)
     assert doc is None
     assert extras is None
     assert _errors(findings)
 
 
-def test_parse_legacy_loadout_non_dict_extras_are_ignored() -> None:
-    obj = _legacy_loadout(["a"], nicknames=["x"], categories=5, category_memory=None)
-    doc, extras, _ = parse_legacy_loadout(obj)
+def test_parse_loadout_v02_non_dict_extras_are_ignored() -> None:
+    obj = _loadout_v02_obj(["a"], nicknames=["x"], categories=5, category_memory=None)
+    doc, extras, _ = parse_loadout_v02(obj)
     assert doc is not None
     assert extras is not None
     assert dict(extras.nicknames) == {}
@@ -768,147 +765,21 @@ def test_parse_legacy_loadout_non_dict_extras_are_ignored() -> None:
     assert dict(extras.category_memory) == {}
 
 
-def test_parse_legacy_loadout_never_raises_on_garbage() -> None:
+def test_parse_loadout_v02_never_raises_on_garbage() -> None:
     rng = random.Random(2024)
     for _ in range(300):
         obj = _garbage(rng)
         if rng.random() < 0.5:
             obj = {"order": _garbage(rng), "enabled": _garbage(rng), "nicknames": _garbage(rng)}
-        doc, extras, findings = parse_legacy_loadout(obj)
+        doc, extras, findings = parse_loadout_v02(obj)
         assert (doc is None) == (extras is None)
         assert all(isinstance(f, Finding) for f in findings)
 
 
-def test_legacy_loadout_resolves_by_folder_against_current_mods() -> None:
+def test_loadout_v02_resolves_by_folder_against_current_mods() -> None:
     mods = _mods(local_mod("0001_a", title="Alpha"), local_mod("b"), local_mod("c"))
     base = load_order("b", "c", "0001_a")
-    doc, _, _ = parse_legacy_loadout(_legacy_loadout(["0001_a", "ghost", "c"], {"0001_a": False}))
+    doc, _, _ = parse_loadout_v02(_loadout_v02_obj(["0001_a", "ghost", "c"], {"0001_a": False}))
     assert doc is not None
     result = resolve_document(doc, mods, base)
     assert result.order.entries == (M("0001_a"), M("c"), M("b"))
-    assert result.order.enabled == frozenset({M("c")})
-    assert [e.folder for e in result.unresolved] == ["ghost"]
-
-
-class _StubApp:
-    """The attributes legacy_loadout.load_loadout reads from the Tk ModManager."""
-
-    def __init__(self, state: dict[str, Any]) -> None:
-        self.state = state
-        self.messages: list[tuple[str, str, str]] = []
-        self.status = ""
-        self.remembered: list[tuple[str, str]] = []
-
-    def show_warning(self, title: str, body: str) -> None:
-        self.messages.append(("warning", title, body))
-
-    def show_error(self, title: str, body: str) -> None:
-        self.messages.append(("error", title, body))
-
-    def show_info(self, title: str, body: str) -> None:
-        self.messages.append(("info", title, body))
-
-    def remember_mod_category(self, mod: str, category: str) -> None:
-        self.remembered.append((mod, category))
-
-    def save_state(self) -> None:
-        pass
-
-    def rebuild_category_menus(self) -> None:
-        pass
-
-    def refresh(self) -> None:
-        pass
-
-    def set_status_text(self, text: str) -> None:
-        self.status = text
-
-
-class _StubFileDialog:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-
-    def askopenfilename(self, **_: Any) -> str:
-        return str(self.path)
-
-
-def _legacy_import(
-    legacy: LegacyOracle, tmp_path: Path, state: dict[str, Any], loadout: dict[str, Any]
-) -> _StubApp:
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    path = tmp_path / "dd_mod_loadout.json"
-    path.write_text(json.dumps(loadout), encoding="utf-8")
-    app = _StubApp(state)
-    legacy.module("legacy_loadout").load_loadout(app, str(tmp_path), _StubFileDialog(path))
-    assert not [m for m in app.messages if m[0] == "error"], app.messages
-    return app
-
-
-def _core_import(
-    state: dict[str, Any], loadout: dict[str, Any]
-) -> tuple[ResolveResult, LoadOrderDocument]:
-    current = state["order"]
-    mods = {M(m): local_mod(m) for m in current}
-    base = LoadOrder(
-        tuple(M(m) for m in current),
-        frozenset(M(m) for m in current if state["enabled"].get(m, True)),
-    )
-    doc, _, findings = parse_legacy_loadout(loadout)
-    assert doc is not None, findings
-    return resolve_document(doc, mods, base), doc
-
-
-@pytest.mark.legacy
-def test_legacy_loadout_import_parity_on_seeded_loadouts(
-    legacy: LegacyOracle, tmp_path: Path
-) -> None:
-    rng = random.Random(31337)
-    pool = [f"mod{i}" for i in range(10)]
-    for i in range(60):
-        current = rng.sample(pool, rng.randint(1, 8))
-        state = {
-            "order": list(current),
-            "enabled": {m: rng.random() < 0.7 for m in current},
-            "categories": {},
-            "category_memory": {},
-            "nicknames": {},
-        }
-        loadout_order = rng.sample(pool, rng.randint(0, 8))
-        enabled = {m: rng.random() < 0.5 for m in loadout_order if rng.random() < 0.8}
-        loadout = _legacy_loadout(loadout_order, enabled)
-        app = _legacy_import(legacy, tmp_path / str(i), json.loads(json.dumps(state)), loadout)
-        result, doc = _core_import(state, loadout)
-        assert result.order.entries == tuple(M(m) for m in app.state["order"]), (state, loadout)
-        mentioned = {e.folder for e in doc.entries}
-        for m in current:
-            if m in mentioned and m in enabled:
-                assert result.order.is_enabled(M(m)) == app.state["enabled"][m], (m, loadout)
-        missing = [m for m in loadout_order if m not in current]
-        assert [e.folder for e in result.unresolved] == missing
-
-
-@pytest.mark.legacy
-def test_regression_lock_unmentioned_mods_keep_their_flag_in_legacy_but_are_disabled_here(
-    legacy: LegacyOracle, tmp_path: Path
-) -> None:
-    """Documented divergence: base entries the document does not mention end up disabled."""
-    state = {"order": ["a", "b"], "enabled": {"a": True, "b": True}, "categories": {}}
-    loadout = _legacy_loadout(["a"], {"a": True})
-    app = _legacy_import(legacy, tmp_path, json.loads(json.dumps(state)), loadout)
-    assert app.state["enabled"]["b"] is True  # legacy leaves it alone
-    result, _ = _core_import(state, loadout)
-    assert result.order.entries == (M("a"), M("b"))
-    assert not result.order.is_enabled(M("b"))  # core: unmentioned -> disabled
-
-
-@pytest.mark.legacy
-def test_regression_lock_mentioned_mod_without_enabled_flag(
-    legacy: LegacyOracle, tmp_path: Path
-) -> None:
-    """Documented divergence: legacy keeps the current flag; the port defaults to enabled."""
-    state = {"order": ["a"], "enabled": {"a": False}, "categories": {}}
-    loadout = _legacy_loadout(["a"], {})
-    app = _legacy_import(legacy, tmp_path, json.loads(json.dumps(state)), loadout)
-    assert app.state["enabled"]["a"] is False
-    result, _ = _core_import(state, loadout)
-    assert result.order.is_enabled(M("a"))

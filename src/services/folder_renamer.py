@@ -1,10 +1,10 @@
 """Executing a :class:`~src.core.folder_order.RenamePlan` on disk, two-phase and reversible.
 
-Ports the execution half of "Apply order" (``dd2.py:7329-7422``): every folder is first moved to
+The execution half of "Apply order": every folder is first moved to
 ``__temp__<timestamp>__<old>`` and only then to its final name, because targets routinely equal
 other steps' sources.  On ANY failure everything already moved (both phases) is moved back and
 :class:`RenameFailedError` reports whether the rollback was complete (``details["rolled_back"]``)
-and which folders could not be put back (``details["stuck"]``).  Unlike the legacy, a plan whose
+and which folders could not be put back (``details["stuck"]``).  A plan whose
 destination already exists on disk is refused BEFORE the first rename.
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 from src.core.folder_order import RenamePlan, RenameStep
 from src.core.ids import ModId
 from src.services.errors import RenameFailedError
-from src.services.fsutil import legacy_timestamp
+from src.services.fsutil import backup_timestamp
 from src.services.ports import Clock
 
 
@@ -56,7 +56,7 @@ class FolderRenamer:
     def _moves(
         self, plan: RenamePlan, mods_root: Path, locations: Mapping[ModId, Path]
     ) -> list[_Move]:
-        token = legacy_timestamp(self._clock.now())
+        token = backup_timestamp(self._clock.now())
         used: set[Path] = set()
         moves: list[_Move] = []
         for step in plan.steps:
@@ -74,7 +74,7 @@ class FolderRenamer:
         return moves
 
     def _temp_path(self, parent: Path, token: str, old_name: str, used: set[Path]) -> Path:
-        """``dd2.py:7335-7345``: ``__temp__<ts>__<old>``, counter-suffixed while taken."""
+        """``__temp__<ts>__<old>``, counter-suffixed while taken."""
         candidate = parent / f"__temp__{token}__{old_name}"
         counter = 2
         while candidate.exists() or candidate in used:

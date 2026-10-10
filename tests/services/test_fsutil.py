@@ -13,7 +13,7 @@ from src.services.fsutil import (
     atomic_copy,
     atomic_write_bytes,
     atomic_write_text,
-    legacy_timestamp,
+    backup_timestamp,
     replace_with_retry,
     safe_mtime_ns,
     unique_path,
@@ -224,8 +224,8 @@ def test_unique_path_handles_dotted_and_extensionless_names(tmp_path: Path) -> N
     assert unique_path(bare) == tmp_path / "notes-2"
 
 
-def test_legacy_timestamp_format() -> None:
-    assert legacy_timestamp(datetime(2025, 1, 2, 3, 4, 5, tzinfo=TZ)) == "20250102-030405"
+def test_backup_timestamp_format() -> None:
+    assert backup_timestamp(datetime(2025, 1, 2, 3, 4, 5, tzinfo=TZ)) == "20250102-030405"
 
 
 def test_safe_mtime_ns(tmp_path: Path) -> None:

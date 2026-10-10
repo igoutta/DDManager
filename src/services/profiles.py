@@ -1,8 +1,8 @@
 """Named load-order profiles: ``<data>/profiles/<slug>.loadorder.json`` (``ddmanager.loadorder``).
 
 A profile is a plain :class:`~src.core.loadorder_file.LoadOrderDocument`, so a profile file is
-also the share/export format.  The legacy ``dd_mod_loadout.json`` (``legacy_loadout.py:30-46``)
-is accepted on import and converted by :func:`parse_legacy_loadout`.
+also the share/export format.  A ``dd_mod_loadout.json`` written by DD Manager 0.2.x
+is accepted on import and converted by :func:`parse_loadout_v02`.
 """
 
 import builtins
@@ -17,11 +17,11 @@ from typing import Final
 from src.core.findings import Finding, Severity
 from src.core.loadorder_file import (
     FORMAT,
-    LegacyLoadoutExtras,
     LoadOrderDocument,
+    LoadoutV02Extras,
     dump_load_order,
-    parse_legacy_loadout,
     parse_load_order,
+    parse_loadout_v02,
 )
 from src.services.errors import ProfileExistsError, ProfileFormatError
 from src.services.fsutil import atomic_write_text
@@ -137,8 +137,8 @@ class ProfileRepository:
 
     # ------------------------------------------------------------------ interchange
 
-    def import_file(self, path: Path) -> tuple[LoadOrderDocument, LegacyLoadoutExtras | None]:
-        """A ``ddmanager.loadorder`` file or a legacy ``dd_mod_loadout.json`` (extras returned)."""
+    def import_file(self, path: Path) -> tuple[LoadOrderDocument, LoadoutV02Extras | None]:
+        """A ``ddmanager.loadorder`` file or a 0.2 ``dd_mod_loadout.json`` (extras returned)."""
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
@@ -151,7 +151,7 @@ class ProfileRepository:
             ) from exc
         if isinstance(obj, dict) and obj.get("format") == FORMAT:
             return self._import_native(path, text), None
-        return self._import_legacy(path, obj)
+        return self._import_loadout_v02(path, obj)
 
     def _import_native(self, path: Path, text: str) -> LoadOrderDocument:
         doc, findings = parse_load_order(text)
@@ -159,10 +159,10 @@ class ProfileRepository:
             raise ProfileFormatError(_first_error(findings, "unreadable"), path=str(path))
         return doc
 
-    def _import_legacy(
+    def _import_loadout_v02(
         self, path: Path, obj: object
-    ) -> tuple[LoadOrderDocument, LegacyLoadoutExtras | None]:
-        doc, extras, findings = parse_legacy_loadout(obj)
+    ) -> tuple[LoadOrderDocument, LoadoutV02Extras | None]:
+        doc, extras, findings = parse_loadout_v02(obj)
         if doc is None:
             reason = _first_error(findings, "not a loadout")
             raise ProfileFormatError(f"{path.name} is not a load order: {reason}", path=str(path))

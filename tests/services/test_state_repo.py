@@ -7,12 +7,11 @@ from typing import Any
 
 import pytest
 
-from src.core.categories import DEFAULT_CATEGORIES
 from src.core.findings import Finding, Severity
 from src.core.ids import ModId
-from src.core.legacy_state import (
-    LEGACY_KEYS,
+from src.core.state_file import (
     SCHEMA_VERSION,
+    STATE_KEYS,
     StateChanges,
     parse_state,
     render_state,
@@ -49,7 +48,7 @@ def test_no_file_gives_defaults(repo: StateRepository) -> None:
     assert snap.findings == ()
 
 
-def test_loading_the_legacy_fixture(repo: StateRepository, with_fixture: Path) -> None:
+def test_loading_the_fixture(repo: StateRepository, with_fixture: Path) -> None:
     snap = repo.load()
     assert (snap.origin, snap.writable) == ("main", True)
     assert snap.fingerprint == FileFingerprint.of(with_fixture)
@@ -69,11 +68,11 @@ def test_round_trip_keeps_all_22_keys_unknown_keys_and_key_order(
     fingerprint = repo.save(snap.doc, changes, expected=snap.fingerprint)
     written = json.loads(with_fixture.read_text("utf-8"))
     assert list(written) == [*original, "schema_version"]
-    assert set(LEGACY_KEYS) <= set(written)
+    assert set(STATE_KEYS) <= set(written)
     assert written["window_geometry"] == original["window_geometry"]
     assert written["schema_version"] == SCHEMA_VERSION
     assert written["nicknames"] == {**original["nicknames"], "2248772895": "Choir"}
-    for key in LEGACY_KEYS:
+    for key in STATE_KEYS:
         if key not in ("nicknames", "enabled"):
             assert written[key] == snap.doc.raw[key], key
     assert fingerprint == FileFingerprint.of(with_fixture)
@@ -258,26 +257,3 @@ def test_read_language_prefers_main_then_backup_then_none(repo: StateRepository,
     assert repo.read_language() == "fr"
     app_paths.state_backup_file.write_text("[]", "utf-8")
     assert repo.read_language() is None
-
-
-@pytest.mark.legacy
-def test_the_rendered_file_is_accepted_by_the_pinned_legacy_loader(
-    legacy: Any, repo: StateRepository, app_paths, with_fixture: Path
-) -> None:
-    state_mod, dd2 = legacy.module("state"), legacy.module("dd2")
-    snap = repo.load()
-    new_order = snap.doc.order.disable({M("2248772895")}).enable([M("1739565783")])
-    repo.save(snap.doc, StateChanges(order=new_order), expected=snap.fingerprint)
-    loaded, notices = state_mod.load_state_file(
-        str(app_paths.state_file),
-        str(app_paths.data_dir),
-        "en",
-        list(DEFAULT_CATEGORIES),
-        dd2.normalize_hex_color,
-    )
-    assert notices == []
-    assert loaded["order"] == list(new_order.entries)
-    assert [m for m in loaded["order"] if loaded["enabled"].get(m, True)] == list(
-        new_order.active()
-    )
-    assert loaded["window_geometry"] == "1280x800+100+60"

@@ -1,6 +1,6 @@
 """Field payloads: alignment, string fields, scalar decoding and re-padding for a new offset.
 
-Ports of dd2.py:758-830 and 910-935.  :func:`assert_shift_safe` is the guard the splice primitive
+:func:`assert_shift_safe` is the guard the splice primitive
 runs before :func:`rebuild_field_block` moves a field.
 """
 
@@ -10,16 +10,15 @@ from src.core.saves.format import DsonScalar
 
 
 def align_pad(relative_offset: int) -> int:
-    """Zero bytes needed to reach the next 4-byte boundary of the data block (dd2.py:798).
+    """Zero bytes needed to reach the next 4-byte boundary of the data block.
 
     ``relative_offset`` is the data-relative offset right AFTER the NUL-terminated field name
-    (the legacy helper took the offset before the name and added the name length itself).
     """
     return (-relative_offset) % 4
 
 
 def build_string_field(field_name: str, value: str, relative_offset: int) -> bytes:
-    """dd2.py:803 ``dson_build_string_field``: name+NUL, pad to 4, i32 len incl. NUL, UTF-8, NUL.
+    """Build a string field: name+NUL, pad to 4, i32 len incl. NUL, UTF-8, NUL.
 
     ``relative_offset`` is the data-relative offset at which the field starts.  The matching meta2
     record is ``Meta2(string_hash(field_name), relative_offset, field_info(field_name))``.
@@ -34,7 +33,7 @@ def build_string_field(field_name: str, value: str, relative_offset: int) -> byt
 
 
 def payload_layout(data: bytes, entry: Meta2, next_offset: int) -> tuple[bytes, int, int]:
-    """dd2.py:758 ``dson_field_payload_layout``: ``(payload, payload_start, value_end)``.
+    """Locate a field's payload: ``(payload, payload_start, value_end)``.
 
     Objects have no payload; a 1-byte payload is unaligned; anything longer starts at the next
     4-byte boundary of the data block.
@@ -53,7 +52,7 @@ def payload_layout(data: bytes, entry: Meta2, next_offset: int) -> tuple[bytes, 
 
 
 def _decode_string_payload(payload: bytes) -> str | None:
-    """Exact length-prefixed string check (replaces the ASCII-only guess of dd2.py:362)."""
+    """Exact length-prefixed string check."""
     if len(payload) < 5:
         return None
     length = I32.unpack_from(payload, 0)[0]
@@ -69,11 +68,10 @@ def _decode_string_payload(payload: bytes) -> str | None:
 
 
 def decode_scalar(data: bytes, entry: Meta2, next_offset: int) -> DsonScalar:
-    """Port of dd2.py:780 ``dson_decode_scalar_field`` with an exact, UTF-8 aware string check.
+    """Decode a scalar field with an exact, UTF-8 aware string check.
 
     1 byte -> bool; a well-formed length-prefixed string -> str; exactly 4 bytes -> int; anything
-    else (floats, vectors, empty payloads) -> the raw payload bytes.  The legacy helper returned
-    the first i32 of any longer payload and ``None`` for an empty one.
+    else (floats, vectors, empty payloads) -> the raw payload bytes.
     """
     payload, _, _ = payload_layout(data, entry, next_offset)
     if len(payload) == 1:
@@ -87,7 +85,7 @@ def decode_scalar(data: bytes, entry: Meta2, next_offset: int) -> DsonScalar:
 
 
 def rebuild_field_block(data: bytes, entry: Meta2, next_offset: int, new_offset: int) -> bytes:
-    """dd2.py:910 ``dson_rebuild_existing_field_block``: re-pad a field for its new offset.
+    """Re-pad a field for its new offset.
 
     Objects are their name only; a 1-byte payload is copied unaligned; any other payload is taken
     from its old 4-byte boundary and re-padded for the new one.
@@ -112,7 +110,7 @@ def rebuild_field_block(data: bytes, entry: Meta2, next_offset: int, new_offset:
 def assert_shift_safe(doc: DsonDocument, i: int, new_offset: int) -> None:
     """Refuse fields that :func:`rebuild_field_block` would silently corrupt at ``new_offset``.
 
-    The legacy rebuild copies a 1-byte payload verbatim; for anything else it keeps the bytes from
+    The rebuild copies a 1-byte payload verbatim; for anything else it keeps the bytes from
     the field's old 4-byte boundary on (the aligned payload of :func:`payload_layout`) and replaces
     whatever came before them with ``new_align`` zero bytes.  That is a faithful move only when
 
@@ -123,7 +121,7 @@ def assert_shift_safe(doc: DsonDocument, i: int, new_offset: int) -> None:
       another boundary changes its size or turns it into an unaligned bool.
 
     A move that keeps the alignment (``delta % 4 == 0``) reproduces the region byte for byte, so
-    short payloads pass there, exactly as the legacy patcher left them alone.
+    short payloads pass there: the region is copied untouched.
     """
     entry = doc.meta2[i]
     if entry.is_object:

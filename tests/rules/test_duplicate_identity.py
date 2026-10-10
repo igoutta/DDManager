@@ -1,15 +1,12 @@
 """src/rules/duplicate_identity.py: (a) one SaveIdentity written twice among the active mods,
-(b) local + workshop copies of the same mod (legacy dd2.py:4092-4158 grouping)."""
+(b) local + workshop copies of the same mod (grouping)."""
 
-import random
-from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
 
-from src.core.ids import ModId, SourceKind
+from src.core.ids import ModId
 from src.core.load_order import PriorityDirection
-from src.core.model import ModInfo
 from src.core.validation import DisableMods, Finding, Severity
 from src.rules import duplicate_identity as rule
 from tests.support.factories import (
@@ -160,88 +157,3 @@ def test_pair_warning_is_not_capped_when_unverified() -> None:
     local = local_mod("chorus_class_mod", title="The Chorus")
     ctx = context(load_order("chorus_class_mod", "2248772895"), [ws, local], verified=False)
     assert only(rule.validate(ctx)).severity is Severity.WARNING
-
-
-# ------------------------------------------------------------------ legacy parity (grouping)
-
-TITLES = (
-    "The Chorus",
-    "Chorus",
-    "Better Stage Coach",
-    "SWF",
-    "Abcd",
-    "Heroes Unchained: Crusader",
-    "Crusader HU",
-    "2248772895",
-    "Trinkets 8, 24 Inventory, 10 Quirks",
-)
-WORKSHOP_KEYS = ("2248772895", "1111111", "9999999", "123", "1111111_renamed", "2248772895_old")
-LOCAL_KEYS = (
-    "chorus_class_mod",
-    "0001_chorus_class_mod",
-    "2248772895_copy",
-    "better_stage_coach",
-    "crusader_hu",
-    "abc",
-    "1111111",
-    "0002_swf",
-)
-
-
-def _workshop_id_of(key: str) -> str:
-    """Numeric folder, else a leading >=7-digit part (dd2.py:3968-3985 under the workshop)."""
-    if key.isdigit():
-        return key
-    return next((p for p in key.split("_")[:2] if p.isdigit() and len(p) >= 7), "")
-
-
-def _random_setup(rng: random.Random) -> tuple[list[ModInfo], dict[str, dict[str, str]]]:
-    ws_keys = rng.sample(WORKSHOP_KEYS, rng.randint(1, 3))
-    local_keys = rng.sample([k for k in LOCAL_KEYS if k not in ws_keys], rng.randint(1, 4))
-    infos: list[ModInfo] = []
-    metadata: dict[str, dict[str, str]] = {}
-    for key in ws_keys:
-        title = rng.choice(TITLES)
-        wid = _workshop_id_of(key)
-        infos.append(workshop_mod(key, title=title, workshop_id=wid))
-        metadata[key] = {"published_file_id": wid, "title": title, "save_name": wid or title}
-    for key in local_keys:
-        title = rng.choice(TITLES)
-        infos.append(local_mod(key, title=title))
-        metadata[key] = {"published_file_id": "", "title": title, "save_name": title}
-    rng.shuffle(infos)
-    return infos, metadata
-
-
-def _legacy_groups(
-    dd2: object, metadata: dict[str, dict[str, str]], workshop: Iterable[str]
-) -> set[tuple[frozenset[str], frozenset[str]]]:
-    """``ModManager.detect_local_workshop_duplicates`` on a bare instance (no Tk, no disk).
-
-    The method reads ``self.state["metadata"]`` through ``duplicate_detection_keys`` and calls
-    ``self.mod_is_workshop`` / ``self.sort_name``; both would hit the filesystem, so they are
-    shadowed by instance attributes.
-    """
-    workshop_keys = set(workshop)
-    manager = object.__new__(dd2.ModManager)  # ty: ignore[unresolved-attribute]
-    manager.state = {"metadata": metadata, "nicknames": {}, "mod_paths": {}}
-    manager.mod_is_workshop = lambda mod: mod in workshop_keys
-    manager.sort_name = lambda mod: mod.lower()
-    groups = manager.detect_local_workshop_duplicates(list(metadata))
-    return {(frozenset(g["locals"]), frozenset(g["workshop"])) for g in groups}
-
-
-@pytest.mark.legacy
-def test_local_workshop_pairs_match_legacy_detect_local_workshop_duplicates(legacy) -> None:
-    dd2 = legacy.module("dd2")
-    rng = random.Random(0x5EED_D0B1)
-    for _ in range(80):
-        infos, metadata = _random_setup(rng)
-        workshop = {m.id for m in infos if m.kind is SourceKind.WORKSHOP}
-        expected = _legacy_groups(dd2, metadata, workshop)
-        ctx = context(load_order(*(m.id for m in infos)), infos)
-        warnings = with_severity(rule.validate(ctx), Severity.WARNING)
-        got = {
-            (frozenset(_disabled(f)), frozenset(set(f.mod_ids) - _disabled(f))) for f in warnings
-        }
-        assert got == expected, metadata

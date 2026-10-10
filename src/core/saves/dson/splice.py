@@ -1,7 +1,7 @@
-"""The ONE splice primitive every edit goes through (replaces four legacy resize/insert paths).
+"""The ONE splice primitive every edit goes through (resize, insert and scalar patch share it).
 
-The legacy file had two near-duplicate resize algorithms (dd2.py:1312 and 1481), an insert
-(1054) and a scalar patch (937); :func:`splice` is their common core.
+:func:`splice` is the common core of the object rewrite, the object insert and the scalar
+patch.
 """
 
 from collections.abc import Sequence
@@ -27,7 +27,7 @@ class Span:
 
 
 def _bump_ancestors(meta1: list[Meta1], node: int, *, direct_delta: int, all_delta: int) -> None:
-    """dd2.py:1400-1403 / 1119-1120: parent ``direct_children``, ancestors' ``all_children``."""
+    """Parent ``direct_children``, ancestors' ``all_children``."""
     remaining = len(meta1) + 1
     while node >= 0:
         remaining -= 1
@@ -52,13 +52,13 @@ def _bump_ancestors(meta1: list[Meta1], node: int, *, direct_delta: int, all_del
 def _rebuild_tail(
     doc: DsonDocument, span: Span, cursor: int, meta1_delta: int, *, renumber_objects: bool
 ) -> tuple[list[bytes], list[Meta2]]:
-    """dd2.py:1419-1433: rebuild every field after the span at its new offset.
+    """Rebuild every field after the span at its new offset.
 
     With ``renumber_objects`` every object at or past ``span.m1_end`` gets its meta1 index shifted
     by ``meta1_delta`` through :func:`set_object_index_in_info`, which also normalises the info
-    word (only bit 31, bit 0, the name length and the index survive).  The legacy resize/insert
-    paths did that even for a zero delta (dd2.py:1109, 1425); the scalar patch (dd2.py:971-985)
-    copied every info verbatim, so it passes ``False``.
+    word (only bit 31, bit 0, the name length and the index survive).  Resizes and inserts
+    do that even for a zero delta; the scalar patch copies every info verbatim, so it passes
+    ``False``.
     """
     parts: list[bytes] = []
     tail: list[Meta2] = []
@@ -79,7 +79,7 @@ def _rebuild_tail(
 def _shifted_meta1(
     doc: DsonDocument, span: Span, block: Sequence[Meta1], d1: int, d2: int
 ) -> list[Meta1]:
-    """dd2.py:1385-1389, 1104-1110: preserved records shift past the span by the count deltas."""
+    """Preserved records shift past the span by the count deltas."""
 
     def shifted(entry: Meta1) -> Meta1:
         parent = entry.parent + d1 if entry.parent >= span.m1_end else entry.parent
@@ -107,24 +107,22 @@ def splice(
 ) -> DsonDocument:
     """Replace ``span`` with a prebuilt block and repair everything after it.
 
-    This is the common core of ``dson_patch_mod_list_resize`` (dd2.py:1312), ``dson_insert_missing
-    _applied_ugcs`` (1054), ``dson_patch_named_name_source_object`` (1481) and
-    ``dson_patch_scalar_string_field`` (937):
+    This is the common core of the object rewrite, the object insert and the scalar patch:
 
     * preserved meta1 records with ``parent >= m1_end`` / ``meta2_index >= m2_end`` shift by the
-      meta1 / meta2 count deltas (dd2.py:1385-1389, 1104-1110);
+      meta1 / meta2 count deltas;
     * ``parent_meta1`` gets ``direct_children += parent_direct_delta`` and every ancestor from it
-      upwards gets ``all_children += meta2 delta`` (dd2.py:1400-1403, 1119-1120);
+      upwards gets ``all_children += meta2 delta``;
     * every field after the span is rebuilt for its new offset with :func:`rebuild_field_block`
       (guarded by :func:`assert_shift_safe`) and, when the splice touches meta1 at all, object
-      fields pointing at or past ``m1_end`` get their meta1 index rewritten (dd2.py:1419-1433).
+      fields pointing at or past ``m1_end`` get their meta1 index rewritten.
     """
     block_meta1 = tuple(block_meta1)
     block_meta2 = tuple(block_meta2)
     d1 = len(block_meta1) - (span.m1_end - span.m1_start)
     d2 = len(block_meta2) - (span.m2_end - span.m2_start)
-    # The legacy rewrote later objects' info in every path that edits meta1 (resize, insert), even
-    # when the count did not change, but never in the scalar patch: mirror that exactly.
+    # Later objects' info is rewritten in every path that edits meta1 (resize, insert), even
+    # when the count did not change, but never in the scalar patch.
     renumber_objects = bool(block_meta1) or span.m1_start != span.m1_end
 
     meta1 = _shifted_meta1(doc, span, block_meta1, d1, d2)

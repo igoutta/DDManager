@@ -102,7 +102,6 @@ qt_api = "pyside6"
 addopts = ["-ra", "--strict-markers", "--strict-config"]
 xfail_strict = true
 markers = [
-  "legacy: differential test against the pinned legacy oracle (needs git history + tkinter)",
   "qt: needs a QApplication",
   "slow: takes more than a second",
   "corpus: uses the maintainer's local corpora (DDM_SAVE_CORPUS / DDM_STATE_CORPUS)",

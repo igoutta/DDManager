@@ -1,9 +1,9 @@
 """All per-mod-folder I/O: one ``project.xml`` parse, one directory walk, one localization pass.
 
 Everything the domain needs to know about a mod folder is gathered into a ``ModSnapshot``;
-``src.core.identity.derive_mod_info`` then decides titles and identities from it.  Ports the I/O
-halves of ``dd2.py:3358-3381`` (localization signature), ``3432-3446`` (newest file),
-``3477-3617`` (project/localization reading) and ``4607-4638`` (preview icon).
+``src.core.identity.derive_mod_info`` then decides titles and identities from it.  This module
+does the I/O: localization signature, newest file, project/localization reading and the preview
+icon.
 """
 
 import logging
@@ -88,7 +88,7 @@ def _note_files(walk: _Walk, directory: Path, rel_parts: tuple[str, ...], names:
 
 
 def _walk_folder(path: Path) -> _Walk:
-    """``dd2.py:3432-3446`` newest mtime plus the file manifest and directory facts."""
+    """Newest mtime plus the file manifest and directory facts."""
     walk = _Walk()
 
     def on_error(exc: OSError) -> None:
@@ -110,7 +110,7 @@ def _walk_folder(path: Path) -> _Walk:
 
 
 def _read_localization(path: Path, *, deep: bool) -> tuple[tuple[tuple[str, str], ...], str]:
-    """Entry pairs (``dd2.py:3542-3560``) and the ``"count:int(newest)"`` signature."""
+    """Entry pairs and the ``"count:int(newest)"`` signature."""
     directory = path / "localization"
     try:
         names = sorted(entry.name for entry in directory.iterdir())
@@ -145,9 +145,9 @@ def _declared_preview(project: ProjectInfo | None) -> list[str]:
 
 
 def _find_preview(path: Path, project: ProjectInfo | None) -> Path | None:
-    """The declared icon, else ``preview_icon.png/.gif/.jpg`` (``dd2.py:4607-4638``).
+    """The declared icon, else ``preview_icon.png/.gif/.jpg``.
 
-    The declared icon is checked first (``dd2.py`` only did so after the three defaults failed).
+    The declared icon is checked first, before the three defaults.
     """
     for name in (*_declared_preview(project), *_DEFAULT_PREVIEWS):
         candidate = path / name

@@ -1,8 +1,7 @@
 """``project.xml`` facts: forgiving parsing plus the tag, version and description helpers.
 
-Ports ``dd2.py:576-589`` (child text, control-character stripping), ``dd2.py:634-666`` (the
-encoding retry ladder), ``dd2.py:3406-3430`` (version label, Black Reliquary tag) and
-``categories.py:105-131`` (``project_tag_values``).  Pure: takes bytes, never opens a file.
+Covers child text, control-character stripping, the encoding retry ladder, the version
+label, the Black Reliquary tag and the classifier tag list.  Pure: takes bytes, never opens a file.
 """
 
 import html
@@ -30,8 +29,8 @@ class ProjectInfo:
     """Raw ``<PublishedFileId>`` text, ``""`` when absent."""
     version_major: str
     version_minor: str
-    legacy_tags: tuple[str, ...]
-    """Exact ``categories.py:105-131`` output, including the outer-``<Tags>`` pseudo tag."""
+    tags: tuple[str, ...]
+    """output, including the outer-``<Tags>`` pseudo tag."""
     clean_tags: tuple[str, ...]
     """Leaf ``<Tags>`` texts only: stripped, order and case kept."""
     preview_icon_file: str
@@ -40,12 +39,12 @@ class ProjectInfo:
 
 
 def _local_name(element: Element) -> str:
-    """Lower-cased tag name with any ``{namespace}`` prefix removed (``dd2.py:578``)."""
+    """Lower-cased tag name with any ``{namespace}`` prefix removed."""
     return element.tag.split("}", 1)[-1].lower()
 
 
 def xml_text_from_child(root: Element, tag_name: str) -> str:
-    """Stripped text of the first direct child called ``tag_name`` (``dd2.py:576-582``).
+    """Stripped text of the first direct child called ``tag_name``.
 
     The match ignores case and namespaces; a matching child without text yields ``""``, and so
     does a missing child.
@@ -58,12 +57,12 @@ def xml_text_from_child(root: Element, tag_name: str) -> str:
 
 
 def strip_invalid_xml_chars(text: str) -> str:
-    """Drop control characters other than tab, newline and carriage return (``dd2.py:585-589``)."""
+    """Drop control characters other than tab, newline and carriage return."""
     return "".join(char for char in text if char in "\t\n\r" or ord(char) >= 0x20)
 
 
 def _trim_leading_junk(text: str) -> str:
-    """Cut anything before ``<?xml``, else before the first ``<`` (``dd2.py:651-657``)."""
+    """Cut anything before ``<?xml``, else before the first ``<``."""
     xml_start = text.find("<?xml")
     if xml_start > 0:
         return text[xml_start:]
@@ -75,13 +74,13 @@ def _trim_leading_junk(text: str) -> str:
 
 
 def parse_xml_forgiving(raw: bytes) -> Element | None:
-    """The ``dd2.py:634-666`` retry ladder over in-memory bytes.
+    """The encoding retry ladder over in-memory bytes.
 
     First the bytes as they are (expat honours the declared encoding); then each of utf-8-sig,
     utf-8, utf-16, gb18030 and big5 after stripping control characters and leading junk.
     ``ValueError`` is expat refusing a multi-byte declared encoding (gb18030, big5) and
     ``LookupError`` an unknown declared encoding; the decoded-text retries then handle both
-    (the legacy caught ``Exception`` at every step).  ``None`` when nothing parses.
+    (every step tolerates both).  ``None`` when nothing parses.
     """
     try:
         return fromstring(raw)
@@ -100,8 +99,8 @@ def parse_xml_forgiving(raw: bytes) -> Element | None:
     return None
 
 
-def _legacy_tag_values(root: Element) -> tuple[str, ...]:
-    """Exact port of ``categories.py:105-131`` ``project_tag_values`` over a parsed root.
+def _tag_values(root: Element) -> tuple[str, ...]:
+    """The classifier tag list over a parsed root.
 
     Every element named ``Tags`` at any depth contributes its whole ``itertext`` (whitespace
     collapsed), split on ``,`` ``/`` ``|`` or a double space; parts are HTML-unescaped, stripped
@@ -138,10 +137,10 @@ def _clean_tag_values(root: Element) -> tuple[str, ...]:
 
 
 def localization_entries(root: Element) -> tuple[tuple[str, str], ...]:
-    """``(id attribute, raw itertext)`` of every ``<entry>`` element (``dd2.py:3561-3568``).
+    """``(id attribute, raw itertext)`` of every ``<entry>`` element.
 
     The raw text is deliberately untouched here; ``identity.localization_title`` applies the
-    legacy strip/unescape/collapse in the same order as the legacy did.
+    strip/unescape/collapse steps.
     """
     return tuple(
         (elem.attrib.get("id", ""), "".join(elem.itertext()))
@@ -160,7 +159,7 @@ def parse_project(raw: bytes) -> ProjectInfo | None:
         published_file_id=xml_text_from_child(root, "PublishedFileId"),
         version_major=xml_text_from_child(root, "VersionMajor"),
         version_minor=xml_text_from_child(root, "VersionMinor"),
-        legacy_tags=_legacy_tag_values(root),
+        tags=_tag_values(root),
         clean_tags=_clean_tag_values(root),
         preview_icon_file=xml_text_from_child(root, "PreviewIconFile"),
         description=xml_text_from_child(root, "ItemDescription"),
@@ -168,12 +167,12 @@ def parse_project(raw: bytes) -> ProjectInfo | None:
 
 
 def version_label(major: str, minor: str) -> str:
-    """``dd2.py:3406-3421`` ``version_label_from_project`` over the two child texts.
+    """The version label over the two child texts.
 
     Both blank -> ``""``; both numeric -> ``"M.m"`` with leading zeros dropped, except ``0.0``
-    which is ``""``; otherwise the non-blank parts joined with ``.``.  ``isdecimal`` replaces
-    the legacy ``isdigit``: the two differ only on characters (superscripts, circled digits)
-    where the legacy ``int()`` crashed.
+    which is ``""``; otherwise the non-blank parts joined with ``.``.  ``isdecimal`` is used
+    rather than ``isdigit``: the two differ only on characters (superscripts, circled digits)
+    that ``int()`` cannot convert.
     """
     if not major and not minor:
         return ""
@@ -186,7 +185,7 @@ def version_label(major: str, minor: str) -> str:
 
 
 def is_black_reliquary_tagged(tags: Iterable[str]) -> bool:
-    """``dd2.py:3423-3430``: any tag that normalises to ``black reliquary``."""
+    """Any tag that normalises to ``black reliquary``."""
     for tag in tags:
         normalized = collapse_whitespace(PUNCTUATION_RE.sub(" ", html.unescape(str(tag)).lower()))
         compact = normalized.replace(" ", "")

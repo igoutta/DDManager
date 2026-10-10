@@ -1,4 +1,4 @@
-"""Local mods: every subfolder of every non-workshop mod root (legacy parity: nothing skipped)."""
+"""Local mods: every subfolder of every non-workshop mod root (nothing skipped)."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass

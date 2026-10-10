@@ -1,7 +1,11 @@
-"""The parity matrix against committed goldens, so byte parity survives the legacy deletion.
+"""The write_applied matrix against committed goldens: frozen outputs of this program.
 
-Regenerate with ``just regen-goldens`` (tools/regen_goldens.py) only when the matrix or the
-builder changes on purpose; the input digest recorded per case detects accidental drift.
+The goldens pin the bytes ``write_applied`` produces for every cell of
+tests/support/parity_matrix.py; real game-written saves are covered by the corpus check
+(tests/core/saves/test_corpus.py).
+Regenerate with ``just regen-goldens`` (tools/regen_goldens.py, ``--update`` to accept a change)
+only when the matrix or the builder changes on purpose; the input digest recorded per case detects
+accidental drift.
 """
 
 import hashlib
@@ -24,8 +28,8 @@ def _load_cases() -> list[dict[str, object]]:
     """The committed manifest; its absence is a regression, never a reason to skip."""
     if not CASES_FILE.is_file():
         pytest.fail(
-            f"{CASES_FILE} is missing: the goldens are the byte-parity proof that outlives the"
-            " legacy oracle; restore them from git or run tools/regen_goldens.py",
+            f"{CASES_FILE} is missing: the goldens are the frozen byte-level contract of"
+            " write_applied; restore them from git or run tools/regen_goldens.py",
             pytrace=False,
         )
     document = json.loads(CASES_FILE.read_text("utf-8"))
@@ -38,10 +42,11 @@ def _load_cases() -> list[dict[str, object]]:
 CASES = _load_cases()
 
 
-def test_manifest_is_committed_and_pinned_to_the_legacy_commit() -> None:
+def test_manifest_is_committed_and_names_the_writer() -> None:
     document = json.loads(CASES_FILE.read_text("utf-8"))
-    assert document["legacy_commit"] == "31e85d6"
-    assert document["legacy_function"] == "dd2.dson_patch_mod_list_resize"
+    assert document["generator"] == "tools/regen_goldens.py"
+    assert document["writer"] == "src.core.saves.dson_v1.DsonV1Format.write_applied"
+    assert document["builder"] == "tests/support/dson_builder.py standard_save"
     assert len(CASES) == len(pm.CASES)
 
 
@@ -66,14 +71,10 @@ def test_write_applied_matches_golden(case: dict[str, object]) -> None:
     assert digest == case["input_sha256"], "builder output drifted: regenerate the goldens"
     entries = pm.new_entries(m)
     output = case["output"]
-    if output is None:
-        assert (n, m) in pm.EXPECTED_DIVERGENCE, case["legacy_error"]
-        out = FMT.write_applied(raw, identities(entries))
-        assert FMT.read_applied(out) == identities(entries)
-        return
     assert isinstance(output, str)
     expected = (GOLDEN_DIR / output).read_bytes()
     assert hashlib.sha256(expected).hexdigest() == case["output_sha256"]
     got = FMT.write_applied(raw, identities(entries))
     assert got == expected
+    assert FMT.read_applied(got) == identities(entries)
     assert dson.validate(got).ok_strict

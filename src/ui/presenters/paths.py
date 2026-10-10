@@ -1,8 +1,7 @@
-"""Paths presenter: the five legacy path settings, Browse / Auto / Clear, and Auto Detect.
+"""Paths presenter: the five state-file path settings, Browse / Auto / Clear, Auto Detect.
 
-``dd2.py:5736-5836`` (editor) and ``dd2.py:2875-2916`` (``run_auto_detect``).  The five keys are the
-legacy ``mod_state.json`` ones; saving writes them (and ``last_save_path`` with the profile save)
-through :meth:`MainController.apply_settings` and rescans.
+The five keys are the ``mod_state.json`` ones; saving writes them (and ``last_save_path`` with
+the profile save) through :meth:`MainController.apply_settings` and rescans.
 """
 
 from collections.abc import Mapping
@@ -40,7 +39,7 @@ class PathEntryVM:
 
 @dataclass(frozen=True, slots=True)
 class DetectedPaths:
-    """What one detection pass found, in the legacy ``autodetect_summary`` shape."""
+    """What one detection pass found, in the ``autodetect_summary`` shape."""
 
     game_root: str
     local_mods: str
@@ -51,7 +50,7 @@ class DetectedPaths:
 
 
 def normalize_path_text(text: str) -> str:
-    """``paths.py:535-539``: ``""`` for blank text, else the path with normalised separators."""
+    """``""`` for blank text, else the path with normalised separators."""
     stripped = text.strip()
     return str(Path(stripped)) if stripped else ""
 
@@ -134,7 +133,7 @@ class PathsPresenter(QObject):
         return normalize_path_text(str(picked)) if picked is not None else None
 
     def save(self, values: Mapping[str, str]) -> None:
-        """``dd2.py:5779-5802``: store the five paths, then rescan with them."""
+        """Store the five paths, then rescan with them."""
         c = self._c
         cleaned = {key: normalize_path_text(values.get(key, "")) for key in PATH_KEYS}
         updates: dict[str, JsonValue] = {}
@@ -180,7 +179,7 @@ class PathsPresenter(QObject):
         self._report(found, found_anything=bool(updates))
 
     def _report(self, found: DetectedPaths, *, found_anything: bool) -> None:
-        """``dd2.py:2899-2916``: the summary (or the "nothing found" help) as a message."""
+        """The summary (or the "nothing found" help) as a message."""
         c = self._c
         prompter = c.prompter
         if not found_anything:

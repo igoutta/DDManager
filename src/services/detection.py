@@ -1,4 +1,4 @@
-"""Install detection: Steam/GOG game folders, mod roots and saves (port of ``paths.py``).
+"""Install detection: Steam/GOG game folders, mod roots and saves.
 
 The pure parsing helpers live in :mod:`src.services.steam_locations` and
 :mod:`src.services.save_discovery` and are re-exported here.  ``InstallDetector.detect`` reads
@@ -98,7 +98,7 @@ def _gog_registry_roots(env: Environment) -> list[Path]:
 
 
 def gog_game_roots(env: Environment) -> list[Path]:
-    """``paths.py:124-169``: GOG installs: registry (DD1 only) and defaults."""
+    """GOG installs: registry (DD1 only) and defaults."""
     if not env.is_windows:
         return []
     roots = _gog_registry_roots(env)
@@ -108,7 +108,7 @@ def gog_game_roots(env: Environment) -> list[Path]:
 
 
 def candidate_game_folders(libraries: Sequence[Path], gog_roots: Sequence[Path]) -> list[Path]:
-    """``paths.py:172-184``: ``<library>/steamapps/common/<name>`` then GOG roots that exist."""
+    """``<library>/steamapps/common/<name>`` then GOG roots that exist."""
     found = [
         library / "steamapps" / "common" / name
         for library in libraries
@@ -119,18 +119,18 @@ def candidate_game_folders(libraries: Sequence[Path], gog_roots: Sequence[Path])
 
 
 def candidate_local_mod_folders(game_folders: Sequence[Path]) -> list[Path]:
-    """``paths.py:187-193``: ``<game>/mods`` folders that exist."""
+    """``<game>/mods`` folders that exist."""
     return unique_paths(root / "mods" for root in game_folders if (root / "mods").is_dir())
 
 
 def candidate_workshop_mod_folders(libraries: Sequence[Path]) -> list[Path]:
-    """``paths.py:196-200``: ``<library>/steamapps/workshop/content/262060`` folders that exist."""
+    """``<library>/steamapps/workshop/content/262060`` folders that exist."""
     found = (library / "steamapps" / "workshop" / "content" / STEAM_APP_ID for library in libraries)
     return unique_paths(path for path in found if path.is_dir())
 
 
 def first_valid_manual_path(manual: Path | None, candidates: Sequence[Path]) -> Path | None:
-    """``paths.py:203-208``: the manual folder when it exists, else the first candidate."""
+    """The manual folder when it exists, else the first candidate."""
     if manual is not None and manual.is_dir():
         return manual
     return candidates[0] if candidates else None
@@ -147,7 +147,7 @@ def _subdirectories(path: Path) -> list[Path]:
 def candidate_mod_folders(
     current: Path | None, workshop: Sequence[Path], local: Sequence[Path]
 ) -> list[Path]:
-    """``paths.py:211-232``: current (first), workshop, local; keeps folders holding a subfolder."""
+    """Current (first), workshop, local; keeps folders holding a subfolder."""
     candidates = [*workshop, *local]
     if current is not None:
         candidates.insert(0, current)
@@ -155,7 +155,7 @@ def candidate_mod_folders(
 
 
 def detect_best_mod_folder(current: Path | None, candidates: Sequence[Path]) -> Path | None:
-    """``paths.py:235-246``: the current folder if it exists, else the one with most subfolders."""
+    """The current folder if it exists, else the one with most subfolders."""
     if current is not None and current.is_dir():
         return current
     if not candidates:
@@ -166,7 +166,7 @@ def detect_best_mod_folder(current: Path | None, candidates: Sequence[Path]) -> 
 def companion_mod_folders(
     primary: Path | None, libraries: Sequence[Path], game_roots: Sequence[Path]
 ) -> list[Path]:
-    """``paths.py:249-264`` extended: workshop and game ``mods`` folders besides ``primary``.
+    """Workshop and game ``mods`` folders besides ``primary``.
 
     Per library the workshop folder comes first, then ``common/<each DD folder name>/mods``;
     GOG/manual game roots add ``<root>/mods`` (documented extension).

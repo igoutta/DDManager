@@ -1,4 +1,4 @@
-"""The tolerant half of reading ``mod_state.json``: repair what ``legacy_migrate`` would crash on.
+"""The tolerant half of reading ``mod_state.json``: repair what ``migrate_state`` would crash on.
 
 Every repair is reported as a ``state.*`` WARNING finding.  A repaired key is DELETED so the
 migration fills in its default (and appends it in default order, as a missing key would be).
@@ -93,7 +93,7 @@ def _drop_bad_order_entries(state: StateDict, findings: list[Finding]) -> None:
 
 
 def sanitize_state(obj: object, findings: list[Finding]) -> StateDict:
-    """A deep copy of ``obj`` that ``legacy_migrate`` accepts; repairs are appended to ``findings``.
+    """A deep copy of ``obj`` that ``migrate_state`` accepts; repairs are appended to ``findings``.
 
     A non-object root yields an empty document (every key defaults).
     """

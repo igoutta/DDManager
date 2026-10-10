@@ -1,5 +1,4 @@
 {
-  "legacy_commit": "31e85d6",
   "generator": "tools/regen_goldens.py regenerate_identity",
   "builder": "tests/support/mod_facts.py CASES",
   "cases": [
@@ -20,7 +19,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Class New Class",
           "Class",
           "New Class"
@@ -73,7 +72,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Skins"
         ],
         "display_name": "sakura_skin",
@@ -109,7 +108,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Skins"
         ],
         "display_name": "Sakura [2900000001]",
@@ -148,7 +147,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "gold_mod",
         "display_suffix": "03/24",
         "display_name_with_suffix": "gold_mod (03/24)",
@@ -185,7 +184,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "colour_mod",
         "display_suffix": "2.0",
         "display_name_with_suffix": "colour_mod (2.0)",
@@ -219,7 +218,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "bold_mod",
         "display_suffix": "03/24",
         "display_name_with_suffix": "bold_mod (03/24)",
@@ -253,7 +252,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "tip_mod",
         "display_suffix": "1.0",
         "display_name_with_suffix": "tip_mod (1.0)",
@@ -287,7 +286,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "combats",
         "display_suffix": "1.x",
         "display_name_with_suffix": "combats (1.x)",
@@ -324,7 +323,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "1731672000",
-        "legacy_tags": [
+        "tags": [
           "UI Quality of Life",
           "UI",
           "Quality of Life"
@@ -369,7 +368,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Renamed Upload [1111111111]",
         "display_suffix": "3.4",
         "display_name_with_suffix": "Renamed Upload [1111111111] (3.4)",
@@ -407,7 +406,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Trinkets"
         ],
         "display_name": "Cool Mod",
@@ -444,7 +443,7 @@
         "project_mtime": null,
         "localization_signature": "1:1710504000",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Abomination Rework",
         "display_suffix": "03/24",
         "display_name_with_suffix": "Abomination Rework (03/24)",
@@ -482,7 +481,7 @@
         "project_mtime": null,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Vestal Rework [4444444444]",
         "display_suffix": "",
         "display_name_with_suffix": "Vestal Rework [4444444444]",
@@ -517,7 +516,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "2:1710504000",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Class"
         ],
         "display_name": "Abomination Rework",
@@ -559,7 +558,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "1:1710504000",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "A & B",
         "display_suffix": "1.0",
         "display_name_with_suffix": "A & B (1.0)",
@@ -596,7 +595,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "THE BIG ONE [5555555555]",
         "display_suffix": "1.0",
         "display_name_with_suffix": "THE BIG ONE [5555555555] (1.0)",
@@ -631,7 +630,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Black_Reliquary Trinkets",
           "Black_Reliquary",
           "Trinkets"
@@ -681,7 +680,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Old Style Upload",
         "display_suffix": "1.0",
         "display_name_with_suffix": "Old Style Upload (1.0)",
@@ -722,7 +721,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Weird",
         "display_suffix": "1.0",
         "display_name_with_suffix": "Weird (1.0)",
@@ -757,7 +756,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "BOM Mod",
         "display_suffix": "1.0",
         "display_name_with_suffix": "BOM Mod (1.0)",
@@ -790,7 +789,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "1:1710504000",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Enemies"
         ],
         "display_name": "Jade Warrior",
@@ -829,7 +828,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Newest Mod",
         "display_suffix": "07/24",
         "display_name_with_suffix": "Newest Mod (07/24)",
@@ -862,7 +861,7 @@
         "project_mtime": 1715774400.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Only Project",
         "display_suffix": "05/24",
         "display_name_with_suffix": "Only Project (05/24)",
@@ -895,7 +894,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "Class A",
           "B",
           "C",
@@ -940,7 +939,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [
+        "tags": [
           "New Class"
         ],
         "display_name": "The Chorus",
@@ -981,7 +980,7 @@
         "project_mtime": 1710504000.0,
         "localization_signature": "",
         "workshop_timeupdated": "",
-        "legacy_tags": [],
+        "tags": [],
         "display_name": "Minor Only",
         "display_suffix": "7",
         "display_name_with_suffix": "Minor Only (7)",

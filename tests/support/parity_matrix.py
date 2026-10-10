@@ -1,10 +1,9 @@
-"""The write_applied parity matrix shared by the differential test, the goldens and the generator.
+"""The write_applied matrix shared by the codec tests, the goldens and their generator.
 
 N (rows) is the number of entries already in the save's applied_ugcs_1_0 block, ``None`` meaning
 the block is absent (insert path). M (columns) is the number of entries written. The names cover
-every byte-length residue mod 4 and include one non-ASCII local name; all values are readable by
-the legacy heuristic scanner (printable ASCII or UTF-8 whose length prefix is not an ASCII digit),
-so the pinned oracle is expected to succeed on every cell.
+every byte-length residue mod 4 and include one non-ASCII local name, so the splice is exercised
+at every alignment the game can produce.
 """
 
 from tests.support.dson_builder import LOCAL, STEAM, Entry, standard_save
@@ -13,20 +12,14 @@ N_VALUES: tuple[int | None, ...] = (None, 0, 1, 3, 7)
 M_VALUES: tuple[int, ...] = (0, 1, 2, 5, 12)
 CASES: tuple[tuple[int | None, int], ...] = tuple((n, m) for n in N_VALUES for m in M_VALUES)
 
-# (N, M) cells where the pinned legacy patcher raises. Any cell listed here must raise in the
-# legacy, and any cell not listed must match byte for byte, so a new divergence fails loudly.
-EXPECTED_DIVERGENCE: frozenset[tuple[int | None, int]] = frozenset()
-
-# The ONE deliberate divergence from the legacy on a legacy-valid save: bit 31 of an info word
-# (an unknown game flag) inside the applied block. The legacy rebuilt every word of the block
-# with ``dson_field_info`` and so cleared it; the codec carries it over for every entry that
-# already existed in the old block (positional among duplicates) and clears it only for new
-# entries. ``CARRIED_POSITIONS[(N, M)]`` lists, per cell, the positions k of ``new_entries(M)``
-# that exist in ``existing_entries(N)``: with bit 31 set on the old block's words the output
-# differs from the legacy exactly in child k's three words (meta2 ``applied + 1 + 3k`` and the
-# two after it) and nowhere else; a cell not listed must match byte for byte even then. Only
+# Bit 31 of a meta2 info word is a flag the game sets sporadically and never documents. The writer
+# keeps it for every entry that already existed in the old block (positional among duplicates)
+# and clears it for new entries. ``PRESERVED_POSITIONS[(N, M)]`` lists, per cell, the positions k
+# of ``new_entries(M)`` that exist in ``existing_entries(N)``: with bit 31 set on the old block's
+# words the output carries it in child k's three words (meta2 ``applied + 1 + 3k`` and the two
+# after it) and nowhere else; every other word of a rewritten block comes out clear. Only
 # ``("1", "Steam")`` is in both the N=3 row and the new pool (at position 0).
-CARRIED_POSITIONS: dict[tuple[int | None, int], tuple[int, ...]] = {
+PRESERVED_POSITIONS: dict[tuple[int | None, int], tuple[int, ...]] = {
     (3, 1): (0,),
     (3, 2): (0,),
     (3, 5): (0,),
@@ -42,7 +35,7 @@ _EXISTING: dict[int, tuple[Entry, ...]] = {
         ("77", STEAM),
         ("777", STEAM),
         ("7777", STEAM),
-        ("Legacy Mod", LOCAL),
+        ("Oldest Mod", LOCAL),
         ("1234567890123", STEAM),
         ("z" * 33, LOCAL),
     ),
@@ -81,9 +74,3 @@ def build_input(n: int | None) -> bytes:
 
 def case_id(n: int | None, m: int) -> str:
     return f"N{'none' if n is None else n}_M{m}"
-
-
-def stub_identities(entries: tuple[Entry, ...]) -> tuple[list[str], dict[str, Entry]]:
-    """Folder keys plus the folder -> (name, source) map the legacy stub manager answers with."""
-    keys = [f"mod_{k}" for k in range(len(entries))]
-    return keys, dict(zip(keys, entries, strict=True))

@@ -1,7 +1,7 @@
-"""Heuristic category suggestion: ``categories.py:134-253`` over ``ModInfo`` instead of disk.
+"""Heuristic category suggestion over a ``ModInfo`` (no disk access).
 
-Tag weights, directory weights, title keywords and the decision thresholds are the legacy
-ones; ``ModInfo.top_level_dirs`` / ``subdirs_of("heroes")`` stand in for ``os.path.isdir`` and
+Tag weights, directory weights, title keywords and the decision thresholds are fixed
+constants; ``ModInfo.top_level_dirs`` / ``subdirs_of("heroes")`` stand in for ``os.path.isdir`` and
 ``os.listdir``.
 """
 
@@ -31,7 +31,7 @@ IGNORE_TAGS: Final[frozenset[str]] = frozenset(
         "s-purple",
     }
 )
-"""``categories.py:146-150``."""
+"""Which tag adds weight to which category."""
 
 TAG_RULES: Final[tuple[tuple[str, frozenset[str]], ...]] = (
     (
@@ -80,7 +80,7 @@ TAG_RULES: Final[tuple[tuple[str, frozenset[str]], ...]] = (
     ("Class", frozenset({"class", "new class", "class mod", "character mod", "hero", "heroes"})),
     ("Skins", frozenset({"skin", "skins", "spriteset", "sprite", "reskin"})),
 )
-"""``categories.py:152-162``: a matching tag adds 4 to its category."""
+"""A matching tag adds 4 to its category."""
 
 _TAG_WEIGHT = 4
 _UI_DIRS: tuple[str, ...] = ("panels", "overlays", "fe_flow", "cursors", "scrolls")
@@ -99,7 +99,7 @@ _TITLE_PATCH_WORDS: tuple[str, ...] = (
 _CLASS_IDENTITY_WORDS: tuple[str, ...] = ("new class", "class mod", "character mod", " class ")
 _SKIN_WORDS: tuple[str, ...] = ("skin", "skins", "sprite", "spriteset", "reskin")
 
-# (category, weight, any of these substrings in the title blob) — categories.py:206-228
+# (category, weight, any of these substrings in the title blob)
 _TITLE_RULES: tuple[tuple[str, int, tuple[str, ...]], ...] = (
     ("UI", 5, ("tooltip", "ui")),
     ("UI", 6, ("character_ui",)),
@@ -119,14 +119,14 @@ _MIN_MARGIN = 2
 
 
 def _title_bits(info: ModInfo, nickname: str | None) -> str:
-    """``categories.py:137-142``: key, save name, display name and title, lower-cased."""
+    """Key, save name, display name and title, lower-cased."""
     return " ".join(
         [info.id, strip_numeric_prefix(info.id), display_name(info, nickname), info.title]
     ).lower()
 
 
 def _score_tags(scores: dict[str, int], tags: Iterable[str]) -> None:
-    """``categories.py:164-169``."""
+    """Add the tag weights of ``tags`` to ``scores``."""
     for tag in tags:
         if tag in IGNORE_TAGS:
             continue
@@ -136,7 +136,7 @@ def _score_tags(scores: dict[str, int], tags: Iterable[str]) -> None:
 
 
 def _score_directories(scores: dict[str, int], info: ModInfo, tags: list[str]) -> None:
-    """``categories.py:171-186``: content directories other than ``heroes``."""
+    """Content directories other than ``heroes``."""
     dirs = info.top_level_dirs
     if "trinkets" in dirs:
         scores["Trinkets"] += 4
@@ -153,7 +153,7 @@ def _score_directories(scores: dict[str, int], info: ModInfo, tags: list[str]) -
 
 
 def _score_heroes(scores: dict[str, int], info: ModInfo, tags: list[str], title_bits: str) -> None:
-    """``categories.py:187-204``: the ``heroes`` directory decides Skins / Class / Class Patch."""
+    """The ``heroes`` directory decides Skins / Class / Class Patch."""
     if "heroes" not in info.top_level_dirs:
         return
     tag_blob = " ".join(tags)
@@ -173,14 +173,14 @@ def _score_heroes(scores: dict[str, int], info: ModInfo, tags: list[str], title_
 
 
 def _score_titles(scores: dict[str, int], title_bits: str) -> None:
-    """``categories.py:206-228``: keyword hits in the title blob."""
+    """Keyword hits in the title blob."""
     for category, weight, words in _TITLE_RULES:
         if any(word in title_bits for word in words):
             scores[category] += weight
 
 
 def category_scores(info: ModInfo, *, nickname: str | None = None) -> dict[str, int]:
-    """``categories.py:134-229`` ``auto_category_scores``: a score per built-in category."""
+    """A score per built-in category."""
     scores = dict.fromkeys(DEFAULT_CATEGORIES, 0)
     title_bits = _title_bits(info, nickname)
     tags = [tag.lower() for tag in info.tags]
@@ -192,7 +192,7 @@ def category_scores(info: ModInfo, *, nickname: str | None = None) -> dict[str, 
 
 
 def suggest_category(info: ModInfo, *, nickname: str | None = None) -> str | None:
-    """``categories.py:232-253``: one category when the signal is strong, else ``None``.
+    """One category when the signal is strong, else ``None``.
 
     Best score below 4 -> ``None``; Dungeons wins ties; Class wins only strictly; any other
     category needs a margin of at least 2 over the runner-up.

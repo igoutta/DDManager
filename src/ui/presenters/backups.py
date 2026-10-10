@@ -1,4 +1,4 @@
-"""Backups of the active save slot: list managed and legacy backups, restore, open the folder."""
+"""Backups of the active save slot: list managed and beside-save ones, restore, open the folder."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -30,7 +30,7 @@ class BackupsPresenter(QObject):
         self._records: dict[Path, BackupRecord] = {}
 
     def listing(self) -> list[BackupVM]:
-        """Managed and legacy backups of the active save, newest first."""
+        """Managed and beside-save backups of the active save, newest first."""
         save = self._c.save_path()
         self._records.clear()
         if save is None:

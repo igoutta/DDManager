@@ -1,6 +1,6 @@
 """The ``mod_state.json`` document as the new app reads and writes it.
 
-The 22 legacy keys (``state.py:8-32``, see :mod:`src.core.state_migrate`) stay the on-disk
+The 22 state keys (see :mod:`src.core.state_migrate`) stay the on-disk
 format; ``schema_version`` is added on write.  :func:`parse_state` sanitises
 (:mod:`src.core.state_sanitize`, reporting every repair as a ``state.*`` finding), migrates and
 exposes typed views in a :class:`StateDoc`.  :func:`render_state` applies a :class:`StateChanges`
@@ -20,26 +20,26 @@ from src.core.ids import ModId, SaveIdentity
 from src.core.json_values import JsonValue
 from src.core.load_order import LoadOrder
 from src.core.state_migrate import (
-    LEGACY_KEYS,
     SCHEMA_VERSION,
+    STATE_KEYS,
     TEXT_KEYS,
     VIEW_MODES,
     StateDict,
-    build_default_state,
-    legacy_migrate,
+    default_state,
+    migrate_state,
     mod_metadata_is_complete,
 )
 from src.core.state_sanitize import sanitize_state
 
 __all__ = [
-    "LEGACY_KEYS",
     "SCHEMA_VERSION",
+    "STATE_KEYS",
     "VIEW_MODES",
     "StateChanges",
     "StateDoc",
     "StateSettings",
-    "build_default_state",
-    "legacy_migrate",
+    "default_state",
+    "migrate_state",
     "mod_metadata_is_complete",
     "parse_state",
     "render_state",
@@ -107,7 +107,7 @@ def _attempted(raw: object) -> frozenset[ModId]:
 
 
 def _metadata_identities(raw: object, findings: list[Finding]) -> dict[ModId, SaveIdentity]:
-    """``save_name``/``save_source`` of every complete metadata entry (``dd2.py:557-573``)."""
+    """``save_name``/``save_source`` of every complete metadata entry."""
     identities: dict[ModId, SaveIdentity] = {}
     if not isinstance(raw, dict):
         return identities
@@ -126,7 +126,7 @@ def _metadata_identities(raw: object, findings: list[Finding]) -> dict[ModId, Sa
 
 
 def _load_order(state: StateDict) -> LoadOrder:
-    """``entries`` = ``order``; enabled = every entry whose flag is not falsy (``dd2.py:1754``)."""
+    """``entries`` = ``order``; enabled = every entry whose flag is not falsy."""
     entries = tuple(ModId(item) for item in _str_items(state["order"]))
     raw_flags = state["enabled"]
     flags = raw_flags if isinstance(raw_flags, dict) else {}
@@ -155,11 +155,11 @@ def _settings(state: StateDict) -> StateSettings:
 def parse_state(obj: object, *, default_language: str = "en") -> tuple[StateDoc, list[Finding]]:
     """Tolerant reader: sanitise (reporting ``state.*`` WARNING findings), then migrate.
 
-    Where ``state.py:35-76`` would crash (a non-object root, nulls or wrongly typed values)
+    Where :func:`migrate_state` would raise (a non-object root, nulls or wrongly typed values)
     the default is used instead; invalid or duplicate ``order`` entries are dropped.
     """
     findings: list[Finding] = []
-    migrated = legacy_migrate(sanitize_state(obj, findings), default_language, DEFAULT_CATEGORIES)
+    migrated = migrate_state(sanitize_state(obj, findings), default_language, DEFAULT_CATEGORIES)
     state: StateDict = dict(migrated)
     doc = StateDoc(
         raw=copy.deepcopy(migrated),
@@ -187,7 +187,7 @@ class StateChanges:
     ``categories``/``nicknames`` values of ``None`` unassign; ``category_memory_updates`` and
     ``attempted`` merge (``unattempted`` drops ids again, after a folder rename);
     ``category_colors``, ``category_order``, ``custom_categories``, ``category_memory`` and
-    ``mod_paths`` replace wholesale (``dd2.py:6020``, and the category editor's purge of removed
+    ``mod_paths`` replace wholesale (so the category editor can purge removed
     categories); ``settings`` names scalar keys.
     """
 
@@ -296,5 +296,5 @@ def render_state(base: StateDoc, changes: StateChanges) -> dict[str, JsonValue]:
 
 def render_state_json(doc: Mapping[str, object]) -> str:
     """``json.dumps(indent=2)`` with the default ``ensure_ascii`` and no trailing newline
-    (the byte style of ``state.py:123``)."""
+    (the byte style of the state file)."""
     return json.dumps(doc, indent=2)

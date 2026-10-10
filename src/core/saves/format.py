@@ -16,7 +16,7 @@ class DsonProblem:
     """One validation finding.
 
     ``offset`` is the field's data-relative offset for field-level problems (the same number the
-    legacy validator printed) and the header byte offset for header/layout problems.
+    structural validator reports) and the header byte offset for header/layout problems.
     """
 
     code: str
@@ -26,24 +26,24 @@ class DsonProblem:
 
 @dataclass(frozen=True, slots=True)
 class SaveValidationReport:
-    """LEGACY-level problems (the legacy validator's verdict) plus the extra STRICT-level ones."""
+    """STRUCTURAL-level problems (what parsing requires) plus the extra STRICT-level ones."""
 
-    legacy_errors: tuple[DsonProblem, ...] = ()
+    structural_errors: tuple[DsonProblem, ...] = ()
     strict_errors: tuple[DsonProblem, ...] = ()
 
     @property
     def ok(self) -> bool:
-        """True when the legacy validator would have accepted the bytes."""
-        return not self.legacy_errors
+        """True when the bytes are structurally valid (what parsing requires)."""
+        return not self.structural_errors
 
     @property
     def ok_strict(self) -> bool:
         """True when there are no problems at either level."""
-        return not self.legacy_errors and not self.strict_errors
+        return not self.structural_errors and not self.strict_errors
 
     @property
     def problems(self) -> tuple[DsonProblem, ...]:
-        return self.legacy_errors + self.strict_errors
+        return self.structural_errors + self.strict_errors
 
 
 class SaveFormat(Protocol):
@@ -64,7 +64,7 @@ class SaveFormat(Protocol):
         ...
 
     def check(self, raw: bytes) -> None:
-        """Raise ``DsonFormatError`` unless ``raw`` is legacy-valid."""
+        """Raise ``DsonFormatError`` unless ``raw`` is structurally valid."""
         ...
 
     def read_applied(self, raw: bytes) -> tuple[SaveIdentity, ...]: ...

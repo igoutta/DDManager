@@ -1,6 +1,6 @@
 """``<data>/settings.json``: the new app's own settings (``ddmanager.settings`` v1).
 
-Everything that is not part of the legacy ``mod_state.json`` lives here: priority direction,
+Everything that is not part of ``mod_state.json`` lives here: priority direction,
 active profile, backup retention and the plugin/rule-module trust lists.  The reader is tolerant:
 a wrong type yields the default plus a finding, unknown keys are kept and written back, and a
 missing file is simply the defaults.  Newer ``format_version`` values are read best-effort.

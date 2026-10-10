@@ -1,6 +1,6 @@
 """The category editor: reorder, add, rename, recolor and remove categories, then Save or Cancel.
 
-Every edit goes to the presenter's draft; nothing is written until Save (``dd2.py:5307-5661``).
+Every edit goes to the presenter's draft; nothing is written until Save.
 """
 
 from typing import TYPE_CHECKING, Final, override

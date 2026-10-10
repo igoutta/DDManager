@@ -2,15 +2,13 @@
 
 Contract: ``gap`` is the insertion point in the CURRENT view (0..len); the selection keeps its
 relative order; non-contiguous selections gather at the gap; dropping inside a contiguous block's
-own span is a no-op. Parity is proved against the pinned ``dd2.ModManager.reorder_visible_group``
-(dd2.py:6684-6712) for upward moves; the downward overshoot of the legacy is locked as a
-documented divergence. The legacy has no move-up/down buttons, so ``move_up``/``move_down``/
+own span is a no-op. The gap is never shifted for the removed
+items (no downward overshoot). ``move_up``/``move_down``/
 ``move_to_top``/``move_to_bottom`` are checked against the contract and a reference simulation.
 """
 
 import random
 from collections.abc import Sequence
-from types import ModuleType
 
 import pytest
 
@@ -23,7 +21,6 @@ from src.core.reorder import (
     move_up,
     splice,
 )
-from tools.legacy_oracle import LegacyOracle
 
 ABCD = ("a", "b", "c", "d")
 ABCDE = ("a", "b", "c", "d", "e")
@@ -108,8 +105,8 @@ def test_move_block_single_item_at_every_gap(gap: int, expected: tuple[str, ...]
     assert move_block(ABCD, {"a"}, gap) == expected
 
 
-def test_move_block_fixes_legacy_downward_overshoot_contract_example() -> None:
-    """Regression lock: legacy gives (b, c, d, a) for this drop; core gives (b, c, a, d)."""
+def test_move_block_has_no_downward_overshoot_contract_example() -> None:
+    """Regression lock: dropping ``a`` at gap 3 gives (b, c, a, d), not (b, c, d, a)."""
     assert move_block(ABCD, {"a"}, 3) == ("b", "c", "a", "d")
 
 
@@ -158,7 +155,7 @@ def test_move_block_accepts_lists_and_hashable_ints_and_returns_a_tuple() -> Non
 
 
 def test_move_block_ignores_selected_items_absent_from_the_view() -> None:
-    """Resolved ambiguity: ids that are not in the view have no effect (legacy filtered them)."""
+    """Resolved ambiguity: ids that are not in the view have no effect."""
     assert move_block(ABCD, {"a", "zzz"}, 4) == ("b", "c", "d", "a")
 
 
@@ -286,78 +283,3 @@ def test_splice_seeded_keeps_every_non_slot_position_fixed() -> None:
         for i, x in enumerate(full):
             if x not in slots:
                 assert result[i] == x
-
-
-# ----------------------------------------------------------------- legacy parity
-
-
-def _legacy_reorder(
-    dd2: ModuleType,
-    full: Sequence[str],
-    visible: Sequence[str],
-    moved: Sequence[str],
-    target: int,
-) -> tuple[str, ...]:
-    """``reorder_visible_group`` (dd2.py:6684-6712) reads only ``self.state["order"]`` when an
-    explicit ``visible_mods`` list is passed."""
-    mgr = object.__new__(dd2.ModManager)
-    mgr.state = {"order": list(full)}
-    mgr.reorder_visible_group("enabled", list(moved), target, visible_mods=list(visible))
-    return tuple(mgr.state["order"])
-
-
-def _random_parity_case(rng: random.Random) -> tuple[list[str], list[str], list[str]]:
-    n = rng.randint(1, 14)
-    full = [f"m{i}" for i in range(n)]
-    rng.shuffle(full)
-    visible = [x for x in full if rng.random() < 0.7] or [full[0]]
-    moved = [x for x in visible if rng.random() < 0.4] or [rng.choice(visible)]
-    return full, visible, moved
-
-
-@pytest.mark.legacy
-def test_reorder_legacy_downward_overshoot_lock(legacy: LegacyOracle) -> None:
-    """Documented divergence: the legacy inserts at the gap of the REMAINING list, so a downward
-    drop lands one slot too far per selected item above the gap."""
-    dd2 = legacy.module("dd2")
-    assert _legacy_reorder(dd2, ABCD, ABCD, ["a"], 3) == ("b", "c", "d", "a")
-    assert move_block(ABCD, {"a"}, 3) == ("b", "c", "a", "d")
-    # upward drops agree
-    assert _legacy_reorder(dd2, ABCD, ABCD, ["d"], 0) == move_block(ABCD, {"d"}, 0)
-
-
-@pytest.mark.legacy
-def test_reorder_parity_for_upward_moves(legacy: LegacyOracle) -> None:
-    """Whenever no selected item sits above the gap, core == legacy (including the splice back
-    into the full order around filtered-out or opposite-side mods)."""
-    dd2 = legacy.module("dd2")
-    rng = random.Random(6684)
-    checked = 0
-    for _ in range(600):
-        full, visible, moved = _random_parity_case(rng)
-        first = min(visible.index(m) for m in moved)
-        gap = rng.randint(0, first)
-        expected = _legacy_reorder(dd2, full, visible, moved, gap)
-        got = splice(full, set(visible), move_block(visible, set(moved), gap))
-        assert got == expected
-        checked += 1
-    assert checked == 600
-
-
-@pytest.mark.legacy
-def test_reorder_legacy_overshoots_downward_moves_by_the_selection_size(
-    legacy: LegacyOracle,
-) -> None:
-    """Characterisation: for a drop below the whole selection, legacy(target) == core(target +
-    len(selection)) whenever that gap exists, i.e. the legacy lands |selection| rows too low."""
-    dd2 = legacy.module("dd2")
-    rng = random.Random(6712)
-    for _ in range(600):
-        full, visible, moved = _random_parity_case(rng)
-        last = max(visible.index(m) for m in moved)
-        # legacy targets whose core counterpart (target + |moved|) lies below the whole selection
-        target = rng.randint(max(0, last - len(moved) + 1), len(visible) - len(moved))
-        gap = target + len(moved)
-        assert last < gap <= len(visible)
-        expected = _legacy_reorder(dd2, full, visible, moved, target)
-        assert splice(full, set(visible), move_block(visible, set(moved), gap)) == expected

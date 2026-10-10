@@ -1,5 +1,4 @@
 {
-  "legacy_commit": "31e85d6",
   "generator": "tools/regen_goldens.py regenerate_classify",
   "samples": {
     "better_stage_coach_swf_compat": {

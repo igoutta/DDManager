@@ -1,20 +1,20 @@
 """The load order value type: ``mod_state.json`` "order" plus the enabled set, with pure edits.
 
-``entries`` mirrors the legacy ``state["order"]`` list (interleaved; disabled and missing mods
+``entries`` mirrors the state file's ``order`` list (interleaved; disabled and missing mods
 keep their slots) and :meth:`LoadOrder.active` is the sequence the save patcher writes as
-``applied_ugcs_1_0`` (the legacy ``enabled_mods`` filter, ``dd2.py:1754``). Every edit acts on
+``applied_ugcs_1_0`` (the entries whose flag is not falsy). Every edit acts on
 ``active()`` through :mod:`src.core.reorder` and is spliced back over the active slots, so
-inactive entries never move (the legacy ``reorder_visible_group`` splice, ``dd2.py:6700-6712``).
+inactive entries never move.
 
-Documented divergences from the legacy:
+Documented behaviours:
 
-* :meth:`LoadOrder.enable` with ``at=None`` appends after the LAST active entry (the legacy click
-  toggle re-enabled a mod in its remembered slot); with a gap it matches the legacy cross-side
-  drag ``move_selection_between_sides`` (``dd2.py:6742-6766``).
-* :meth:`LoadOrder.disable` keeps the slot in ``entries`` (the legacy re-slotted the mod at the
-  end of the disabled list).
-* :meth:`LoadOrder.reconcile` never prunes nor re-sorts (``dd2.py:6044-6050`` dropped saved mods
-  missing from disk); new folders are appended sorted by ``casefold`` (legacy: ``str.lower``).
+* :meth:`LoadOrder.enable` with ``at=None`` appends after the LAST active entry (it does not restore
+  a remembered slot); with a gap it behaves like a drag from the disabled side onto the active
+  side.
+* :meth:`LoadOrder.disable` keeps the slot in ``entries`` (it is not moved to the end of
+  the disabled entries).
+* :meth:`LoadOrder.reconcile` never prunes nor re-sorts (saved mods missing from disk are kept);
+  new folders are appended sorted by ``casefold``.
 """
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -91,7 +91,7 @@ class LoadOrder:
     # ------------------------------------------------------------------ views
 
     def active(self) -> tuple[ModId, ...]:
-        """Enabled entries in order (``dd2.py:1754``): what gets written into the save."""
+        """Enabled entries in order: what gets written into the save."""
         return tuple(mod for mod in self.entries if mod in self.enabled)
 
     def inactive(self) -> tuple[ModId, ...]:
@@ -136,10 +136,10 @@ class LoadOrder:
     def enable(self, ids: Sequence[ModId], at: int | None = None) -> LoadOrder:
         """Enable ``ids`` (in the given order) at active gap ``at``, or after the last active entry.
 
-        Port of ``dd2.py:6742-6766`` + ``6684-6712`` for a disabled -> enabled drag: the gap is
+        For a disabled -> enabled drag: the gap is
         clamped into ``0..len(active())`` and the moved ids are spliced over the slots of the
         active mods plus their own. Unknown ids raise ``ValueError``; already-enabled ids are
-        ignored. ``at=None`` appends (documented divergence from the legacy click toggle).
+        ignored. ``at=None`` appends after the last active entry.
         """
         ordered = _unique(ids)
         unknown = [mod for mod in ordered if mod not in self.entries]
@@ -168,7 +168,7 @@ class LoadOrder:
         return LoadOrder(entries, self.enabled.difference(ids))
 
     def reconcile(self, present: Iterable[ModId]) -> Reconciliation:
-        """Merge the folders found on disk (``dd2.py:6044-6050``) without pruning or re-sorting.
+        """Merge the folders found on disk without pruning or re-sorting.
 
         Known entries keep their order and flags; unknown present ids are appended, disabled and
         sorted by ``casefold`` (ties broken by the raw id so the result is deterministic).

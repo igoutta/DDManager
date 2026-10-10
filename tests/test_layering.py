@@ -23,6 +23,8 @@ FORBIDDEN: dict[str, tuple[str, ...]] = {
     "src.ui.widgets": ("src.services",),
     "src.ui.dialogs": ("src.services",),
     "src.ui.theme": ("src.services",),
+    # the module names of DD Manager 0.2.x (deleted at the 0.3.0 cutover) and the research
+    # scripts: nothing under src/ may ever import them again
     "src": ("dd2", "categories", "localization", "paths", "state", "legacy_loadout", "research"),
 }
 

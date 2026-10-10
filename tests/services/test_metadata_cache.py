@@ -191,7 +191,7 @@ def test_save_is_atomic(cache_file: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert sorted(p.name for p in cache_file.parent.iterdir()) == ["mod_info.v1.json"]
 
 
-def test_a_legacy_shaped_entry_without_the_content_root_stamp_still_loads(cache_file: Path) -> None:
+def test_an_entry_without_the_content_root_stamp_still_loads(cache_file: Path) -> None:
     """Entries written before ``content_roots_mtime_ns`` existed hit for the same four fields and
     miss as soon as a stamp is known (the next commit upgrades them)."""
     info = rich_info()

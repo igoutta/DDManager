@@ -9,12 +9,12 @@ from pathlib import Path
 import pytest
 
 from src.services.backup import (
-    LEGACY_BACKUP_RE,
+    BESIDE_SAVE_BACKUP_RE,
     BackupReason,
     BackupService,
 )
 from src.services.errors import BackupInvalidError, BackupNotFoundError, GameRunningError
-from src.services.fsutil import legacy_timestamp
+from src.services.fsutil import backup_timestamp
 from src.services.ports import FixedClock, RunState
 from src.services.settings_repo import RetentionPolicy
 from tests.services.helpers import NOW, fake_save_bytes, set_mtime
@@ -73,7 +73,7 @@ def test_create_copies_the_save_into_the_managed_slot(make, app_paths, save_path
     service = make()
     record = service.create(save_path, reason=BackupReason.PRE_PATCH)
     assert record.path.parent == service.slot_dir(save_path)
-    assert record.path.name == f"persist.game.backup.{legacy_timestamp(NOW)}.json"
+    assert record.path.name == f"persist.game.backup.{backup_timestamp(NOW)}.json"
     assert record.path.read_bytes() == A
     assert save_path.read_bytes() == A
     assert (record.save_path, record.reason, record.location) == (
@@ -99,10 +99,10 @@ def test_two_backups_in_one_second_get_a_numeric_suffix(make, save_path: Path) -
     service = make()
     first = service.create(save_path, reason=BackupReason.MANUAL)
     second = service.create(save_path, reason=BackupReason.MANUAL)
-    stamp = legacy_timestamp(NOW)
+    stamp = backup_timestamp(NOW)
     assert first.path.name == f"persist.game.backup.{stamp}.json"
     assert second.path.name == f"persist.game.backup.{stamp}-2.json"
-    assert LEGACY_BACKUP_RE.match(second.path.name)
+    assert BESIDE_SAVE_BACKUP_RE.match(second.path.name)
 
 
 def test_index_records_the_metadata(make, save_path: Path) -> None:
@@ -137,9 +137,9 @@ def test_latest_is_none_without_backups(make, save_path: Path) -> None:
     assert make().list(save_path) == []
 
 
-def test_legacy_backups_beside_the_save_are_listed_but_flagged(make, save_path: Path) -> None:
-    legacy = save_path.parent / "persist.game.backup.20200102-030405.json"
-    legacy.write_bytes(A)
+def test_beside_save_backups_are_listed_but_flagged(make, save_path: Path) -> None:
+    beside = save_path.parent / "persist.game.backup.20200102-030405.json"
+    beside.write_bytes(A)
     (save_path.parent / "persist.game.backup.20200102-030405-2.json").write_bytes(A)
     (save_path.parent / "persist.game.backup.notatimestamp.json").write_bytes(A)
     (save_path.parent / "persist.estate.json").write_bytes(A)
@@ -148,10 +148,10 @@ def test_legacy_backups_beside_the_save_are_listed_but_flagged(make, save_path: 
     listed = service.list(save_path)
     assert listed[0] == managed
     old = listed[1:]
-    assert {r.path.name for r in old} == {legacy.name, "persist.game.backup.20200102-030405-2.json"}
-    assert all((r.location, r.reason, r.sha256) == ("legacy", None, None) for r in old)
+    assert {r.path.name for r in old} == {beside.name, "persist.game.backup.20200102-030405-2.json"}
+    assert all((r.location, r.reason, r.sha256) == ("beside_save", None, None) for r in old)
     assert all(r.created.year == 2020 and r.size == len(A) for r in old)
-    assert [r.path for r in service.list(save_path, include_legacy=False)] == [managed.path]
+    assert [r.path for r in service.list(save_path, include_beside_save=False)] == [managed.path]
 
 
 def test_verify(make, save_path: Path) -> None:
@@ -164,13 +164,15 @@ def test_verify(make, save_path: Path) -> None:
     assert service.verify(record)
 
 
-def test_verify_flags_a_legacy_backup_that_fails_its_format_check(make, save_path: Path) -> None:
-    legacy = save_path.parent / "persist.game.backup.20200102-030405.json"
-    legacy.write_bytes(A)
+def test_verify_flags_a_beside_save_backup_that_fails_its_format_check(
+    make, save_path: Path
+) -> None:
+    beside = save_path.parent / "persist.game.backup.20200102-030405.json"
+    beside.write_bytes(A)
     service = make()
     (record,) = service.list(save_path)
     assert service.verify(record) == []
-    legacy.write_bytes(A + b"CORRUPT")
+    beside.write_bytes(A + b"CORRUPT")
     assert service.verify(record)
 
 
@@ -229,15 +231,15 @@ def test_protected_paths_survive_pruning(make, save_path: Path) -> None:
     assert {records[1].path, records[2].path} <= set(report.deleted)
 
 
-def test_legacy_backups_are_never_pruned(make, save_path: Path) -> None:
-    legacy = save_path.parent / "persist.game.backup.20190101-000000.json"
-    legacy.write_bytes(A)
+def test_beside_save_backups_are_never_pruned(make, save_path: Path) -> None:
+    beside = save_path.parent / "persist.game.backup.20190101-000000.json"
+    beside.write_bytes(A)
     make_aged(make, save_path, [60, 50, 40, 30, 20, 10])
     service = make(NOW, RetentionPolicy(keep_last=1, keep_days=1, min_keep=1))
     report = service.prune(save_path)
-    assert legacy.exists()
-    assert legacy not in report.deleted
-    assert legacy.read_bytes() == A
+    assert beside.exists()
+    assert beside not in report.deleted
+    assert beside.read_bytes() == A
 
 
 def test_create_prunes_by_policy_and_never_raises(make, save_path: Path) -> None:
@@ -345,11 +347,11 @@ def test_restore_proceeds_when_the_game_state_is_unknown(make, fake_probe, save_
     assert save_path.read_bytes() == B
 
 
-def test_restore_from_a_legacy_backup(make, save_path: Path) -> None:
-    legacy = save_path.parent / "persist.game.backup.20200102-030405.json"
-    legacy.write_bytes(B)
+def test_restore_from_a_beside_save_backup(make, save_path: Path) -> None:
+    beside = save_path.parent / "persist.game.backup.20200102-030405.json"
+    beside.write_bytes(B)
     service = make()
     (record,) = service.list(save_path)
     service.restore(record)
     assert save_path.read_bytes() == B
-    assert legacy.read_bytes() == B
+    assert beside.read_bytes() == B

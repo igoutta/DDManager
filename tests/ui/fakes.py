@@ -12,8 +12,8 @@ from src.core.categories import DEFAULT_CATEGORIES
 from src.core.diff import sequence_diff
 from src.core.findings import Finding
 from src.core.ids import ModId, SaveIdentity
-from src.core.legacy_state import StateChanges, StateDoc, parse_state, render_state
 from src.core.model import ModInfo
+from src.core.state_file import StateChanges, StateDoc, parse_state, render_state
 from src.services.backup import BackupReason, BackupRecord, RestoreResult
 from src.services.detection import InstallSnapshot
 from src.services.errors import UnacknowledgedRiskError
@@ -62,7 +62,7 @@ def build_state(
 ) -> StateDoc:
     """A ``mod_state.json`` document whose order lists ``enabled`` first, the rest disabled.
 
-    ``sections`` fill more of the legacy keys: ``nicknames``, ``attempted`` (mods the silent
+    ``sections`` fill more of the state-file keys: ``nicknames``, ``attempted`` (mods the silent
     classifier already tried, so a start-up scan leaves them unassigned), ``custom_categories``,
     ``category_colors``, ``category_memory``; ``extra`` overrides or adds raw top-level keys.
     """
@@ -249,9 +249,11 @@ class FakeBackups:
         self.created.append(rec.path)
         return rec
 
-    def list(self, save_path: Path, *, include_legacy: bool = True) -> builtins.list[BackupRecord]:
+    def list(
+        self, save_path: Path, *, include_beside_save: bool = True
+    ) -> builtins.list[BackupRecord]:
         self.list_calls += 1
-        return [r for r in self.records if include_legacy or r.location == "managed"]
+        return [r for r in self.records if include_beside_save or r.location == "managed"]
 
     def latest(self, save_path: Path) -> BackupRecord | None:
         return self.records[0] if self.records else None

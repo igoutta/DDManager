@@ -34,7 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # the legacy parity oracle reads files from the pinned commit
+          fetch-depth: 0   # the build labels the zip with the exact git tag at HEAD
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.14"

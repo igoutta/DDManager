@@ -1,4 +1,4 @@
-"""Display and sort names of a mod (``dd2.py:3924-4044``), computed from a ``ModInfo`` plus the
+"""Display and sort names of a mod, computed from a ``ModInfo`` plus the
 user's nickname.  Re-exported by :mod:`src.core.identity` for the contract."""
 
 import html
@@ -8,12 +8,12 @@ from src.core.model import ModInfo
 
 
 def _clean_nickname(nickname: str | None) -> str:
-    """``dd2.py:4039-4044`` ``nickname_for_mod``: whitespace-collapsed, ``""`` when unset."""
+    """The nickname, whitespace-collapsed; ``""`` when unset."""
     return " ".join(str(nickname).split()) if nickname else ""
 
 
 def _apply_name_prefixes(info: ModInfo, text: str) -> str:
-    """``dd2.py:3992-4000``: unescape, strip and prefix ``[BR] `` for Black Reliquary mods."""
+    """Unescape, strip and prefix ``[BR] `` for Black Reliquary mods."""
     value = html.unescape(str(text or "")).strip()
     if not value:
         return value
@@ -23,7 +23,7 @@ def _apply_name_prefixes(info: ModInfo, text: str) -> str:
 
 
 def _display_base(info: ModInfo) -> str:
-    """``dd2.py:4007-4022`` without the prefix step: title with an id suffix, else the folder."""
+    """without the prefix step: title with an id suffix, else the folder."""
     mod = info.id
     title = info.title
     if title and title != mod:
@@ -37,7 +37,7 @@ def _display_base(info: ModInfo) -> str:
 
 
 def display_name(info: ModInfo, nickname: str | None) -> str:
-    """``dd2.py:4002-4022``: the nickname, else the title with its workshop id, prefixed."""
+    """The nickname, else the title with its workshop id, prefixed."""
     cleaned = _clean_nickname(nickname)
     if cleaned:
         return _apply_name_prefixes(info, cleaned)
@@ -45,20 +45,20 @@ def display_name(info: ModInfo, nickname: str | None) -> str:
 
 
 def display_suffix(info: ModInfo) -> str:
-    """``dd2.py:4024-4030``: the version label, else the updated label, unwrapped."""
+    """The version label, else the updated label, unwrapped."""
     version = info.version_label.strip()
     return version if version else info.updated_label.strip()
 
 
 def display_name_with_suffix(info: ModInfo, nickname: str | None) -> str:
-    """``dd2.py:4032-4037``: ``"<display name> (<suffix>)"`` when there is a suffix."""
+    """``"<display name> (<suffix>)"`` when there is a suffix."""
     base = display_name(info, nickname)
     suffix = display_suffix(info)
     return f"{base} ({suffix})" if suffix else base
 
 
 def _sort_display_name(info: ModInfo, nickname: str | None) -> str:
-    """``dd2.py:3946-3958``: nickname, else the title if it differs from the key, else save name."""
+    """Nickname, else the title if it differs from the key, else save name."""
     cleaned = _clean_nickname(nickname)
     if cleaned:
         return html.unescape(cleaned)
@@ -69,7 +69,7 @@ def _sort_display_name(info: ModInfo, nickname: str | None) -> str:
 
 
 def sort_key(info: ModInfo, nickname: str | None) -> str:
-    """``dd2.py:3924-3928``: the sort display name, lower-cased, without a leading ``the``."""
+    """The sort display name, lower-cased, without a leading ``the``."""
     name = _sort_display_name(info, nickname).strip()
     if name.lower().startswith("the "):
         name = name[4:]

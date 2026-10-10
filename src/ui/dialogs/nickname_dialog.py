@@ -1,4 +1,4 @@
-"""The nickname dialog: one line of text; Enter saves (``dd2.py:7041-7150``)."""
+"""The nickname dialog: one line of text; Enter saves."""
 
 from typing import TYPE_CHECKING, override
 
@@ -50,7 +50,7 @@ class NicknameDialog(LiveDialog):
         finish(self, self.windowTitle(), 500, 190, translator.tr)
 
     def text(self) -> str:
-        """The entered nickname with every whitespace run collapsed (``dd2.py:7086``)."""
+        """The entered nickname with every whitespace run collapsed."""
         return " ".join(self.edit.text().split())
 
     @override

@@ -1,4 +1,4 @@
-"""SaveSlotService: slot numbers, week chain, caching, legacy label parity."""
+"""SaveSlotService: slot numbers, week chain, caching, label."""
 
 import os
 from datetime import datetime
@@ -14,9 +14,9 @@ from src.core.saves.format import DsonScalar
 from src.services.save_slots import (
     SaveSlot,
     SaveSlotService,
-    legacy_slot_label,
     profile_number_from_path,
     profile_sort_key,
+    slot_label,
 )
 from tests.services.helpers import FakeFormat, fake_save_bytes
 from tests.support.dson_builder import B, I, O, S, build_save
@@ -266,16 +266,7 @@ def test_latest_is_the_newest_existing_file(slots_fake, tmp_path: Path) -> None:
     assert service.latest([]) is None
 
 
-# ------------------------------------------------------------------ legacy label parity
-
-
-def legacy_label(legacy: Any, path: Path) -> str:
-    paths, dd2 = legacy.module("paths"), legacy.module("dd2")
-
-    def reader(file: str, wanted_names=None, name_predicate=None) -> dict[str, Any]:
-        return dd2.ModManager.read_scalar_dson_fields(None, file, wanted_names, name_predicate)
-
-    return paths.profile_label(str(path), {}, reader)
+# ------------------------------------------------------------------ label
 
 
 def build_profile(root: Path, folder: str, *, date_time: str | None, week: int | None) -> Path:
@@ -290,47 +281,20 @@ def build_profile(root: Path, folder: str, *, date_time: str | None, week: int |
     return path
 
 
-@pytest.mark.legacy
-@pytest.mark.parametrize(
-    ("folder", "date_time", "week"),
-    [
-        ("profile_2", "2024-05-06 21:30", 14),
-        ("profile_0", "2024-05-06 21:30", None),
-        ("profile_7", None, 3),
-        ("profile_7", None, None),
-        ("slot_x", "2023-01-02 03:04", 5),
-        ("slot_x", None, None),
-        ("Profile 12", "1999-12-31 23:59", 0),
-    ],
-)
-def test_legacy_slot_label_matches_paths_profile_label(
-    legacy: Any, tmp_path: Path, folder: str, date_time: str | None, week: int | None, fixed_clock
-) -> None:
-    path = build_profile(tmp_path, folder, date_time=date_time, week=week)
-    service = SaveSlotService(default_registry(), clock=fixed_clock)
-    (slot,) = service.slots([path])
-    assert slot.week == week
-    assert legacy_slot_label(slot) == legacy_label(legacy, path)
-
-
-@pytest.mark.legacy
-def test_label_falls_back_to_the_file_mtime_in_local_time(
-    legacy: Any, tmp_path: Path, fixed_clock
-) -> None:
+def test_label_falls_back_to_the_file_mtime_in_local_time(tmp_path: Path, fixed_clock) -> None:
     path = build_profile(tmp_path, "profile_1", date_time=None, week=None)
     (slot,) = SaveSlotService(default_registry(), clock=fixed_clock).slots([path])
-    expected = datetime.fromtimestamp(path.stat().st_mtime).strftime(  # noqa: DTZ006 - legacy parity
+    expected = datetime.fromtimestamp(path.stat().st_mtime).strftime(  # noqa: DTZ006 - local time on purpose
         "%Y-%m-%d %H:%M"
     )
-    assert expected in legacy_slot_label(slot)
-    assert legacy_slot_label(slot) == legacy_label(legacy, path)
+    assert expected in slot_label(slot)
 
 
-def test_label_shapes_without_the_oracle() -> None:
+def test_label_shapes() -> None:
     path = Path("C:/Darkest/profile_3/persist.game.json")
     slot = SaveSlot(path, path.parent, 3, "2024-05-06", 9, None, False)
-    assert legacy_slot_label(slot) == "Profile 3 (slot 4) - 2024-05-06 - Week 9 [profile_3]"
+    assert slot_label(slot) == "Profile 3 (slot 4) - 2024-05-06 - Week 9 [profile_3]"
     anonymous = SaveSlot(
         Path("C:/x/slotz/persist.game.json"), Path("C:/x/slotz"), None, "d", None, None, False
     )
-    assert legacy_slot_label(anonymous) == "Unknown Profile - d [slotz]"
+    assert slot_label(anonymous) == "Unknown Profile - d [slotz]"

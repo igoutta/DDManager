@@ -1,7 +1,7 @@
 """Launching things on the host: file manager, browser, the game; plus UI language detection.
 
-Ports ``dd2.py:5893-5966`` (open folder, launch game) and ``localization.py:522-553``
-(``detect_default_language``).  Every side effect is injectable so tests never start anything.
+Open folder, launch game and ``detect_default_language``.  Every side effect is injectable so
+tests never start anything.
 """
 
 import ctypes
@@ -53,7 +53,7 @@ def open_folder(
     run: Runner = subprocess.Popen,
     startfile: StartFile = _default_startfile,
 ) -> None:
-    """``dd2.py:5893-5918``: show ``path`` in the platform's file manager."""
+    """Show ``path`` in the platform's file manager."""
     if not path.is_dir():
         raise LaunchError(f"That folder is not set or no longer exists: {path}")
     target = str(path)
@@ -105,7 +105,7 @@ def launch_game(
     run: Runner = subprocess.Popen,
     startfile: StartFile = _default_startfile,
 ) -> str:
-    """``dd2.py:5926-5966``: start the game through Steam; returns what was launched."""
+    """Start the game through Steam; returns what was launched."""
     if env.is_windows:
         return _launch_windows(install, startfile)
     if env.is_macos:
@@ -119,7 +119,7 @@ def launch_game(
 
 
 def map_locale_to_language(locale_name: str | None) -> str:
-    """``localization.py:473-481``: a locale name to one of ``zh_CN``/``pt_PT``/``es_ES``/``en``."""
+    """A locale name to one of ``zh_CN``/``pt_PT``/``es_ES``/``en``."""
     normalized = (locale_name or "").strip().lower().replace("-", "_")
     for prefix, language in (("zh", "zh_CN"), ("pt", "pt_PT"), ("es", "es_ES")):
         if normalized.startswith(prefix):
@@ -145,7 +145,7 @@ def _windows_language(ui_language_id: Callable[[], int | None]) -> str | None:
 def detect_default_language(
     env: Environment, *, ui_language_id: Callable[[], int | None] = _windows_ui_language_id
 ) -> str:
-    """``localization.py:522-553`` with the POSIX precedence fixed: LC_ALL, LC_MESSAGES, LANG."""
+    """POSIX precedence: LC_ALL, LC_MESSAGES, LANG."""
     if env.is_windows:
         detected = _windows_language(ui_language_id)
         if detected is not None:

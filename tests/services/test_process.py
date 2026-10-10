@@ -7,7 +7,7 @@ import pytest
 
 from src.services.ports import RunState
 from src.services.process import (
-    LEGACY_APP_IMAGES,
+    MANAGER_IMAGES,
     LinuxProcProbe,
     NullProbe,
     WindowsToolhelpProbe,
@@ -28,8 +28,8 @@ def test_null_probe_never_knows() -> None:
     assert NullProbe().find(set()) is RunState.UNKNOWN
 
 
-def test_legacy_app_images() -> None:
-    assert {"dd manager.exe"} == LEGACY_APP_IMAGES
+def test_manager_images() -> None:
+    assert {"dd manager.exe"} == MANAGER_IMAGES
 
 
 @windows_only

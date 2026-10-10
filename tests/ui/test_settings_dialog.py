@@ -142,7 +142,9 @@ def test_the_priority_section_links_to_the_load_order_semantics_doc(
 # ---------------------------------------------------------------------------- language and density
 
 
-def test_choosing_a_language_switches_the_interface_and_persists_the_legacy_key(rig, open_settings):
+def test_choosing_a_language_switches_the_interface_and_persists_the_language_key(
+    rig, open_settings
+):
     dialog = open_settings()
     index = dialog.language_combo.findData("es_ES")
     dialog.language_combo.setCurrentIndex(index)

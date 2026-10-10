@@ -1,13 +1,13 @@
-"""Synthetic mod folders shared by the identity/classify goldens, their generator and parity tests.
+"""Synthetic mod folders shared by the identity/classify goldens, their generator and the tests.
 
 ``CASES`` describes small mod folders (project.xml, localization, code directories, mtimes) that
-exercise the legacy title chain of ``dd2.ModManager.read_mod_metadata`` (dd2.py:3477-3540).
-``materialize`` writes one under a temp root, ``snapshot_from_dir`` reads it back into the
-contract's ``ModSnapshot`` with a small test-side reader (the services layer does this in the
-app), and ``legacy_manager`` builds the Tk-free ``ModManager`` stub the oracle methods need.
+exercise the title chain of ``derive_mod_info``: project title, localization fallback, internal
+code title, numeric folder names, Workshop ids, encodings and version labels.  ``materialize``
+writes one under a temp root, ``snapshot_from_dir`` reads it back into the contract's
+``ModSnapshot`` with a small test-side reader (the services layer does this in the app), and
+``identity_record`` / ``nickname_record`` are the shapes the identity goldens freeze.
 
-Timestamps are mid-month noon UTC so ``%m/%y`` labels agree between the oracle (naive local
-``datetime.fromtimestamp``) and the core (explicit ``tzinfo``) in any zone within UTC+-12.
+Timestamps are mid-month noon UTC so ``%m/%y`` labels are the same in any zone within UTC+-12.
 """
 
 import dataclasses
@@ -18,11 +18,10 @@ import os
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
 from pathlib import Path, PurePath
-from types import ModuleType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.core.model import ModSnapshot
+    from src.core.model import ModInfo, ModSnapshot
 
 STEAM_APP_ID = "262060"
 WORKSHOP_PARTS = ("steamapps", "workshop", "content", STEAM_APP_ID)
@@ -116,7 +115,7 @@ LOC_RANKING = (
 )
 
 LOC_ENTITIES = (
-    # CDATA keeps the text literal: the legacy unescapes ONCE, so this title is "A &amp; B"
+    # CDATA keeps the text literal: the title chain unescapes ONCE, so this title is "A &amp; B"
     ("HERO_CLASS_NAME_AMP", "  A &amp;amp; B  "),  # id lower-cased by the ranking, text stripped
     ("str_mod_name", "Plain &amp; Name"),
     ("hero_class_name_ws", "Two\n  Lines\tHere " + "x" * 70),  # > 80 chars after collapsing
@@ -351,13 +350,13 @@ def materialize_all(base: Path) -> dict[str, Path]:
 
 
 def is_workshop_path(path: Path) -> bool:
-    """dd2.py paths.is_workshop_content_path: the Steam content fragment occurs in the path."""
+    """True when the Steam Workshop content fragment occurs anywhere in the path."""
     fragment = str(PurePath(*WORKSHOP_PARTS)).casefold()
     return fragment in str(path.absolute()).casefold()
 
 
 def path_workshop_id(folder: str, *, under_workshop: bool) -> str:
-    """dd2.py:3968-3985 ``workshop_id_for_mod`` from the folder name alone."""
+    """The Workshop id a folder name alone denotes: all digits, or a 7+ digit first/second part."""
     if not under_workshop:
         return ""
     if folder.isdigit():
@@ -372,7 +371,7 @@ def _localization_entries(folder: Path) -> tuple[tuple[str, str], ...]:
     """RAW (id, text) per <entry>, as the contract defines ``ModSnapshot.localization_entries``.
 
     No lower-casing, unescaping or whitespace collapsing here: ``identity.localization_title``
-    applies the legacy normalization (dd2.py:3565-3567), and the goldens must prove it.
+    applies that normalization itself, and the goldens must prove it.
     """
     loc = folder / "localization"
     if not loc.is_dir():
@@ -393,7 +392,7 @@ def _localization_entries(folder: Path) -> tuple[tuple[str, str], ...]:
 
 
 def _localization_signature(folder: Path) -> str:
-    """dd2.py:3358-3380 ``localization_signature_for_mod``."""
+    """``<xml file count>:<newest xml mtime>`` of the localization folder, ``""`` without one."""
     loc = folder / "localization"
     if not loc.is_dir():
         return ""
@@ -423,7 +422,6 @@ def snapshot_from_dir(
     folder: Path, *, acf: Mapping[str, str] | None = None, root: Path | None = None
 ) -> ModSnapshot:
     """Gather the disk facts of one mod folder (what services feed ``derive_mod_info``)."""
-    # imported here so the golden generator can load this module before src/core exists
     from src.core.ids import ModId, SourceKind
     from src.core.model import ModSnapshot
     from src.core.project_xml import parse_project
@@ -486,86 +484,49 @@ def sample_digest(folder: Path) -> str:
     return h.hexdigest()
 
 
-# ------------------------------------------------------------------ legacy oracle stub
+# ------------------------------------------------------------------ golden record shapes
 
 
-class _StringVar:
-    """Stand-in for the Tk ``StringVar`` behind ``ModManager.mods_path``."""
+def identity_record(info: ModInfo) -> dict[str, object]:
+    """The identity facts of one mod in the shape the identity goldens freeze."""
+    from src.core.identity import (
+        category_memory_keys,
+        display_name,
+        display_name_with_suffix,
+        display_suffix,
+        duplicate_keys,
+        sort_key,
+    )
 
-    def __init__(self, value: str) -> None:
-        self._value = value
-
-    def get(self) -> str:
-        return self._value
-
-
-def legacy_manager(
-    dd2: ModuleType,
-    mod_dirs: Mapping[str, Path],
-    *,
-    acf: Mapping[str, str] | None = None,
-    nicknames: Mapping[str, str] | None = None,
-    mods_path: str = "",
-) -> Any:
-    """``object.__new__(dd2.ModManager)`` plus the attributes read_mod_metadata & co. touch.
-
-    ``mod_folder_path`` (dd2.py:5987-5992) resolves ``state["mod_paths"]`` first, so every mod is
-    registered there; ``workshop_update_times`` (3319-3321) returns the cache untouched when it is
-    not None, which keeps the oracle off the real Steam library.
-    """
-    manager = object.__new__(dd2.ModManager)
-    manager.state = {
-        "metadata": {},
-        "mod_paths": {mod: str(path) for mod, path in mod_dirs.items()},
-        "nicknames": dict(nicknames or {}),
-        "categories": {},
-        "category_memory": {},
-    }
-    manager.mods_path = _StringVar(mods_path)
-    manager.workshop_update_cache = dict(acf or {})
-    return manager
-
-
-def legacy_record(
-    manager: Any, categories: ModuleType, dd2: ModuleType, mod: str
-) -> dict[str, object]:
-    """Everything the identity tests compare, computed by the pinned oracle for one mod."""
-    meta = manager.current_metadata_for_mod(mod)
     return {
-        "title": meta["title"],
-        "published_file_id": meta["published_file_id"],
-        "save_identity": list(manager.save_identity_for_mod(mod)),
-        "version_label": meta["version_label"],
-        "updated_label": meta["updated_label"],
-        "black_reliquary": bool(meta["black_reliquary"]),
-        "project_mtime": meta["project_mtime"],
-        "localization_signature": meta["localization_signature"],
-        "workshop_timeupdated": meta["workshop_timeupdated"],
-        "legacy_tags": categories.project_tag_values(
-            manager.mod_folder_path,
-            mod,
-            dd2.parse_xml_file_forgiving,
-        ),
-        "display_name": manager.display_name(mod),
-        "display_suffix": manager.display_suffix(mod),
-        "display_name_with_suffix": manager.display_name_with_suffix(mod),
-        "sort_name": manager.sort_name(mod),
-        "duplicate_keys": manager.duplicate_detection_keys(mod),
-        "category_memory_keys": manager.category_memory_keys(mod),
+        "title": info.title,
+        "published_file_id": info.workshop_id,
+        "save_identity": list(info.save_identity.as_tuple()),
+        "version_label": info.version_label,
+        "updated_label": info.updated_label,
+        "black_reliquary": info.black_reliquary,
+        "project_mtime": info.signature.project_mtime,
+        "localization_signature": info.signature.localization_signature,
+        "workshop_timeupdated": info.signature.workshop_timeupdated,
+        "tags": list(info.tags),
+        "display_name": display_name(info, None),
+        "display_suffix": display_suffix(info),
+        "display_name_with_suffix": display_name_with_suffix(info, None),
+        "sort_name": sort_key(info, None),
+        "duplicate_keys": list(duplicate_keys(info)),
+        "category_memory_keys": list(category_memory_keys(info)),
     }
 
 
-def legacy_nickname_record(manager: Any, mod: str, nickname: str) -> dict[str, object]:
-    """The nickname-dependent names for one mod (sets the nickname in the stub's state)."""
-    manager.state["nicknames"][mod] = nickname
-    try:
-        return {
-            "display_name": manager.display_name(mod),
-            "display_name_with_suffix": manager.display_name_with_suffix(mod),
-            "sort_name": manager.sort_name(mod),
-        }
-    finally:
-        manager.state["nicknames"].pop(mod, None)
+def nickname_record(info: ModInfo, nickname: str) -> dict[str, object]:
+    """The nickname-dependent names of one mod."""
+    from src.core.identity import display_name, display_name_with_suffix, sort_key
+
+    return {
+        "display_name": display_name(info, nickname),
+        "display_name_with_suffix": display_name_with_suffix(info, nickname),
+        "sort_name": sort_key(info, nickname),
+    }
 
 
 # ------------------------------------------------------------------ corpora for the pure helpers
@@ -625,7 +586,7 @@ _IDENTITY_POOL = (
 
 
 def identity_corpus(seed: int = 2024, count: int = 2000) -> list[str]:
-    """Seeded strings mixing the punctuation the legacy regex folds, entities and non-Latin text."""
+    """Seeded strings mixing folded punctuation, entities and non-Latin text."""
     import random
 
     rng = random.Random(seed)

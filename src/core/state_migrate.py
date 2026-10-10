@@ -1,8 +1,8 @@
-"""The ``mod_state.json`` schema (``state.py:8-32``) and its verbatim legacy migration.
+"""The ``mod_state.json`` schema and its migration.
 
-:func:`legacy_migrate` ports ``state.py:35-76`` including its failure modes: badly typed
-values raise (``TypeError`` here where the legacy raised ``AttributeError``/``TypeError``), so
-:func:`src.core.legacy_state.parse_state` sanitises first.  The key tables describe the schema
+:func:`migrate_state` completes a state document: badly typed
+values raise ``TypeError``, so
+:func:`src.core.state_file.parse_state` sanitises first.  The key tables describe the schema
 for the sanitizer and the renderer.
 """
 
@@ -13,7 +13,7 @@ from typing import Final, cast
 from src.core.categories import dedupe_category_names, normalize_hex_color
 from src.core.json_values import JsonValue
 
-LEGACY_KEYS: Final[tuple[str, ...]] = (
+STATE_KEYS: Final[tuple[str, ...]] = (
     "language",
     "mods_path",
     "last_save_path",
@@ -92,10 +92,8 @@ type StateDict = dict[str, object]
 """The working document: values are narrowed with ``isinstance`` where they are read."""
 
 
-def build_default_state(
-    default_language: str, default_categories: Sequence[str]
-) -> dict[str, JsonValue]:
-    """Verbatim ``state.py:8-32``."""
+def default_state(default_language: str, default_categories: Sequence[str]) -> dict[str, JsonValue]:
+    """A fresh state document holding the 22 state keys with their defaults."""
     return {
         "language": default_language,
         "mods_path": "",
@@ -140,19 +138,19 @@ def _expect_list(state: StateDict, key: str) -> list[object]:
 
 
 def _expect_text(key: str, item: object) -> str:
-    """The legacy called ``.lower()`` on every name it kept; anything else crashed."""
+    """Every kept name is lower-cased later, so anything but text is refused."""
     if isinstance(item, str):
         return item
     raise TypeError(f"'{key}' entries must be text, not {type(item).__name__}")
 
 
 def _truthy_names(key: str, items: Iterable[object]) -> list[str]:
-    """``if cat and cat.lower()`` (``state.py:49, 58, 70, 73``): falsy skipped, non-text raises."""
+    """Falsy names are skipped; a non-text name raises."""
     return [_expect_text(key, item) for item in items if item]
 
 
 def _all_names(key: str, items: Iterable[object]) -> list[str]:
-    """``cat.lower() for cat in ...`` (``state.py:56``): every item must be text."""
+    """Every item must be text."""
     return [_expect_text(key, item) for item in items]
 
 
@@ -160,7 +158,7 @@ def _all_names(key: str, items: Iterable[object]) -> list[str]:
 
 
 def _normalized_colors(colors: Mapping[str, object]) -> dict[str, str]:
-    """``state.py:41-45``: keep the colours ``normalize_hex_color`` accepts, normalised."""
+    """Keep the colours ``normalize_hex_color`` accepts, normalised."""
     result: dict[str, str] = {}
     for cat, color in colors.items():
         normalized = normalize_hex_color(str(color)) if color else None
@@ -172,7 +170,7 @@ def _normalized_colors(colors: Mapping[str, object]) -> dict[str, str]:
 def _append_unknown_customs(
     custom: list[str], assigned: Iterable[str], default_categories: Sequence[str]
 ) -> None:
-    """``state.py:55-60``: assigned categories unknown to defaults/customs become customs."""
+    """Assigned categories unknown to defaults/customs become customs."""
     existing = {cat.lower() for cat in default_categories}
     existing.update(cat.lower() for cat in custom)
     for cat in dedupe_category_names(assigned):
@@ -187,9 +185,9 @@ def _complete_category_order(
     custom: Sequence[str],
     assigned: Iterable[str],
 ) -> None:
-    """``state.py:62-74``: append defaults, customs and assigned names missing from the order.
+    """Append defaults, customs and assigned names missing from the order.
 
-    The guards differ per group exactly as in the legacy: none for defaults, ``if cat`` for
+    The guards differ per group as follows: none for defaults, ``if cat`` for
     customs, ``if cat`` and not a pseudo category for assigned names.
     """
     seen = {cat.lower() for cat in order}
@@ -199,20 +197,20 @@ def _complete_category_order(
             seen.add(cat.lower())
 
 
-def legacy_migrate(
+def migrate_state(
     state: Mapping[str, object] | None, default_language: str, default_categories: Sequence[str]
 ) -> dict[str, JsonValue]:
-    """Verbatim ``state.py:35-76`` (``migrate_state_data``) over a deep copy of ``state``.
+    """Complete a state document (a deep copy of ``state``).
 
-    Missing keys get defaults, colours are normalised (``dd2.py:623-631``), ``category_order``
+    Missing keys get defaults, colours are normalised, ``category_order``
     is deduplicated and completed with defaults, custom and assigned categories.  Badly typed
-    values raise exactly like the legacy (``TypeError``): containers of the wrong type, and
-    non-text category names that the legacy would have called ``.lower()`` on (every
+    values raise ``TypeError``: containers of the wrong type, and
+    non-text category names (every
     ``custom_categories`` item, every truthy ``category_order`` item or assigned category).
-    :func:`src.core.legacy_state.parse_state` is the tolerant entry point.
+    :func:`src.core.state_file.parse_state` is the tolerant entry point.
     """
     result: StateDict = copy.deepcopy(dict(state or {}))
-    for key, value in build_default_state(default_language, default_categories).items():
+    for key, value in default_state(default_language, default_categories).items():
         result.setdefault(key, value)
     result["category_colors"] = _normalized_colors(_expect_dict(result, "category_colors"))
     order_names = _truthy_names("category_order", _expect_list(result, "category_order"))
@@ -228,7 +226,7 @@ def legacy_migrate(
 
 
 def mod_metadata_is_complete(metadata: object) -> bool:
-    """Verbatim ``dd2.py:557-573``: a dict carrying every cached metadata key."""
+    """A dict carrying every cached metadata key."""
     if not isinstance(metadata, dict):
         return False
     return all(key in metadata for key in _METADATA_REQUIRED_KEYS)

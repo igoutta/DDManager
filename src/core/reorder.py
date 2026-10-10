@@ -1,13 +1,13 @@
 """Generic selection moves over a visible sequence, and the splice back into the full order.
 
-Ports the shape of ``dd2.py:6684-6712`` (``ModManager.reorder_visible_group``): the UI edits a
-*view* (the active list, or one side of the legacy two-list layout) and the result is spliced
-back into the full order so that filtered-out / other-side items keep their slots (:func:`splice`).
+The UI edits a *view* (the active list, or one side of a two-list layout) and the result is
+spliced back into the full order so that filtered-out / other-side items keep their slots
+(:func:`splice`).
 
-:func:`move_block` fixes the legacy overshoot. The legacy removed the moved items first and then
-inserted them at the ORIGINAL gap index (``dd2.py:6689-6697``), so a downward drag landed one row
-per moved item too low: ``[a, b, c, d]`` with ``{a}`` dropped at gap 3 became ``(b, c, d, a)``.
-Here the gap is interpreted in the coordinates of the current view and the same drop yields
+A naive move would remove the moved items first and then insert them at the ORIGINAL gap
+index, so a downward drag would land one row per moved item too low: ``[a, b, c, d]`` with
+``{a}`` dropped at gap 3 would become ``(b, c, d, a)``.  Here the gap is interpreted in the
+coordinates of the current view and the same drop yields
 ``(b, c, a, d)``, i.e. the item lands where the drop indicator was drawn.
 
 All functions are pure, total for in-range input and generic over any hashable item type.
@@ -28,7 +28,7 @@ def is_subsequence[T](sub: Sequence[T], full: Sequence[T]) -> bool:
 
 
 def _clamp_gap[T](view: Sequence[T], gap: int) -> int:
-    """Clamp an insertion point into ``0..len(view)`` like the legacy did (``dd2.py:6691-6694``)."""
+    """Clamp an insertion point into ``0..len(view)``."""
     return min(max(gap, 0), len(view))
 
 
@@ -84,10 +84,10 @@ def move_to_bottom[T](view: Sequence[T], selected: AbstractSet[T]) -> tuple[T, .
 def splice[T](full: Sequence[T], slots: AbstractSet[T], new_seq: Sequence[T]) -> tuple[T, ...]:
     """Refill the positions that ``slots`` occupy in ``full`` with ``new_seq``, left to right.
 
-    ``dd2.py:6700-6712`` semantics: items outside ``slots`` keep their positions and the slot
+    Items outside ``slots`` keep their positions and the slot
     positions are filled with ``new_seq`` in order. ``new_seq`` must be a rearrangement of the
-    items of ``full`` that belong to ``slots``; otherwise ``ValueError`` is raised (the legacy
-    would have raised ``StopIteration`` or silently dropped items).
+    items of ``full`` that belong to ``slots``; otherwise ``ValueError`` is raised (rather than
+    raising ``StopIteration`` or silently dropping items).
     """
     occupied = [item for item in full if item in slots]
     if Counter(new_seq) != Counter(occupied):

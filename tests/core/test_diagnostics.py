@@ -1,21 +1,18 @@
 """The Check Setup / Copy Debug Info text (src/core/diagnostics.py).
 
-Legacy ``setup_diagnostics_lines`` (dd2.py:2978-3032) gathered live facts and formatted
-``"Label: value"`` lines; ``build_debug_info_text`` (3034) joined them.  The port takes the facts
-as a ``DiagnosticsInput`` and only formats, so the tests check that every fact is rendered, that
-the output is deterministic and pure text, and that it stays English with a legacy-shaped label
+``diagnostics_lines`` takes the facts as a ``DiagnosticsInput`` and only formats
+``"Label: value"`` lines, so the tests check that every fact is rendered, that
+the output is deterministic and pure text, and that it stays English with a fixed label
 vocabulary (users paste it into bug reports).
 """
 
 import dataclasses
-import inspect
 import re
 from typing import Any
 
 import pytest
 
 from src.core.diagnostics import DiagnosticsInput, diagnostics_lines
-from tools.legacy_oracle import LegacyOracle
 
 LINE = re.compile(r"^[^:\n]+: \S.*$")
 
@@ -183,44 +180,3 @@ def test_input_is_frozen() -> None:
     info = _input()
     with pytest.raises(dataclasses.FrozenInstanceError):
         info.mod_count = 1  # ty: ignore[invalid-assignment]
-
-
-# ----------------------------------------------------------------- legacy vocabulary
-
-
-def _legacy_labels(legacy: LegacyOracle) -> set[str]:
-    source = inspect.getsource(legacy.module("dd2").ModManager.setup_diagnostics_lines)
-    return set(re.findall(r'f"([^":{]+): ', source))
-
-
-# Legacy facts (dd2.py:3006-3032) the port deliberately does not render, with the reason.
-LEGACY_LABELS_NOT_RENDERED: dict[str, str] = {
-    "Captured": "core has no clock; services pass the timestamp through `extra`",
-    "Language": "UI state, not a setup fact",
-    "View mode": "UI state, not a setup fact",
-    "Filter": "UI state, not a setup fact",
-    "App data folder writable": "the folder itself is rendered; writability is a services check",
-    "Workshop-backed mods": "per-kind counts are not part of DiagnosticsInput (contract)",
-    "Local/manual mods": "per-kind counts are not part of DiagnosticsInput (contract)",
-    "Metadata entries": "the metadata cache is gone; the uncategorized count replaces it",
-    "Visible reserve rows": "widget state",
-    "Visible load-order rows": "widget state",
-    "Selected profile": "collapsed into 'Selected save'",
-    "Selected profile path": "collapsed into 'Selected save'",
-    "Latest detected save": "collapsed into 'Selected save' / 'Save detected'",
-    "Detected profiles": "profile discovery is not part of DiagnosticsInput (contract)",
-}
-
-
-@pytest.mark.legacy
-def test_every_legacy_check_setup_fact_is_rendered_or_explicitly_excluded(
-    legacy: LegacyOracle,
-) -> None:
-    legacy_labels = _legacy_labels(legacy)
-    assert len(legacy_labels) == 26  # dd2.py:3006-3032
-    excluded = set(LEGACY_LABELS_NOT_RENDERED)
-    assert excluded <= legacy_labels, sorted(excluded - legacy_labels)  # no stale exclusions
-    expected = legacy_labels - excluded
-    assert len(expected) == 12
-    ours = set(_labels(diagnostics_lines(_input())))
-    assert expected <= ours, sorted(expected - ours)

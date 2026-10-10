@@ -70,7 +70,7 @@ class StateSync(QObject):
         s.categories = dict(snapshot.doc.categories)
         s.order = snapshot.doc.order.reconcile(s.mods).order
         doc = snapshot.doc
-        s.table = TierTable.from_legacy(doc.category_order, doc.custom_categories)
+        s.table = TierTable.from_categories(doc.category_order, doc.custom_categories)
         c.reclassify()
         c.undo_stack.clear()
         c.rebuild()

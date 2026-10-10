@@ -8,9 +8,9 @@ from pathlib import Path
 from src.core.classify import suggest_category
 from src.core.identity import category_memory_keys
 from src.core.ids import ModId
-from src.core.legacy_state import StateDoc, StateSettings
 from src.core.model import ModInfo
 from src.core.rules_data import ResolvedRules
+from src.core.state_file import StateDoc, StateSettings
 from src.core.tiers import Tier, TierTable, resolve_tier
 from src.services.bootstrap import Services
 from src.services.detection import InstallSnapshot, ManualPaths
@@ -104,7 +104,7 @@ def build_tiers(
     return {
         mod: resolve_tier(
             rules_tier=resolved.tier_overrides.get(mod),
-            legacy_category=categories.get(mod),
+            category=categories.get(mod),
             suggestion=None,
             table=table,
         ).tier

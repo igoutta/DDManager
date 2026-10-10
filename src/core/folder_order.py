@@ -1,11 +1,10 @@
-"""Planning for "Apply order to local mod folders" (legacy ``dd2.py:7226-7311``, made sane).
+"""Planning for "Apply order to local mod folders" ).
 
-The legacy renamed every local mod folder to ``<category base + index>_<name>`` so the game
-loads them in list order; the base came from the category priority table (``7239-7250``).
-Here the prefix is simply the 4-digit 1-based position in ``LoadOrder.entries`` (monotonic,
-disabled mods included as in the legacy loop over ``order``), one existing numeric prefix is
-stripped exactly like ``7290-7293``, a previous ``_<n>_`` dedupe segment is dropped too, and
-collisions are deduplicated with ``_<n>_`` (``7296-7303``).  Only the plan is computed here;
+Every local mod folder is renamed to ``<index>_<name>`` so the game loads them in list order.
+The prefix is simply the 4-digit 1-based position in ``LoadOrder.entries`` (monotonic,
+disabled mods included), one existing numeric prefix is
+stripped, a previous ``_<n>_`` dedupe segment is dropped too, and
+collisions are deduplicated with ``_<n>_``.  Only the plan is computed here;
 the services layer performs the renames in two phases (see :class:`RenamePlan`).
 """
 
@@ -24,7 +23,7 @@ MAX_ENTRIES: Final = 9999
 """The largest position a 4-digit prefix can express."""
 
 _DEDUPE_SUFFIX_RE: Final = re.compile(r"\d{1,2}_(.+)")
-"""A dedupe counter is tiny (``7301``: it starts at 1 and grows per collision); a longer digit
+"""A dedupe counter is tiny (it starts at 1 and grows per collision); a longer digit
 run after the prefix, such as a 7+ digit Workshop id in ``0005_1234567_mymod``, is content."""
 
 
@@ -42,9 +41,9 @@ class RenamePlan:
     """The steps to perform and the id mapping to apply to the state afterwards.
 
     Targets routinely equal other steps' sources (``foo`` -> ``0001_foo`` while ``0001_foo`` ->
-    ``0002_foo``; cycles are possible), so the steps MUST be executed in two phases exactly as
-    the legacy did (``dd2.py:7329-7360``): every ``old_name`` to a temporary name first, then
-    every temporary name to its ``new_name``, rolling back on failure (``7405-7415``).
+    ``0002_foo``; cycles are possible), so the steps MUST be executed in two phases :
+    every ``old_name`` to a temporary name first, then
+    every temporary name to its ``new_name``, rolling back on failure.
     :attr:`requires_two_phase` says whether a plain sequential rename would collide.
     """
 
@@ -60,9 +59,9 @@ class RenamePlan:
 
 
 def strip_order_prefix(name: str) -> str:
-    """Drop ONE numeric prefix (``dd2.py:7290-7293``) and a following ``_<n>_`` dedupe segment.
+    """Drop ONE numeric prefix and a following ``_<n>_`` dedupe segment.
 
-    The legacy test is kept as is: a prefix counts only when the underscore sits within the
+    A prefix counts only when the underscore sits within the
     first five characters.  The dedupe segment is recognised only as a one- or two-digit run,
     so ``0005_1234567_mymod`` gives back ``1234567_mymod`` (a copied Workshop folder keeps its
     id).  Residual ambiguity: a content name that itself starts with a short number, such as
@@ -80,7 +79,7 @@ def strip_order_prefix(name: str) -> str:
 
 
 def _dedupe(prefix: str, stripped: str, used: set[str]) -> str:
-    """``dd2.py:7296-7303``: insert ``_<n>_`` until the lower-cased name is unused."""
+    """Insert ``_<n>_`` until the lower-cased name is unused."""
     candidate = f"{prefix}_{stripped}"
     suffix = 1
     while candidate.lower() in used:
@@ -108,8 +107,8 @@ def _local_mods(
 def plan_folder_renames(order: LoadOrder, mods: Mapping[ModId, ModInfo]) -> RenamePlan:
     """Plan the renames that make local folder names sort like ``order.entries``.
 
-    Workshop mods are skipped (``dd2.py:7281-7283``); entries without a ``ModInfo`` are skipped
-    with a WARNING finding (the legacy aborted, ``7270-7279``).  More than :data:`MAX_ENTRIES`
+    Workshop mods are skipped; entries without a ``ModInfo`` are skipped
+    with a WARNING finding (the plan does not abort).  More than :data:`MAX_ENTRIES`
     entries yield an ERROR finding and an empty plan.  Mods whose name would not change get
     no step but still reserve their name.  Applying the plan and planning again yields no
     steps (idempotent), Workshop-style ``<id>_<name>`` content names included.

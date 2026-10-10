@@ -121,7 +121,7 @@ class MainController(ControllerCommands):
             doc=doc,
             fingerprint=snapshot.fingerprint,
             order=doc.order,
-            table=TierTable.from_legacy(doc.category_order, doc.custom_categories),
+            table=TierTable.from_categories(doc.category_order, doc.custom_categories),
             categories=dict(doc.categories),
             base_findings=findings,
             save_path=configured_save(doc.settings),

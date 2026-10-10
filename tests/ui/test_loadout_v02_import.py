@@ -1,11 +1,11 @@
-"""P29: Profile Manager > Import accepts a legacy ``dd_mod_loadout.json`` (order, then extras)."""
+"""P29: Profile Manager > Import accepts a 0.2 ``dd_mod_loadout.json`` (order, then extras)."""
 
 import json
 
 import pytest
 
 from src.core.ids import ModId
-from src.core.loadorder_file import parse_legacy_loadout, resolve_document
+from src.core.loadorder_file import parse_loadout_v02, resolve_document
 from tests.ui.m5_support import construct, load_attr
 
 LOADOUT = {
@@ -67,7 +67,7 @@ def import_through_the_manager(rig, qtbot, path):
 
 
 def expected_result(rig):
-    doc, extras, findings = parse_legacy_loadout(LOADOUT)
+    doc, extras, findings = parse_loadout_v02(LOADOUT)
     assert not findings
     assert doc is not None
     return resolve_document(doc, rig.controller.mods(), rig.controller.order()), extras

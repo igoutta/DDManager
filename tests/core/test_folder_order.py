@@ -1,8 +1,8 @@
 """Planning of "Apply order to local mod folders" (src/core/folder_order.py).
 
-Ports the planning half of ``dd2.ModManager.apply_order`` (dd2.py:7226-7311) made sane: the
-prefix is the 4-digit 1-based position in ``order.entries`` (disabled included, like legacy), ONE
-existing numeric prefix is stripped (7290-7293) plus any previous ``_<n>_`` dedupe suffix (7301),
+The plan: the
+prefix is the 4-digit 1-based position in ``order.entries`` (disabled included), ONE
+existing numeric prefix is stripped plus any previous ``_<n>_`` dedupe suffix,
 collisions get ``_<n>_``, Workshop mods are never renamed and unchanged names are skipped.
 """
 
@@ -51,8 +51,8 @@ def _new_names(plan: RenamePlan) -> dict[str, str]:
     return {step.old_name: step.new_name for step in plan.steps}
 
 
-def legacy_strip(mod: str) -> str:
-    """Test-side copy of dd2.py:7290-7293 (the legacy prefix strip)."""
+def reference_strip(mod: str) -> str:
+    """Test-side reference for the plain prefix strip (no dedupe-suffix handling)."""
     stripped_name = mod
     if "_" in mod[:5]:
         prefix, remainder = mod.split("_", 1)
@@ -72,7 +72,7 @@ def test_prefix_is_the_position_in_entries_and_workshop_mods_are_skipped() -> No
     assert [(s.old_name, s.new_name) for s in plan.steps] == [
         ("b", "0001_b"),
         ("0005_a", "0002_a"),
-        ("c", "0003_c"),  # disabled mods still get their slot, like legacy
+        ("c", "0003_c"),  # disabled mods still get their slot
     ]
     assert M("2248772895") not in plan.rekey or plan.rekey[M("2248772895")] == M("2248772895")
     changed = {old: new for old, new in plan.rekey.items() if old != new}
@@ -155,7 +155,7 @@ def test_strip_order_prefix(name: str, expected: str) -> None:
 
 def test_copied_workshop_folder_names_keep_their_id_and_the_plan_is_idempotent() -> None:
     """``1234567_mymod`` (a Workshop folder copied to the local mods) is prefixed once and never
-    loses its id segment on a second apply (the legacy-shaped bug the dedupe strip could cause)."""
+    loses its id segment on a second apply (the bug the dedupe strip could cause)."""
     names = ["foo", "0001_foo", "1234567_mymod", "0005_1234567_mymod"]
     mods = _mods(*(local_mod(n) for n in names))
     plan = _plan(LoadOrder(tuple(M(n) for n in names), frozenset()), mods)
@@ -173,9 +173,9 @@ def test_strips_a_previous_dedupe_suffix() -> None:
     assert _new_names(plan) == {"0003_1_foo": "0001_foo", "0007_12_bar": "0002_bar"}
 
 
-def test_regression_lock_legacy_keeps_the_dedupe_suffix_the_port_strips_it() -> None:
-    """Legacy (7290-7293) strips only the prefix, so ``0003_1_foo`` kept growing a ``1_``."""
-    assert legacy_strip("0003_1_foo") == "1_foo"
+def test_a_plain_prefix_strip_keeps_the_dedupe_suffix_the_plan_strips_it() -> None:
+    """A plain prefix strip leaves ``1_foo`` in ``0003_1_foo``, so the name would keep growing."""
+    assert reference_strip("0003_1_foo") == "1_foo"
     plan = _plan(load_order("0003_1_foo"), _mods(local_mod("0003_1_foo")))
     assert _new_names(plan) == {"0003_1_foo": "0001_foo"}
 
@@ -191,7 +191,7 @@ def test_names_that_merely_look_numeric_are_not_mangled() -> None:
     }
 
 
-def test_strip_matches_legacy_on_seeded_names_without_dedupe_suffixes() -> None:
+def test_strip_matches_the_reference_strip_on_seeded_names_without_dedupe_suffixes() -> None:
     rng = random.Random(1234)
     words = ["foo", "Bar", "mod name", "ñandú", "x_y", "a-b", "class_patch", "Z"]
     for _ in range(200):
@@ -200,7 +200,7 @@ def test_strip_matches_legacy_on_seeded_names_without_dedupe_suffixes() -> None:
         name = prefix + base  # no word starts with digits, so no dedupe-suffix shapes here
         mods = _mods(local_mod(name))
         plan = _plan(load_order(name), mods)
-        expected = f"0001_{legacy_strip(name)}"
+        expected = f"0001_{reference_strip(name)}"
         actual = _new_names(plan).get(name, name)
         assert actual == expected, name
 
@@ -348,7 +348,7 @@ def test_single_entry(name: str) -> None:
 
 def test_plan_says_when_targets_collide_with_sources() -> None:
     """``foo -> 0001_foo`` while ``0001_foo -> 0002_foo``: a sequential rename would hit an
-    existing folder, so the plan flags the two-phase (temp names) execution the legacy used."""
+    existing folder, so the plan flags the two-phase (temp names) execution."""
     chained = _plan(load_order("foo", "0001_foo"), _mods(local_mod("foo"), local_mod("0001_foo")))
     assert [(s.old_name, s.new_name) for s in chained.steps] == [
         ("foo", "0001_foo"),

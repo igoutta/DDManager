@@ -87,10 +87,10 @@ class FindingsFlow:
         c = self._c
         s = c.session
         tier = next((t for t in s.table.tiers if t.id == fix.tier_id), None)
-        if tier is None or tier.legacy_category is None:
+        if tier is None or tier.category is None:
             return
-        s.categories[fix.mod] = tier.legacy_category
-        s.pending.categories[fix.mod] = tier.legacy_category
+        s.categories[fix.mod] = tier.category
+        s.pending.categories[fix.mod] = tier.category
         s.tiers[fix.mod] = tier
         c.schedule_save()
         c.rebuild()

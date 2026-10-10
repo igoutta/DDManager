@@ -1,6 +1,6 @@
-"""Import of the legacy ``dd_mod_loadout.json`` (``legacy_loadout.py:30-46``) as a load-order
+"""Import of a ``dd_mod_loadout.json`` written by DD Manager 0.2.x as a load-order
 document, so the same :func:`src.core.loadorder_resolve.resolve_document` ladder maps it onto
-the installed mods (by folder, since legacy loadouts only carried folder keys)."""
+the installed mods (by folder, since 0.2 loadouts only carried folder keys)."""
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -16,8 +16,8 @@ _EXTRA_KEYS: Final = ("nicknames", "categories", "category_memory")
 
 
 @dataclass(frozen=True, slots=True)
-class LegacyLoadoutExtras:
-    """The non-order parts of a legacy loadout (``legacy_loadout.py:36-45``)."""
+class LoadoutV02Extras:
+    """The non-order parts of a 0.2 loadout."""
 
     nicknames: Mapping[str, str]
     categories: Mapping[str, str]
@@ -79,15 +79,15 @@ def _entries(
     return tuple(entries)
 
 
-def parse_legacy_loadout(
+def parse_loadout_v02(
     obj: object,
-) -> tuple[LoadOrderDocument | None, LegacyLoadoutExtras | None, list[Finding]]:
-    """Import a legacy ``dd_mod_loadout.json`` object (``legacy_loadout.py:30-46``).
+) -> tuple[LoadOrderDocument | None, LoadoutV02Extras | None, list[Finding]]:
+    """Import a ``dd_mod_loadout.json`` object written by DD Manager 0.2.x.
 
-    As the legacy loader (``84-89``) the object must carry ``order`` (a list) and ``enabled``
+    The object must carry ``order`` (a list) and ``enabled``
     (an object); otherwise ``(None, None, [ERROR])``.  Entries carry ``folder=key`` and the
     identity ``(key, "")`` so ``resolve_document`` matches them by folder; ``enabled``
-    defaults to true per key (``legacy_loadout.py:33``).  ``mods_path`` is kept in ``extra``.
+    defaults to true per key.  ``mods_path`` is kept in ``extra``.
     """
     findings: list[Finding] = []
     order = obj.get("order") if isinstance(obj, dict) else None
@@ -103,11 +103,11 @@ def parse_legacy_loadout(
         name="",
         game=GAME,
         priority=PrioritySetting(),
-        created_with="legacy",
+        created_with="DD Manager 0.2.x",
         created_at=None,
         notes="",
         entries=_entries(order, enabled, findings),
         extra=extra,
     )
     nicknames, categories, memory = (_str_mapping(obj.get(key)) for key in _EXTRA_KEYS)
-    return doc, LegacyLoadoutExtras(nicknames, categories, memory), findings
+    return doc, LoadoutV02Extras(nicknames, categories, memory), findings

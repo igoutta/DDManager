@@ -1,8 +1,8 @@
-"""The "Check Setup" / "Copy Debug Info" text (legacy ``dd2.py:2978-3034``).
+"""The "Check Setup" / "Copy Debug Info" text .
 
 Deliberately English only: users paste it into bug reports.  The services layer gathers the
-facts into a :class:`DiagnosticsInput` (the legacy method read the filesystem, the clock and
-the widgets itself); this module only formats ``Label: value`` lines in a fixed order.  A
+facts into a :class:`DiagnosticsInput` (nothing here reads the filesystem, the clock or
+the widgets); this module only formats ``Label: value`` lines in a fixed order.  A
 capture timestamp, when wanted, goes in ``extra`` because core has no clock.
 """
 
@@ -55,7 +55,7 @@ def _app_lines(info: DiagnosticsInput) -> tuple[str, ...]:
 
 
 def _folder_lines(info: DiagnosticsInput) -> tuple[str, ...]:
-    """The ``autodetect_summary`` part of ``dd2.py:3011-3015``."""
+    """The auto-detected folder summary lines."""
     return (
         f"Game install: {_or(info.game_root, '(not found)')}",
         f"Local mods folder: {_or(info.local_mods_dir, '(not found)')}",
@@ -66,7 +66,7 @@ def _folder_lines(info: DiagnosticsInput) -> tuple[str, ...]:
 
 
 def _mod_lines(info: DiagnosticsInput) -> tuple[str, ...]:
-    """``dd2.py:3016-3019`` counts, with the uncategorised count instead of the metadata one."""
+    """counts, with the uncategorised count instead of the metadata one."""
     return (
         f"Mods loaded: {info.mod_count}",
         f"Enabled mods: {info.enabled_count}",
@@ -78,7 +78,7 @@ def _mod_lines(info: DiagnosticsInput) -> tuple[str, ...]:
 
 
 def _save_lines(info: DiagnosticsInput) -> tuple[str, ...]:
-    """``dd2.py:3025-3029``: the selected save and its ``applied_ugcs_1_0`` block."""
+    """The selected save and its ``applied_ugcs_1_0`` block."""
     applied = "Not checked" if info.applied_count is None else str(info.applied_count)
     return (
         f"Selected save: {_or(info.selected_save, '(not selected)')}",

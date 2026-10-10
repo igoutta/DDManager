@@ -1,13 +1,11 @@
 """Profile slots (``persist.game.json`` per ``profile_N`` folder): number, date, week, label.
 
-Ports ``paths.py:356-521`` (``profile_number_from_path``, ``profile_sort_key``,
-``read_profile_week``, ``read_save_profile_metadata``, ``profile_label``,
-``detect_profile_slots``, ``detect_latest_save_file``).  Reads go through the save-format
-registry (``read_scalars``) instead of the legacy ``read_scalar_dson_fields``; an unreadable
-file yields no values, as the legacy returned ``{}``.
+Covers ``profile_number_from_path``, ``profile_sort_key``, week and metadata reading, the slot
+label, slot detection and the latest save.  Reads go through the save-format registry
+(``read_scalars``); an unreadable file yields no values.
 
 Documented divergence: the last-resort "any ``persist.*.json`` field containing ``week``" loop
-(``paths.py:424-452``) skips ``persist.game.backup.*.json`` (the backups the app itself writes
+skips ``persist.game.backup.*.json`` (the backups the app itself writes
 next to the save), ``*.decoded.json`` and dot files, so a backup can no longer feed a stale week.
 """
 
@@ -33,7 +31,7 @@ _PROFILE_RE: Final = re.compile(r"profile[_ -]?(\d+)", re.IGNORECASE)
 _NO_NUMBER: Final = 9999
 
 type _Candidate = tuple[str, str, int]
-"""``(file name, field name, adjustment)`` of the legacy week chain."""
+"""``(file name, field name, adjustment)`` of the week chain."""
 
 _INRAID: Final[tuple[_Candidate, ...]] = (
     ("persist.campaign_log.json", "current_week", 0),
@@ -61,7 +59,7 @@ class SaveSlot:
 
 
 def profile_number_from_path(path: Path) -> int | None:
-    """``paths.py:356-362``: ``profile[_ -]?N`` over the path parts, the LAST match wins."""
+    """``profile[_ -]?N`` over the path parts, the LAST match wins."""
     for part in reversed(path.parts):
         match = _PROFILE_RE.fullmatch(part)
         if match:
@@ -70,13 +68,13 @@ def profile_number_from_path(path: Path) -> int | None:
 
 
 def profile_sort_key(slot: SaveSlot) -> tuple[int, str]:
-    """``paths.py:365-369``: slots without a number sort last; ties by casefolded path."""
+    """Slots without a number sort last; ties by casefolded path."""
     number = slot.number if slot.number is not None else _NO_NUMBER
     return (number, str(slot.save_path).casefold())
 
 
-def legacy_slot_label(slot: SaveSlot) -> str:
-    """``paths.py:477-499`` byte for byte: ``Profile N (slot N+1) - <date> - Week W [<dir>]``."""
+def slot_label(slot: SaveSlot) -> str:
+    """``Profile N (slot N+1) - <date> - Week W [<dir>]``."""
     date = slot.date_time
     if not date:
         date = slot.mtime.strftime("%Y-%m-%d %H:%M") if slot.mtime is not None else "unknown date"
@@ -117,7 +115,7 @@ class SaveSlotService:
     # ------------------------------------------------------------------ slots
 
     def slots(self, save_files: Sequence[Path]) -> list[SaveSlot]:
-        """``paths.py:502-514``: unique files (case-insensitive) sorted by ``profile_sort_key``."""
+        """Unique files (case-insensitive) sorted by ``profile_sort_key``."""
         seen: set[str] = set()
         slots: list[SaveSlot] = []
         for path in save_files:
@@ -153,7 +151,7 @@ class SaveSlotService:
         date_time = str(raw_date).strip() if raw_date else ""
         mtime = None
         if mtime_ns is not None:
-            # the LOCAL zone, like the legacy ``datetime.fromtimestamp(getmtime)`` label
+            # the LOCAL zone, like ``datetime.fromtimestamp(getmtime)``
             mtime = datetime.fromtimestamp(mtime_ns / 1e9, tz=UTC).astimezone()
         return SaveSlot(
             save_path=path,
@@ -169,7 +167,7 @@ class SaveSlotService:
     # ------------------------------------------------------------------ week
 
     def read_week(self, save_path: Path) -> int | None:
-        """``paths.py:372-454``: in-raid chain, exact chain, then the filtered scan."""
+        """In-raid chain, exact chain, then the filtered scan."""
         profile_dir = save_path.parent
         game = self._scalars(profile_dir / "persist.game.json", {"inraid"})
         if game.get("inraid") is True:
@@ -211,7 +209,7 @@ class SaveSlotService:
         return None
 
     def _week_fields(self, path: Path) -> dict[str, DsonScalar]:
-        """Scalars whose name contains ``week`` (the legacy ``name_predicate``)."""
+        """Scalars whose name contains ``week``."""
         try:
             raw = path.read_bytes()
             doc = dson.parse(raw)
@@ -263,7 +261,7 @@ class SaveSlotService:
         return entries
 
     def latest(self, save_files: Sequence[Path]) -> Path | None:
-        """``paths.py:517-521`` with a guarded stat: the file with the greatest mtime."""
+        """With a guarded stat: the file with the greatest mtime."""
         best: tuple[int, Path] | None = None
         for path in save_files:
             mtime = safe_mtime_ns(path)

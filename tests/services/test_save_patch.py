@@ -140,7 +140,7 @@ def test_apply_patches_backs_up_and_verifies(build, save_path: Path) -> None:
     assert (result.before, result.after) == (plan.before, plan.after)
     assert result.backup.reason is BackupReason.PRE_PATCH
     assert result.backup.path.read_bytes() == ORIGINAL
-    assert backups.list(save_path, include_legacy=False) == [result.backup]
+    assert backups.list(save_path, include_beside_save=False) == [result.backup]
     assert SavePatchService.GAME_IMAGES in probe.calls
     assert temp_files(save_path.parent) == []
 
@@ -159,7 +159,7 @@ def test_missing_acknowledgements_block_apply(build, tmp_path: Path) -> None:
         service.apply(plan, acknowledged=frozenset({ACK_STEAM_CLOUD}))
     assert partial.value.missing == {ACK_NON_DEFAULT_FILENAME}
     assert target.read_bytes() == ORIGINAL
-    assert backups.list(target, include_legacy=False) == []
+    assert backups.list(target, include_beside_save=False) == []
     service.apply(plan, acknowledged=frozenset({ACK_STEAM_CLOUD, ACK_NON_DEFAULT_FILENAME, "x"}))
     assert target.read_bytes() == plan.patched
 
@@ -170,7 +170,7 @@ def test_apply_refuses_while_the_game_runs(build, save_path: Path) -> None:
     with pytest.raises(GameRunningError):
         service.apply(plan)
     assert save_path.read_bytes() == ORIGINAL
-    assert backups.list(save_path, include_legacy=False) == []
+    assert backups.list(save_path, include_beside_save=False) == []
 
 
 def test_a_save_changed_after_planning_is_stale_and_not_backed_up(build, save_path: Path) -> None:
@@ -181,7 +181,7 @@ def test_a_save_changed_after_planning_is_stale_and_not_backed_up(build, save_pa
     with pytest.raises(StaleSaveError):
         service.apply(plan)
     assert save_path.read_bytes() == changed
-    assert backups.list(save_path, include_legacy=False) == []
+    assert backups.list(save_path, include_beside_save=False) == []
     assert not app_backup_files(backups, save_path)
 
 

@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     inspect.add_argument("file", type=Path, help="path to a persist.game.json")
     verify = save_commands.add_parser(
-        "verify", help="exit 0 when the save is legacy-valid, 1 otherwise"
+        "verify", help="exit 0 when the save is structurally valid, 1 otherwise"
     )
     verify.add_argument("file", type=Path, help="path to a persist.game.json")
     _add_save_commands(save_commands)
@@ -81,7 +81,9 @@ def _add_profile_commands(commands: argparse._SubParsersAction) -> None:
     export = sub.add_parser("export", help="write a profile to a file")
     export.add_argument("name")
     export.add_argument("dest", type=Path)
-    imp = sub.add_parser("import", help="import a loadorder or legacy loadout file")
+    imp = sub.add_parser(
+        "import", help="import a ddmanager.loadorder file or a 0.2 dd_mod_loadout.json"
+    )
     imp.add_argument("file", type=Path)
     imp.add_argument("--overwrite", action="store_true")
     apply = sub.add_parser("apply", help="adopt a profile's order in mod_state.json")
@@ -99,7 +101,9 @@ def _read_file(path: Path) -> bytes | None:
 
 def _print_problems(label: str, problems: Sequence[DsonProblem], *, skipped: bool = False) -> None:
     if not problems:
-        print(f"{label}: skipped (fix the legacy problems first)" if skipped else f"{label}: OK")
+        print(
+            f"{label}: skipped (fix the structural problems first)" if skipped else f"{label}: OK"
+        )
         return
     print(f"{label}: {len(problems)} problem(s)")
     for problem in problems:
@@ -107,7 +111,7 @@ def _print_problems(label: str, problems: Sequence[DsonProblem], *, skipped: boo
 
 
 def _print_report(report: SaveValidationReport) -> None:
-    _print_problems("legacy", report.legacy_errors)
+    _print_problems("structural", report.structural_errors)
     _print_problems("strict", report.strict_errors, skipped=not report.ok)
 
 

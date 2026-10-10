@@ -15,24 +15,25 @@ from src.core.project_xml import ProjectInfo
 
 @dataclass(frozen=True, slots=True)
 class MetadataSignature:
-    """The NEW app's metadata cache key, shaped like ``dd2.py:3383-3404``.
+    """The metadata cache key.
 
-    Same four fields as the legacy ``metadata_signature_for_mod``, but ``workshop_timeupdated``
+    Four identifying fields plus the content-root stamp; ``workshop_timeupdated``
     is looked up by the RESOLVED workshop id (``identity.resolve_workshop_id``: the project's
-    ``PublishedFileId`` first) while the legacy keyed it by the path-derived id
-    (``workshop_id_for_mod``, called at ``dd2.py:3482``).  It therefore must not be compared with
-    a legacy ``metadata[*].workshop_timeupdated`` value; a stale legacy cache simply misses once.
+    ``PublishedFileId`` first), not by the path-derived id.  A ``workshop_timeupdated`` value
+    cached by DD Manager 0.2.x (path-derived id) therefore must not be compared with it; such a
+    stale cache entry simply misses once.
     """
 
     metadata_path: str
     project_mtime: float | None
     localization_signature: str
-    """``"<xml count>:<newest mtime>"`` of ``localization/*.xml`` or ``""`` (``dd2.py:3358``)."""
+    """``"<xml count>:<newest mtime>"`` of ``localization/*.xml`` or ``""``."""
     workshop_timeupdated: str
     """``ModSnapshot.acf_timeupdated``: the ACF ``timeupdated`` for the resolved workshop id."""
     content_roots_mtime_ns: int | None = None
     """Newest ``st_mtime_ns`` of the folder and its direct subdirectories: a file added to or
-    removed from a content root changes it.  ``None`` in legacy-shaped values and when unknown."""
+    removed from a content root changes it.  ``None`` in cache entries that predate it and when
+    unknown."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,9 +46,9 @@ class ModSnapshot:
     path: PurePath
     root: PurePath
     under_workshop: bool
-    """True when ``path`` lies under ``steamapps/workshop/content/262060`` (``paths.py:14``)."""
+    """True when ``path`` lies under ``steamapps/workshop/content/262060``."""
     path_workshop_id: str
-    """Workshop id derived from the folder name/path (``dd2.py:3968-3985``), ``""`` if none."""
+    """Workshop id derived from the folder name/path, ``""`` if none."""
     project: ProjectInfo | None
     localization_entries: tuple[tuple[str, str], ...]
     """``(entry id, raw text)`` pairs from ``localization/*.xml`` ``<entry id=...>`` elements."""
@@ -63,7 +64,7 @@ class ModSnapshot:
     acf_timeupdated: str
     """ACF ``timeupdated`` looked up by ``identity.resolve_workshop_id(...)``; ``""`` unknown.
 
-    Feeds both the updated label (``dd2.py:3448-3473``) and :class:`MetadataSignature`.
+    Feeds both the updated label and :class:`MetadataSignature`.
     """
     preview_path: PurePath | None
     preview_mtime_ns: int | None
@@ -81,19 +82,19 @@ class ModInfo:
     path: PurePath
     root: PurePath
     title: str
-    """Display title after the legacy chain (``identity.derive_mod_info``)."""
+    """Display title after the title chain (``identity.derive_mod_info``)."""
     project_title: str | None
     """Raw project ``<Title>`` (possibly ``""``), ``None`` when there is no parsable project.xml."""
     save_identity: SaveIdentity
     workshop_id: str
-    """The legacy ``published_file_id``: set only for folders under the workshop path."""
+    """The ``published_file_id``: set only for folders under the workshop path."""
     version_label: str
     """``"M.m"`` or ``""``."""
     updated_label: str
     """``"MM/YY"`` or ``""``."""
     black_reliquary: bool
     tags: tuple[str, ...]
-    """``ProjectInfo.legacy_tags`` (classifier parity)."""
+    """``ProjectInfo.tags`` (the classifier tags)."""
     top_level_dirs: frozenset[str]
     code_subdirs: tuple[tuple[str, tuple[str, ...]], ...]
     files: frozenset[str]
@@ -103,7 +104,7 @@ class ModInfo:
     signature: MetadataSignature
     shadowed: tuple[PurePath, ...] = ()
     project_published_file_id: str = ""
-    """Raw project ``<PublishedFileId>`` regardless of location (``dd2.py:4063-4081`` needs it)."""
+    """Raw project ``<PublishedFileId>`` regardless of location (the duplicate keys need it)."""
 
     def subdirs_of(self, top: str) -> tuple[str, ...]:
         """Child directory names recorded under ``top`` (case-insensitive), ``()`` if none."""

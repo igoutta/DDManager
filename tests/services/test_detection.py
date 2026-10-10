@@ -1,4 +1,4 @@
-"""Install/save discovery: parity with legacy paths.py plus the documented fixes."""
+"""Install/save discovery: the documented rules and fixes."""
 
 from pathlib import Path
 
@@ -59,7 +59,7 @@ class CountingRegistry:
 # ------------------------------------------------------------------ steam roots
 
 
-def test_windows_steam_roots_follow_the_legacy_order(fake_env, tmp_path: Path) -> None:
+def test_windows_steam_roots_follow_the_documented_order(fake_env, tmp_path: Path) -> None:
     a, b, c, d, pf86, pf = dirs(tmp_path, "a", "b", "c", "d", "pf86/Steam", "pf/Steam")
     registry = DictRegistry(
         values={
@@ -380,7 +380,7 @@ def steam_world(fake_env, make_steam_root, tmp_path: Path):
     return tree, lib2_ws, lib2_acf, fake_env("linux", home=home)
 
 
-def test_detect_builds_the_snapshot_in_legacy_order(steam_world) -> None:
+def test_detect_builds_the_snapshot_in_the_documented_order(steam_world) -> None:
     tree, lib2_ws, lib2_acf, env = steam_world
     snap = InstallDetector(env).detect(ManualPaths(), None)
     assert snap.steam_roots[0] == tree.root

@@ -1,17 +1,15 @@
 """project.xml facts (src/core/project_xml.py).
 
-Contract: ``parse_project`` is total (bytes -> ProjectInfo | None) and follows the legacy decode
-ladder of ``dd2.parse_xml_file_forgiving`` (dd2.py:634-666); ``legacy_tags`` is the exact
-``categories.project_tag_values`` list (categories.py:105-131); the small helpers are verbatim
-ports (xml_text_from_child 576-582, strip_invalid_xml_chars 585-589, version_label 3406-3421,
-is_black_reliquary_tagged 3423-3430). Parity is proved against the pinned oracle on temp files.
+Contract: ``parse_project`` is total (bytes -> ProjectInfo | None) and follows an encoding retry
+ladder; ``tags`` is the exact classifier tag list (outer ``<Tags>`` pseudo tag included); the
+small helpers are xml_text_from_child, strip_invalid_xml_chars, version_label and
+is_black_reliquary_tagged.
 """
 
 import dataclasses
 import random
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
 import pytest
@@ -26,7 +24,6 @@ from src.core.project_xml import (
     xml_text_from_child,
 )
 from tests.support import mod_facts as mf
-from tools.legacy_oracle import LegacyOracle
 
 CRUSADER = "crusader_hu_swf_compat"
 STAGE_COACH = "better_stage_coach_swf_compat"
@@ -58,7 +55,7 @@ def test_project_info_is_a_frozen_slotted_value() -> None:
         "published_file_id",
         "version_major",
         "version_minor",
-        "legacy_tags",
+        "tags",
         "clean_tags",
         "preview_icon_file",
         "description",
@@ -91,7 +88,7 @@ def test_absent_children_are_empty_strings() -> None:
         published_file_id="",
         version_major="",
         version_minor="",
-        legacy_tags=(),
+        tags=(),
         clean_tags=(),
         preview_icon_file="",
         description="",
@@ -106,12 +103,12 @@ def test_entities_in_title_are_decoded_by_the_xml_layer() -> None:
 # ----------------------------------------------------------------- tags
 
 
-def test_legacy_tags_include_the_outer_pseudo_tag_and_split_on_separators() -> None:
+def test_tags_include_the_outer_pseudo_tag_and_split_on_separators() -> None:
     info = _parsed(tags=("Character Mod", "Class Mod", "A, B/C|D", "class mod", "", "  "))
     assert info.clean_tags == ("Character Mod", "Class Mod", "A, B/C|D", "class mod")
-    # categories.py:117-129: every <Tags> element (outer first), whitespace collapsed,
+    # every <Tags> element (outer first), whitespace collapsed,
     # split on [,/|], html-unescaped, deduped case-insensitively keeping the first spelling.
-    assert info.legacy_tags == (
+    assert info.tags == (
         "Character Mod Class Mod A",
         "B",
         "C",
@@ -123,12 +120,12 @@ def test_legacy_tags_include_the_outer_pseudo_tag_and_split_on_separators() -> N
     )
 
 
-def test_flat_single_tags_element_is_both_leaf_and_legacy_tag() -> None:
+def test_flat_single_tags_element_is_both_leaf_and_classifier_tag() -> None:
     raw = b"<project><Title>T</Title><Tags>Class</Tags></project>"
     info = parse_project(raw)
     assert info is not None
     assert info.clean_tags == ("Class",)
-    assert info.legacy_tags == ("Class",)
+    assert info.tags == ("Class",)
 
 
 def test_leaf_tags_keep_case_and_order_and_are_not_split() -> None:
@@ -136,12 +133,12 @@ def test_leaf_tags_keep_case_and_order_and_are_not_split() -> None:
     assert info.clean_tags == ("Patch", "Compatibility", "ui", "A, B")
 
 
-def test_tag_entities_are_unescaped_for_legacy_tags() -> None:
+def test_tag_entities_are_unescaped_for_tags() -> None:
     raw = b"<project><Tags><Tags>Rock &amp;amp; Roll</Tags></Tags></project>"
     info = parse_project(raw)
     assert info is not None
     assert info.clean_tags == ("Rock &amp; Roll",)
-    assert "Rock & Roll" in info.legacy_tags
+    assert "Rock & Roll" in info.tags
 
 
 # ----------------------------------------------------------------- decode ladder
@@ -330,151 +327,7 @@ def test_sample_mods_parse_with_expected_facts(sample_mods_dir: Path) -> None:
     assert info is not None
     assert info.title == "The Chorus"
     assert info.clean_tags == ("New Class", "support", "hive mind")
-    assert info.legacy_tags == ("New Class support hive mind", "New Class", "support", "hive mind")
+    assert info.tags == ("New Class support hive mind", "New Class", "support", "hive mind")
     assert (info.version_major, info.version_minor) == ("0", "0")
     assert version_label(info.version_major, info.version_minor) == ""
     assert info.preview_icon_file == "preview_icon.png"
-
-
-# ----------------------------------------------------------------- parity vs the pinned oracle
-
-
-def _legacy_root(dd2: ModuleType, tmp_path: Path, raw: bytes, name: str) -> object:
-    path = tmp_path / f"{name}.xml"
-    path.write_bytes(raw)
-    return dd2.parse_xml_file_forgiving(str(path))
-
-
-LADDER_INPUTS: dict[str, bytes] = {
-    "plain": _project(title="Plain", published_id="1"),
-    "bom": b"\xef\xbb\xbf" + _project(title="Bom"),
-    "bom_junk": b"\xef\xbb\xbfjunk\n" + _project(title="BomJunk"),
-    "junk_no_decl": b"abc<project><Title>Junk</Title></project>",
-    "control": b"<project><Title>Ctl\x01x</Title></project>",
-    "utf16": mf.project_xml("Wide").replace("utf-8", "utf-16").encode("utf-16"),
-    "gb18030": mf.project_xml("模组").replace("utf-8", "gb18030").encode("gb18030"),
-    "big5": mf.project_xml("模組").replace("utf-8", "big5").encode("big5"),
-    "latin1_undeclared": mf.project_xml("Café").encode("latin-1"),
-    "empty": b"",
-    "spaces": b"   \n",
-    "truncated": b"<project><Title>",
-    "mismatched": b"<a><b></a>",
-    "only_text": b"hello",
-}
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("name", list(LADDER_INPUTS))
-def test_parse_project_matches_legacy_ladder(
-    legacy: LegacyOracle, tmp_path: Path, name: str
-) -> None:
-    dd2 = legacy.module("dd2")
-    raw = LADDER_INPUTS[name]
-    root = _legacy_root(dd2, tmp_path, raw, name)
-    info = parse_project(raw)
-    assert (info is None) == (root is None)
-    if root is not None and info is not None:
-        assert info.title == dd2.xml_text_from_child(root, "Title")
-        assert info.published_file_id == dd2.xml_text_from_child(root, "PublishedFileId")
-
-
-@pytest.mark.legacy
-def test_parse_project_matches_legacy_on_mutated_bytes(
-    legacy: LegacyOracle, tmp_path: Path
-) -> None:
-    dd2 = legacy.module("dd2")
-    rng = random.Random(11)
-    base = _project(title="Fuzz Base", published_id="42", tags=("UI", "Class"))
-    for index in range(200):
-        raw = _mutate(rng, base)
-        root = _legacy_root(dd2, tmp_path, raw, f"fuzz_{index}")
-        info = parse_project(raw)
-        assert (info is None) == (root is None), (index, raw)
-        if root is not None and info is not None:
-            assert info.title == dd2.xml_text_from_child(root, "Title")
-            assert info.published_file_id == dd2.xml_text_from_child(root, "PublishedFileId")
-            assert info.version_major == dd2.xml_text_from_child(root, "VersionMajor")
-
-
-TAG_DOCUMENTS: dict[str, bytes] = {
-    "nested": _project(tags=("Character Mod", "Class Mod", "A, B/C|D", "class mod", "", " ")),
-    "flat": b"<project><Tags>Class</Tags></project>",
-    "entities": (
-        b"<project><Tags><Tags>Rock &amp;amp; Roll</Tags><Tags>a&amp;b</Tags></Tags></project>"
-    ),
-    "namespaced": b'<p xmlns:x="urn:x"><x:tags><x:TAGS>Ui</x:TAGS></x:tags></p>',
-    "double_space": b"<project><Tags>two  words / three</Tags></project>",
-    "none": _project(),
-}
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("name", list(TAG_DOCUMENTS))
-def test_legacy_tags_match_project_tag_values(
-    legacy: LegacyOracle, tmp_path: Path, name: str
-) -> None:
-    dd2 = legacy.module("dd2")
-    categories = legacy.module("categories")
-    folder = tmp_path / name
-    folder.mkdir()
-    (folder / "project.xml").write_bytes(TAG_DOCUMENTS[name])
-    expected = categories.project_tag_values(
-        lambda _mod: str(folder), name, dd2.parse_xml_file_forgiving
-    )
-    info = parse_project(TAG_DOCUMENTS[name])
-    assert info is not None
-    assert list(info.legacy_tags) == expected
-
-
-@pytest.mark.legacy
-def test_legacy_tags_match_on_every_sample_mod(legacy: LegacyOracle, sample_mods_dir: Path) -> None:
-    dd2 = legacy.module("dd2")
-    categories = legacy.module("categories")
-    for folder in sorted(p for p in sample_mods_dir.iterdir() if p.is_dir()):
-        expected = categories.project_tag_values(
-            lambda _mod, f=folder: str(f), folder.name, dd2.parse_xml_file_forgiving
-        )
-        info = parse_project((folder / "project.xml").read_bytes())
-        assert info is not None, folder.name
-        assert list(info.legacy_tags) == expected, folder.name
-
-
-@pytest.mark.legacy
-def test_helpers_match_legacy(legacy: LegacyOracle) -> None:
-    dd2 = legacy.module("dd2")
-    root = ET.fromstring(
-        '<p xmlns:x="urn:x"><x:TITLE>  A  </x:TITLE><Empty/><Nest><Title>deep</Title></Nest></p>'
-    )
-    for tag in ("title", "Title", "Empty", "Nest", "missing", "p"):
-        assert xml_text_from_child(root, tag) == dd2.xml_text_from_child(root, tag)
-    rng = random.Random(3)
-    alphabet = [chr(i) for i in range(0x30)] + ["a", "é", "桜", "\x7f", chr(0xFFFE)]
-    for _ in range(500):
-        text = "".join(rng.choice(alphabet) for _ in range(rng.randint(0, 20)))
-        assert strip_invalid_xml_chars(text) == dd2.strip_invalid_xml_chars(text)
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize(("major", "minor"), mf.VERSION_CASES)
-def test_version_label_matches_legacy(legacy: LegacyOracle, major: str, minor: str) -> None:
-    dd2 = legacy.module("dd2")
-    root = ET.fromstring(
-        f"<project><VersionMajor>{major}</VersionMajor><VersionMinor>{minor}</VersionMinor></project>"
-    )
-    expected = dd2.ModManager.version_label_from_project(None, root)
-    assert version_label(major, minor) == expected
-    # the contract takes the stripped child texts: feed them exactly as the legacy reads them
-    assert (
-        version_label(
-            dd2.xml_text_from_child(root, "VersionMajor"),
-            dd2.xml_text_from_child(root, "VersionMinor"),
-        )
-        == expected
-    )
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("tags", mf.BLACK_RELIQUARY_CASES, ids=lambda t: "|".join(t) or "empty")
-def test_black_reliquary_matches_legacy(legacy: LegacyOracle, tags: tuple[str, ...]) -> None:
-    dd2 = legacy.module("dd2")
-    assert is_black_reliquary_tagged(tags) is dd2.ModManager.is_black_reliquary_tagged(None, tags)

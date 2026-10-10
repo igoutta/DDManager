@@ -1,8 +1,8 @@
 """Rule: a load-order entry whose folder is not installed.
 
 An *active* missing mod is an ERROR because it would be written into the save as an entry the
-game cannot find; the fix disables it.  An *inactive* missing mod is only INFO: the legacy app
-pruned such keys on every load (dd2.py:6044-6050), which wiped categories and nicknames when a
+game cannot find; the fix disables it.  An *inactive* missing mod is only INFO: DD Manager 0.2.x
+pruned such keys on every load, which wiped categories and nicknames when a
 drive was briefly unmounted, so the rewrite keeps the entry and merely reports it.
 """
 

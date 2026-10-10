@@ -42,7 +42,7 @@ def test_every_label_of_the_window_follows_the_language(rig, language):
 
 
 @pytest.mark.parametrize("language", OTHERS)
-def test_the_window_title_uses_the_legacy_translation(rig, language):
+def test_the_window_title_uses_the_base_translation(rig, language):
     english = rig.window.windowTitle()
     rig.translator.set_language(language)
     assert rig.window.windowTitle() == catalog_of(language)["app_title"]

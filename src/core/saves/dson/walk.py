@@ -1,11 +1,10 @@
 """The stack walk over every field, shared by the validator and the document builder.
 
-Port of the walk inside ``dson_validate_editor_compatible`` (dd2.py:1224-1303).  ONE walker serves
-every caller:
+ONE walker serves every caller:
 
-* **checked** mode (``checked=True``) reproduces the LEGACY verdict: it raises :class:`RejectError`
-  with the first problem the legacy raised on, in the legacy order, and pops an object when
-  ``seen == expected`` exactly as dd2.py:1297 did;
+* **checked** mode (``checked=True``) gives the STRUCTURAL verdict: it raises
+  :class:`RejectError` with the first problem found, in a fixed order, and pops an object when
+  ``seen == expected``;
 * **tolerant** mode (``checked=False``) never raises; it is what the splice primitive uses to
   index a freshly assembled document.  An object whose meta1 index is out of range is a leaf, an
   object left open at the end owns the rest of the file, and an object with a negative
@@ -13,8 +12,8 @@ every caller:
 
 Both modes record the direct-children index and one :class:`ObjectVisit` per object.  In checked
 mode an out-of-range index or an overfull parent is a rejection before the tolerant degradations
-could apply, so on a legacy-valid document the two modes see exactly the same tree: the walk the
-validator accepted is the walk the document indexes.
+could apply, so on a structurally valid document the two modes see exactly the same tree: the
+walk the validator accepted is the walk the document indexes.
 """
 
 from collections.abc import Sequence
@@ -25,7 +24,7 @@ from src.core.saves.format import DsonProblem
 
 
 class RejectError(Exception):
-    """Internal: carries the first problem the legacy validator would have raised on."""
+    """Internal: carries the first problem the checked walk found."""
 
     def __init__(self, problem: DsonProblem) -> None:
         super().__init__(problem.message)
@@ -34,7 +33,7 @@ class RejectError(Exception):
 
 @dataclass(slots=True)
 class _Frame:
-    """An open object on the walker's stack (dd2.py:1286-1291).
+    """An open object on the walker's stack.
 
     ``running`` is the object's running number (its position among object fields).
     """
@@ -65,13 +64,13 @@ class TreeWalk:
     object_count: int
 
 
-# ------------------------------------------------------------------ per-field legacy checks
+# ------------------------------------------------------------------ per-field structural checks
 
 
 def check_field_name(data: bytes, entry: Meta2) -> str:
-    """dd2.py:1229-1253: name length, termination, UTF-8 and hash; returns the decoded name.
+    """Name length, termination, UTF-8 and hash; returns the decoded name.
 
-    An empty name slice made the legacy raise ``IndexError``; that is a rejection here too.
+    An empty name slice is a rejection.
     """
     offset = entry.offset
     name_length = entry.name_length
@@ -119,7 +118,7 @@ def check_field_name(data: bytes, entry: Meta2) -> str:
 def check_object_record(
     meta1: Sequence[Meta1], entry: Meta2, object_index: int, field_index: int, parent: int
 ) -> None:
-    """dd2.py:1258-1272: the object's meta1 record must point back here and at the open parent."""
+    """The object's meta1 record must point back here and at the open parent."""
     offset = entry.offset
     if object_index >= len(meta1):
         raise RejectError(
@@ -177,7 +176,7 @@ class _Walker:
         return TreeWalk(children, tuple(self.visits), self.running + 1)
 
     def _visit(self, index: int, entry: Meta2) -> None:
-        """One field, in the legacy order: name, object record, parent's count, push, pops."""
+        """One field, in order: name, object record, parent's count, push, pops."""
         object_index = entry.object_index
         if self.checked:
             check_field_name(self.data, entry)
@@ -191,7 +190,7 @@ class _Walker:
             self._close(self.stack.pop(), index)
 
     def _note_child(self, index: int, entry: Meta2, *, is_object: bool) -> None:
-        """dd2.py:1276-1283: count this field against the open object, or require a root object."""
+        """Count this field against the open object, or require a root object."""
         if self.stack:
             top = self.stack[-1]
             self.children[top.index].append(index)
@@ -214,14 +213,14 @@ class _Walker:
             )
 
     def _open(self, index: int, object_index: int) -> None:
-        """dd2.py:1286-1291; in checked mode the index was already proven in range."""
+        """Open the object; in checked mode the index was already proven in range."""
         self.running += 1
         if 0 <= object_index < len(self.meta1):
             expected = self.meta1[object_index].direct_children
             self.stack.append(_Frame(index, object_index, expected, self.running))
 
     def _complete(self, frame: _Frame) -> bool:
-        """dd2.py:1297 pops on equality; tolerant mode also closes a negative ``expected``."""
+        """Pop on equality; tolerant mode also closes a negative ``expected``."""
         if self.checked:
             return frame.seen == frame.expected
         return frame.seen >= frame.expected
@@ -232,7 +231,7 @@ class _Walker:
         )
 
     def _finish(self) -> None:
-        """dd2.py:1299-1303: an object still open at the end is a rejection in checked mode."""
+        """An object still open at the end is a rejection in checked mode."""
         if self.checked and self.stack:
             top = self.stack[-1]
             raise RejectError(

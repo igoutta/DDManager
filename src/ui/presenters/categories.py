@@ -2,7 +2,7 @@
 
 The draft is a :class:`~src.core.categories.CategoryEditorState`; every operation replaces it with
 a modified copy and emits ``changed``.  Nothing reaches the controller until :meth:`commit`, so
-the dialog's Save/Cancel is atomic.  The legacy messages (``dd2.py:5380-5547``) become
+the dialog's Save/Cancel is atomic.  The refusal messages become
 :class:`Problem` s the dialog shows.
 """
 
@@ -148,7 +148,7 @@ class CategoriesPresenter(QObject):
     # ------------------------------------------------------------------ names
 
     def check_name(self, raw: str, *, renaming: str | None = None) -> tuple[str, Problem | None]:
-        """The cleaned name and why it is refused (``dd2.py:5473-5485``, ``5497-5510``)."""
+        """The cleaned name and why it is refused."""
         name = " ".join(raw.strip().split())
         if not name:
             return name, Problem("ui.categories.empty")

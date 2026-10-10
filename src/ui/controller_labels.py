@@ -34,7 +34,7 @@ _CUSTOM_COLOR = TIER_TOKENS["custom"].color
 
 
 def collapse(text: str) -> str:
-    """``dd2.py:7086``: the text with every whitespace run reduced to one space."""
+    """The text with every whitespace run reduced to one space."""
     return " ".join(text.split())
 
 
@@ -45,7 +45,7 @@ class LabelFlows:
     # ------------------------------------------------------------------ assign a category
 
     def category_choices(self) -> tuple[CategoryChoiceVM, ...]:
-        """Every assignable category in editor order (``dd2.py:5275``) with its display color."""
+        """Every assignable category in editor order with its display color."""
         c = self._c
         doc = c.session.doc
         names = get_categories(
@@ -63,7 +63,7 @@ class LabelFlows:
     def set_category(self, ids: Sequence[ModId], name: str | None) -> int:
         """Assign ``name`` to ``ids`` (``None`` or a pseudo category unassigns); returns the count.
 
-        ``dd2.py:6438-6449`` and ``dd2.py:3198-3204``: the assignment and the remembered category
+        The assignment and the remembered category
         of every identity key of the mod (so a re-installed copy is classified the same way).
         """
         c = self._c
@@ -121,7 +121,7 @@ class LabelFlows:
     def set_nickname(self, mod: ModId, text: str) -> bool:
         """Save ``text`` as the nickname of ``mod``; the default display name (or nothing) clears.
 
-        ``dd2.py:7086-7111``.  Returns ``False`` when nothing changed.
+        Returns ``False`` when nothing changed.
         """
         c = self._c
         s = c.session
@@ -169,7 +169,7 @@ class LabelFlows:
         )
 
     def commit_categories(self, state: CategoryEditorState) -> None:
-        """Apply the editor's draft as one change (``categories.py:344-384``)."""
+        """Apply the editor's draft as one change."""
         c = self._c
         s = c.session
         memory = {**s.doc.category_memory, **s.pending.memory}
@@ -185,7 +185,7 @@ class LabelFlows:
         s.pending.memory.clear()
         for mod, category in changes.assignments.items():
             self._assign(mod, category, remember=False)
-        s.table = TierTable.from_legacy(changes.category_order, changes.custom_categories)
+        s.table = TierTable.from_categories(changes.category_order, changes.custom_categories)
         self._sync_doc(
             category_order=changes.category_order,
             custom_categories=changes.custom_categories,

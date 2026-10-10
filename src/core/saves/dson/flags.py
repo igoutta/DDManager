@@ -2,18 +2,18 @@
 
 The game sets bit 31 on some fields it writes - sporadically, inside ``applied_ugcs_1_0`` on child
 objects, ``name`` and ``source`` words alike - and loads a save either way.  It is outside every
-field the format defines (bit 0, bits 2-10, bits 11-30; dd2.py:669, 734), so nothing here
+field the format defines (bit 0, bits 2-10, bits 11-30), so nothing here
 interprets it: "never alter what we don't understand".
 
 Outside the applied block the splice keeps every info word's bit 31 (``rebuild_field_block`` and
-``set_object_index_in_info`` both preserve it).  Inside the block the legacy writer rebuilt every
-word from ``dson_field_info`` (dd2.py:866-908), always clearing the bit; this module lets
+``set_object_index_in_info`` both preserve it).  Inside the block DD Manager 0.2.x rebuilt every
+word from scratch, always clearing the bit; this module lets
 :func:`.edits.replace_name_source_object` carry each entry's three bits over instead:
 
 * an entry whose ``(name, source)`` identity already existed in the old block keeps the original
   bit-31 state of its child object word, its ``name`` word and its ``source`` word;
 * matching is positional among duplicates (first old occurrence -> first new occurrence);
-* a new entry gets all three bits clear (the legacy behaviour).
+* a new entry gets all three bits clear (as 0.2.x always did).
 """
 
 from collections import defaultdict, deque
@@ -39,7 +39,7 @@ class EntryFlags:
 
 
 NO_FLAGS: Final = EntryFlags()
-"""What a new entry gets: every bit clear, exactly like the legacy writer."""
+"""What a new entry gets: every bit clear."""
 
 
 def has_flag(info: int) -> bool:

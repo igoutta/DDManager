@@ -1,4 +1,4 @@
-"""Steam installs, libraries, ACF manifests and workshop paths (``paths.py:14-121``)."""
+"""Steam installs, libraries, ACF manifests and workshop paths."""
 
 import logging
 import re
@@ -36,7 +36,7 @@ def path_key(path: Path) -> str:
 
 
 def unique_paths(paths: Iterable[Path]) -> list[Path]:
-    """``paths.py:27-35``: drop duplicates by :func:`path_key`, keeping the first occurrence."""
+    """Drop duplicates by :func:`path_key`, keeping the first occurrence."""
     seen: set[str] = set()
     unique: list[Path] = []
     for path in paths:
@@ -71,7 +71,7 @@ def _windows_steam_roots(env: Environment) -> list[Path]:
 
 
 def steam_install_roots(env: Environment) -> list[Path]:
-    """``paths.py:38-79``: existing Steam install folders, registry first, de-duplicated."""
+    """Existing Steam install folders, registry first, de-duplicated."""
     if env.is_windows:
         return unique_paths(_windows_steam_roots(env))
     if env.is_macos:
@@ -83,7 +83,7 @@ def steam_install_roots(env: Environment) -> list[Path]:
 
 
 def parse_libraryfolders_vdf(text: str) -> list[str]:
-    """``paths.py:116-117``: every ``"path"`` value, with ``\\\\`` unescaped to ``\\``."""
+    """Every ``"path"`` value, with ``\\\\`` unescaped to ``\\``."""
     return [match.group(1).replace("\\\\", "\\") for match in _LIBRARY_PATH_RE.finditer(text)]
 
 
@@ -112,7 +112,7 @@ def _vdf_libraries(steam_root: Path) -> list[Path]:
 
 
 def steam_library_roots(steam_roots: Sequence[Path]) -> list[Path]:
-    """``paths.py:104-121``: each Steam root followed by the libraries its VDF lists."""
+    """Each Steam root followed by the libraries its VDF lists."""
     libraries: list[Path] = []
     for steam_root in steam_roots:
         libraries.append(steam_root)
@@ -121,7 +121,7 @@ def steam_library_roots(steam_roots: Sequence[Path]) -> list[Path]:
 
 
 def parse_appworkshop_acf(text: str) -> dict[str, str]:
-    """``dd2.py:3319-3341``: workshop item id -> ``timeupdated``; the first occurrence wins."""
+    """Workshop item id -> ``timeupdated``; the first occurrence wins."""
     updates: dict[str, str] = {}
     for match in _ACF_ITEM_RE.finditer(text):
         updates.setdefault(match.group("id"), match.group("ts"))
@@ -129,14 +129,14 @@ def parse_appworkshop_acf(text: str) -> dict[str, str]:
 
 
 def workshop_manifest_paths(libraries: Sequence[Path]) -> list[Path]:
-    """``dd2.py:3298-3314``: ``appworkshop_262060.acf`` files that exist, de-duplicated."""
+    """``appworkshop_262060.acf`` files that exist, de-duplicated."""
     manifest = f"appworkshop_{STEAM_APP_ID}.acf"
     found = (library / "steamapps" / "workshop" / manifest for library in libraries)
     return unique_paths(candidate for candidate in found if candidate.is_file())
 
 
 def read_workshop_update_times(manifests: Sequence[Path]) -> dict[str, str]:
-    """``dd2.py:3316-3341``: merge the ACF files; the first file that names an item wins."""
+    """Merge the ACF files; the first file that names an item wins."""
     updates: dict[str, str] = {}
     for manifest in manifests:
         try:
@@ -162,8 +162,7 @@ def _find_segments(parts: Sequence[str], wanted: Sequence[str]) -> int:
 def is_workshop_content_path(path: Path, app_id: str = STEAM_APP_ID) -> bool:
     """True when ``path`` is, or lies under, ``steamapps/workshop/content/<app_id>``.
 
-    Whole path segments are compared (``paths.py:14-24`` did a substring test and so also
-    matched ``content/2620601``).
+    Whole path segments are compared, so ``content/2620601`` does not match.
     """
     wanted = ("steamapps", "workshop", "content", app_id.casefold())
     return _find_segments(path.absolute().parts, wanted) >= 0
@@ -184,10 +183,10 @@ def is_steam_cloud_path(path: Path) -> bool:
 
 
 def workshop_id_for_folder(path: Path, *, under_workshop: bool) -> str:
-    """``dd2.py:3968-3985``: the workshop id a folder name encodes, ``""`` outside the workshop.
+    """The workshop id a folder name encodes, ``""`` outside the workshop.
 
     Order: an all-digit folder name; else the first of the first two ``_`` parts with at least
-    seven digits.  (The legacy final basename test repeated the first one and never fired.)
+    seven digits.
     """
     if not under_workshop:
         return ""

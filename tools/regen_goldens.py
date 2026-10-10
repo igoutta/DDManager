@@ -1,256 +1,277 @@
-"""Regenerate tests/golden/* from the pinned legacy oracle (dev only, never in CI).
+"""Regenerate tests/golden/* from THIS program (dev only, never in CI).
 
-Golden sets (``python tools/regen_goldens.py [dson] [identity] [classify]``, all when no argument):
+The goldens are frozen outputs of DD Manager itself; the corpus check (``just corpus``) is what
+validates the codec against real game-written saves.  Regenerating is therefore a diff of our
+own behaviour against what was frozen: a golden whose content changes is reported and REFUSED
+unless ``--update`` is passed.  New golden files are always written.
 
-* ``dson``: every cell of the write_applied parity matrix (tests/support/parity_matrix.py) is
-  built with the independent test builder and patched with the pinned
-  ``dd2.dson_patch_mod_list_resize``. The expected bytes land in ``case_NN.bin`` and
-  ``cases.json`` records the inputs, digests and any legacy error, so
-  tests/core/saves/test_goldens.py can prove byte parity without dd2.py.
-* ``identity``: the synthetic mod folders of tests/support/mod_facts.py run through
-  ``dd2.ModManager.read_mod_metadata`` and the display/sort/duplicate helpers (``cases.json``),
-  plus tables for the pure helpers over seeded corpora (``helpers.json``).
-* ``classify``: ``categories.auto_category_scores`` / ``suggested_category_for_mod`` over every
-  ``modding/*`` sample and every synthetic folder (``cases.json``).
+    python tools/regen_goldens.py [--update] [dson] [identity] [classify]
+
+* ``dson``: every cell of tests/support/parity_matrix.py is built with the independent test
+  builder and rewritten with ``DsonV1Format.write_applied``; the bytes land in ``case_NN.bin``
+  and ``cases.json`` records the inputs and digests (tests/core/saves/test_goldens.py).
+* ``identity``: the synthetic mod folders of tests/support/mod_facts.py through
+  ``derive_mod_info`` and the display/sort/duplicate helpers (``cases.json``), plus tables for
+  the pure text helpers over seeded corpora (``helpers.json``).
+* ``classify``: ``category_scores`` / ``suggest_category`` over every ``modding/*`` sample and
+  every synthetic folder (``cases.json``).
 """
 
 import hashlib
 import json
 import sys
 import tempfile
-import xml.etree.ElementTree as ET
+from datetime import UTC, datetime
 from pathlib import Path
-from types import ModuleType
 from typing import Any
 
+from src.core.classify import category_scores, suggest_category
+from src.core.identity import (
+    derive_mod_info,
+    is_bad_display_title,
+    looks_like_numeric_id,
+    normalize_mod_identity,
+    strip_numeric_prefix,
+    text_has_latin,
+)
+from src.core.model import ModInfo
+from src.core.project_xml import is_black_reliquary_tagged, version_label
+from src.core.saves.dson_v1 import DsonV1Format
 from tests.support import mod_facts as mf
 from tests.support import parity_matrix as pm
-from tools.legacy_oracle import LEGACY_COMMIT, LegacyOracle, extract
+from tests.support.identities import identities
 
 ROOT = Path(__file__).absolute().parent.parent
 GOLDEN_DIR = ROOT / "tests" / "golden" / "dson"
 IDENTITY_DIR = ROOT / "tests" / "golden" / "identity"
 CLASSIFY_DIR = ROOT / "tests" / "golden" / "classify"
 MODDING_DIR = ROOT / "modding"
+GENERATOR = "tools/regen_goldens.py"
+CASES_JSON = "cases.json"
+SETS = ("dson", "identity", "classify")
 
 
-def _write_json(path: Path, document: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", "utf-8")
+class Writer:
+    """Collects the regenerated files and applies the refuse-unless-updated policy."""
+
+    def __init__(self, *, update: bool) -> None:
+        self.update = update
+        self.written: list[Path] = []
+        self.refused: list[Path] = []
+        self.unchanged: list[Path] = []
+
+    def put(self, path: Path, data: bytes) -> None:
+        if path.is_file():
+            old = path.read_bytes()
+            if old == data:
+                self.unchanged.append(path)
+                return
+            print(f"CHANGED {path.relative_to(ROOT).as_posix()}: {_summary(path, old, data)}")
+            if not self.update:
+                self.refused.append(path)
+                return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        self.written.append(path)
+
+    def put_json(self, path: Path, document: dict[str, Any]) -> None:
+        """JSON with CRLF line endings, the convention of the committed golden manifests."""
+        text = json.dumps(document, ensure_ascii=False, indent=2) + "\n"
+        self.put(path, text.replace("\n", "\r\n").encode("utf-8"))
+
+
+def _summary(path: Path, old: bytes, new: bytes) -> str:
+    if path.suffix != ".json":
+        return f"{len(old)} -> {len(new)} bytes, sha256 {_sha(old)[:12]} -> {_sha(new)[:12]}"
+    try:
+        before, after = json.loads(old), json.loads(new)
+    except ValueError:
+        return "unparseable JSON on one side"
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return "document shape changed"
+    keys = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+    return "differing keys: " + ", ".join(keys)
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
 # ----------------------------------------------------------------- dson
 
 
-def regenerate(oracle: LegacyOracle | None = None) -> list[dict[str, object]]:
-    oracle = LegacyOracle(extract()) if oracle is None else oracle
-    dd2 = oracle.module("dd2")
-    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
-    for stale in GOLDEN_DIR.glob("case_*.bin"):
-        stale.unlink()
+def regenerate_dson(writer: Writer) -> int:
+    fmt = DsonV1Format()
     cases: list[dict[str, object]] = []
     for index, (n, m) in enumerate(pm.CASES):
         raw = pm.build_input(n)
         entries = pm.new_entries(m)
-        keys, table = pm.stub_identities(entries)
         case_name = f"case_{index:02d}"
-        record: dict[str, object] = {
-            "id": case_name,
-            "matrix_id": pm.case_id(n, m),
-            "existing": n,
-            "new_count": m,
-            "existing_entries": pm.existing_entries(n),
-            "new_entries": entries,
-            "input_size": len(raw),
-            "input_sha256": hashlib.sha256(raw).hexdigest(),
-            "output": None,
-            "output_sha256": None,
-            "legacy_error": None,
-        }
-        try:
-            patched, count = dd2.dson_patch_mod_list_resize(raw, keys, oracle.stub_manager(table))
-        except Exception as exc:  # noqa: BLE001 - the legacy raises plain ValueError/IndexError
-            record["legacy_error"] = f"{type(exc).__name__}: {exc}"
-        else:
-            if count != m:
-                raise RuntimeError(f"{case_name}: legacy wrote {count} entries, expected {m}")
-            (GOLDEN_DIR / f"{case_name}.bin").write_bytes(patched)
-            record["output"] = f"{case_name}.bin"
-            record["output_sha256"] = hashlib.sha256(patched).hexdigest()
-        cases.append(record)
+        patched = fmt.write_applied(raw, identities(entries))
+        if fmt.read_applied(patched) != identities(entries):
+            raise RuntimeError(f"{case_name}: the written entries do not read back")
+        writer.put(GOLDEN_DIR / f"{case_name}.bin", patched)
+        cases.append(
+            {
+                "id": case_name,
+                "matrix_id": pm.case_id(n, m),
+                "existing": n,
+                "new_count": m,
+                "existing_entries": pm.existing_entries(n),
+                "new_entries": entries,
+                "input_size": len(raw),
+                "input_sha256": _sha(raw),
+                "output": f"{case_name}.bin",
+                "output_sha256": _sha(patched),
+            }
+        )
     document = {
-        "legacy_commit": LEGACY_COMMIT,
-        "legacy_function": "dd2.dson_patch_mod_list_resize",
-        "generator": "tools/regen_goldens.py",
+        "generator": GENERATOR,
+        "writer": "src.core.saves.dson_v1.DsonV1Format.write_applied",
         "builder": "tests/support/dson_builder.py standard_save",
         "cases": cases,
     }
-    (GOLDEN_DIR / "cases.json").write_text(
-        json.dumps(document, ensure_ascii=False, indent=2) + "\n", "utf-8"
-    )
-    return cases
-
-
-def _report_dson(cases: list[dict[str, object]]) -> None:
-    written = sum(1 for case in cases if case["output"] is not None)
-    print(f"dson: {len(cases)} cases, {written} golden files, {len(cases) - written} legacy errors")
-    for case in cases:
-        if case["legacy_error"] is not None:
-            print(f"  {case['id']} ({case['matrix_id']}): {case['legacy_error']}")
+    writer.put_json(GOLDEN_DIR / CASES_JSON, document)
+    return len(cases)
 
 
 # ----------------------------------------------------------------- identity
 
 
-def _helper_tables(dd2: ModuleType) -> dict[str, Any]:
-    """Pure-helper goldens: the oracle's answers over the seeded/fixed corpora of mod_facts."""
+def _local_tz():
+    zone = datetime.now(UTC).astimezone().tzinfo
+    if zone is None:
+        raise RuntimeError("no local time zone")
+    return zone
+
+
+def _info(folder: Path, acf: dict[str, str] | None = None) -> ModInfo:
+    return derive_mod_info(mf.snapshot_from_dir(folder, acf=acf), tz=_local_tz())
+
+
+def _helper_tables() -> dict[str, Any]:
+    """Tables for the pure text helpers over the seeded and fixed corpora of mod_facts."""
     seed, count = 2024, 2000
-    manager = dd2.ModManager
-    version_rows = []
-    for major, minor in mf.VERSION_CASES:
-        root = ET.fromstring(
-            f"<p><VersionMajor>{major}</VersionMajor><VersionMinor>{minor}</VersionMinor></p>"
-        )
-        version_rows.append([major, minor, manager.version_label_from_project(None, root)])
     return {
         "normalize_mod_identity": {
             "seed": seed,
             "count": count,
             "pairs": [
-                [text, dd2.normalize_mod_identity(text)] for text in mf.identity_corpus(seed, count)
+                [text, normalize_mod_identity(text)] for text in mf.identity_corpus(seed, count)
             ],
         },
         "titles": [
             {
                 "text": text,
-                "has_latin": bool(dd2.text_has_latin(text)),
-                "numeric": bool(dd2.looks_like_numeric_id(text)),
-                "bad": bool(dd2.is_bad_display_title(text)),
+                "has_latin": text_has_latin(text),
+                "numeric": looks_like_numeric_id(text),
+                "bad": is_bad_display_title(text),
             }
             for text in mf.TITLE_CORPUS
         ],
-        "version_label": version_rows,
+        "version_label": [
+            [major, minor, version_label(major, minor)] for major, minor in mf.VERSION_CASES
+        ],
         "black_reliquary": [
-            {"tags": list(tags), "tagged": bool(manager.is_black_reliquary_tagged(None, tags))}
+            {"tags": list(tags), "tagged": is_black_reliquary_tagged(tags)}
             for tags in mf.BLACK_RELIQUARY_CASES
         ],
-        "save_name": [[folder, manager.save_name(None, folder)] for folder in mf.SAVE_NAME_CASES],
+        "save_name": [[folder, strip_numeric_prefix(folder)] for folder in mf.SAVE_NAME_CASES],
     }
 
 
-def _identity_case(oracle: LegacyOracle, spec: mf.ModDirSpec, folder: Path) -> dict[str, Any]:
-    dd2 = oracle.module("dd2")
-    categories = oracle.module("categories")
-    manager = mf.legacy_manager(dd2, {spec.folder: folder}, acf=dict(spec.acf))
+def _identity_case(spec: mf.ModDirSpec, folder: Path) -> dict[str, Any]:
+    info = _info(folder, dict(spec.acf))
     return {
         "id": spec.id,
         "folder": spec.folder,
         "spec_digest": spec.digest(),
-        "record": mf.legacy_record(manager, categories, dd2, spec.folder),
-        "nicknames": {
-            nick: mf.legacy_nickname_record(manager, spec.folder, nick) for nick in spec.nicknames
-        },
+        "record": mf.identity_record(info),
+        "nicknames": {nick: mf.nickname_record(info, nick) for nick in spec.nicknames},
     }
 
 
-def regenerate_identity(oracle: LegacyOracle) -> int:
+def regenerate_identity(writer: Writer) -> int:
     base = Path(tempfile.mkdtemp(prefix="ddm-identity-"))
     dirs = mf.materialize_all(base)
-    cases = [_identity_case(oracle, spec, dirs[spec.id]) for spec in mf.CASES]
+    cases = [_identity_case(spec, dirs[spec.id]) for spec in mf.CASES]
     header = {
-        "legacy_commit": LEGACY_COMMIT,
-        "generator": "tools/regen_goldens.py regenerate_identity",
+        "generator": f"{GENERATOR} regenerate_identity",
         "builder": "tests/support/mod_facts.py CASES",
     }
-    _write_json(IDENTITY_DIR / "cases.json", {**header, "cases": cases})
-    helpers = _helper_tables(oracle.module("dd2"))
-    _write_json(IDENTITY_DIR / "helpers.json", {**header, **helpers})
+    writer.put_json(IDENTITY_DIR / CASES_JSON, {**header, "cases": cases})
+    writer.put_json(IDENTITY_DIR / "helpers.json", {**header, **_helper_tables()})
     return len(cases)
 
 
 # ----------------------------------------------------------------- classify
 
 
-def _classify(oracle: LegacyOracle, manager: Any, mod: str) -> dict[str, Any]:
-    categories = oracle.module("categories")
-    dd2 = oracle.module("dd2")
-    manager.current_metadata_for_mod(mod)
-    args = (
-        manager.state,
-        mod,
-        manager.mod_folder_path,
-        manager.save_name,
-        manager.display_name,
-        dd2.parse_xml_file_forgiving,
-    )
+def _classify(info: ModInfo, nickname: str | None = None) -> dict[str, Any]:
     return {
-        "scores": categories.auto_category_scores(*args),
-        "suggestion": categories.suggested_category_for_mod(*args),
+        "scores": category_scores(info, nickname=nickname),
+        "suggestion": suggest_category(info, nickname=nickname),
     }
 
 
-def _classify_samples(oracle: LegacyOracle) -> dict[str, Any]:
-    dd2 = oracle.module("dd2")
+def _classify_samples() -> dict[str, Any]:
     folders = {p.name: p for p in MODDING_DIR.iterdir() if p.is_dir()}
-    manager = mf.legacy_manager(dd2, folders)
     return {
-        name: {"digest": mf.sample_digest(folder), **_classify(oracle, manager, name)}
+        name: {"digest": mf.sample_digest(folder), **_classify(_info(folder))}
         for name, folder in sorted(folders.items())
     }
 
 
-def _classify_synthetic(oracle: LegacyOracle, spec: mf.ModDirSpec, folder: Path) -> dict[str, Any]:
-    dd2 = oracle.module("dd2")
-    manager = mf.legacy_manager(dd2, {spec.folder: folder}, acf=dict(spec.acf))
-    result = {
+def _classify_synthetic(spec: mf.ModDirSpec, folder: Path) -> dict[str, Any]:
+    info = _info(folder, dict(spec.acf))
+    return {
         "spec_digest": spec.digest(),
-        **_classify(oracle, manager, spec.folder),
-        "nicknames": {},
+        **_classify(info),
+        "nicknames": {nickname: _classify(info, nickname) for nickname in spec.nicknames},
     }
-    for nickname in spec.nicknames:
-        manager.state["nicknames"][spec.folder] = nickname
-        result["nicknames"][nickname] = _classify(oracle, manager, spec.folder)
-    manager.state["nicknames"].pop(spec.folder, None)
-    return result
 
 
-def regenerate_classify(oracle: LegacyOracle) -> int:
+def regenerate_classify(writer: Writer) -> int:
     base = Path(tempfile.mkdtemp(prefix="ddm-classify-"))
     dirs = mf.materialize_all(base)
-    samples = _classify_samples(oracle)
-    synthetic = {spec.id: _classify_synthetic(oracle, spec, dirs[spec.id]) for spec in mf.CASES}
-    _write_json(
-        CLASSIFY_DIR / "cases.json",
-        {
-            "legacy_commit": LEGACY_COMMIT,
-            "generator": "tools/regen_goldens.py regenerate_classify",
-            "samples": samples,
-            "synthetic": synthetic,
-        },
-    )
+    samples = _classify_samples()
+    synthetic = {spec.id: _classify_synthetic(spec, dirs[spec.id]) for spec in mf.CASES}
+    document = {
+        "generator": f"{GENERATOR} regenerate_classify",
+        "samples": samples,
+        "synthetic": synthetic,
+    }
+    writer.put_json(CLASSIFY_DIR / CASES_JSON, document)
     return len(samples) + len(synthetic)
 
 
 # ----------------------------------------------------------------- entry point
 
-SETS = ("dson", "identity", "classify")
-
 
 def main(argv: list[str] | None = None) -> int:
-    chosen = SETS if not argv else tuple(argv)
+    args = list(sys.argv[1:] if argv is None else argv)
+    update = "--update" in args
+    chosen = tuple(a for a in args if a != "--update") or SETS
     unknown = [name for name in chosen if name not in SETS]
     if unknown:
         print(f"unknown golden set(s): {', '.join(unknown)}; choose from {', '.join(SETS)}")
         return 2
-    oracle = LegacyOracle(extract())
+    writer = Writer(update=update)
     if "dson" in chosen:
-        _report_dson(regenerate(oracle))
+        print(f"dson: {regenerate_dson(writer)} cases")
     if "identity" in chosen:
-        print(f"identity: {regenerate_identity(oracle)} cases + helper tables")
+        print(f"identity: {regenerate_identity(writer)} cases + helper tables")
     if "classify" in chosen:
-        print(f"classify: {regenerate_classify(oracle)} mods")
+        print(f"classify: {regenerate_classify(writer)} mods")
+    print(
+        f"{len(writer.unchanged)} unchanged, {len(writer.written)} written,"
+        f" {len(writer.refused)} refused"
+    )
+    if writer.refused:
+        print("goldens are frozen outputs of this program: pass --update to accept the changes")
+        return 1
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main())

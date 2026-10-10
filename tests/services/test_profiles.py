@@ -167,8 +167,8 @@ def test_import_of_an_exported_document(repo: ProfileRepository, tmp_path: Path)
     assert repo.list() == []
 
 
-def test_import_of_a_legacy_loadout(repo: ProfileRepository, tmp_path: Path) -> None:
-    legacy = {
+def test_import_of_a_v02_loadout(repo: ProfileRepository, tmp_path: Path) -> None:
+    loadout = {
         "mods_path": "C:/mods",
         "order": ["2248772895", "0001_Local_Mod", "off_mod"],
         "enabled": {"2248772895": True, "0001_Local_Mod": True, "off_mod": False},
@@ -177,7 +177,7 @@ def test_import_of_a_legacy_loadout(repo: ProfileRepository, tmp_path: Path) -> 
         "category_memory": {"The Chorus": "Class"},
     }
     source = tmp_path / "dd_mod_loadout.json"
-    source.write_text(json.dumps(legacy), "utf-8")
+    source.write_text(json.dumps(loadout), "utf-8")
     imported, extras = repo.import_file(source)
     assert [e.folder for e in imported.entries] == ["2248772895", "0001_Local_Mod", "off_mod"]
     assert [e.enabled for e in imported.entries] == [True, True, False]
@@ -185,7 +185,7 @@ def test_import_of_a_legacy_loadout(repo: ProfileRepository, tmp_path: Path) -> 
     assert dict(extras.nicknames) == {"0001_Local_Mod": "Nick"}
     assert dict(extras.categories) == {"2248772895": "Class"}
     assert dict(extras.category_memory) == {"The Chorus": "Class"}
-    assert source.read_text("utf-8") == json.dumps(legacy)
+    assert source.read_text("utf-8") == json.dumps(loadout)
 
 
 @pytest.mark.parametrize(

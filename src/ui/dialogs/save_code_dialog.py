@@ -1,4 +1,4 @@
-"""The generated ``applied_ugcs_1_0`` block as copyable text (legacy "Generate Save Code")."""
+"""The generated ``applied_ugcs_1_0`` block as copyable text ("Generate Save Code")."""
 
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget

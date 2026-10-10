@@ -1,6 +1,6 @@
 """The NEW highlight: a mod that appeared on disk keeps its pill for a while, then loses it.
 
-``NEW_MOD_HIGHLIGHT_MS`` is the legacy window (``dd2.py`` ``NEW_MOD_HIGHLIGHT_MS = 15000``).
+``NEW_MOD_HIGHLIGHT_MS`` is the window (15 seconds).
 Expiry re-renders the affected rows in place (``dataChanged`` through the models' diffing
 publish path); nothing is re-sorted, so a drag during or after the window never promotes a mod.
 """

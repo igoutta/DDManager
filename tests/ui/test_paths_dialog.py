@@ -1,4 +1,4 @@
-"""P13 (file paths editor) and P14 (Auto Detect, first-run summary): the five legacy path keys."""
+"""P13 (file paths editor) and P14 (Auto Detect, first-run summary): the five path keys."""
 
 from pathlib import Path
 
@@ -87,7 +87,7 @@ def same(a: str, b: object) -> bool:
 # ---------------------------------------------------------------------------- the editor (P13)
 
 
-def test_the_editor_has_the_five_legacy_keys_in_legacy_order(rig, open_dialog):
+def test_the_editor_has_the_five_path_keys_in_state_order(rig, open_dialog):
     dialog = open_dialog()
     assert tuple(dialog.rows) == KEYS
     for row in dialog.rows.values():

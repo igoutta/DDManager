@@ -50,7 +50,7 @@ DDManager/
 |- README.md BUILD.md CHANGELOG.md LICENSE.md
 |- docs/                        architecture.md  migration.md  load-order-semantics.md
 |- packaging/                   ddmanager.spec  entry.py  build.ps1  version_info.tmpl  ddmanager.ico  (frozen build)
-|- tools/                       legacy_oracle.py  regen_goldens.py  probe_kit.py  export_legacy_i18n.py  clean.py  make_icon.py
+|- tools/                       regen_goldens.py  make_corpus.py  corpus_env.py  probe_kit.py  clean.py  make_icon.py
 |- research/                    historical DSON scripts, not maintained (README inside)
 |- modding/                     sample mods, used read-only as test fixtures
 |- tests/                       see "Test strategy"
@@ -63,12 +63,12 @@ DDManager/
 |  |  |- ids.py model.py identity.py identity_text.py display.py text.py project_xml.py
 |  |  |                         ModId, SaveIdentity, ModSnapshot/ModInfo, the one identity decision
 |  |  |- load_order.py reorder.py diff.py sorting.py     LoadOrder value type, selection moves, Auto-Sort
-|  |  |- categories.py tiers.py classify.py              legacy categories, tiers, category suggestion
+|  |  |- categories.py tiers.py classify.py              categories, tiers, category suggestion
 |  |  |- findings.py validation.py                       Finding/Fix, Rule protocol, run_rules, apply_fix
 |  |  |- rules_format.py rules_resolve.py rules_data.py  the rules.json format and its resolution
-|  |  |- loadorder_document.py loadorder_resolve.py loadorder_legacy.py loadorder_file.py
-|  |  |                         ddmanager.loadorder v1 JSON, matching onto installed mods, legacy import
-|  |  |- state_migrate.py state_sanitize.py legacy_state.py   mod_state.json schema (22 keys)
+|  |  |- loadorder_document.py loadorder_resolve.py loadout_v02.py loadorder_file.py
+|  |  |                         ddmanager.loadorder v1 JSON, matching onto installed mods, 0.2 loadout import
+|  |  |- state_migrate.py state_sanitize.py state_file.py   mod_state.json schema (22 keys)
 |  |  |- folder_order.py diagnostics.py errors.py json_values.py
 |  |  `- saves/                 the save codec (see "The save format")
 |  |     |- format.py           SaveFormat protocol, SaveFormatRegistry, validation report
@@ -221,28 +221,27 @@ UTF-8 end to end.
 it refuses (`DsonUnsupportedError`) a block that is a scalar or not a direct child of the root, and
 a save with no `persistent_ugcs` anchor. Every edit goes through one `splice` primitive that
 rebuilds meta1/meta2/header and re-pads moved fields; `assert_shift_safe` refuses a move that would
-corrupt data it does not understand. `write_applied` is byte-identical to v0.2.1's patcher on
-well-formed saves (golden files and a differential matrix prove it), with one deliberate
-exception: **bit 31 of `info`** is a flag the game sets sporadically (inside the applied block on
-child objects, `name` and `source` words alike, and on scalars elsewhere) and loads either way.
-Fields outside the block keep it verbatim; inside the block each entry whose `(name, source)`
-already existed keeps the original state of its three words (positional among duplicates), a new
-entry gets it clear. v0.2.1 cleared it on every rewrite, so a game-written save did not survive its
-own identity rewrite byte for byte; it does now (`dson/flags.py`, proven on the maintainer's
-corpus).
+corrupt data it does not understand. `write_applied` is deterministic and frozen: the goldens under `tests/golden/dson` pin its bytes
+for a matrix of save shapes, and the corpus check proves that a save the game wrote survives its
+own identity rewrite byte for byte. **Bit 31 of `info`** is a flag the game sets sporadically
+(inside the applied block on child objects, `name` and `source` words alike, and on scalars
+elsewhere) and loads either way. Fields outside the block keep it verbatim; inside the block each
+entry whose `(name, source)` already existed keeps the original state of its three words
+(positional among duplicates), a new entry gets it clear (`dson/flags.py`). DD Manager 0.2.x
+cleared it on every rewrite; since 0.3.1 it is preserved.
 
 **Validation has two levels** (`ddmanager save inspect` prints both):
 
-- **legacy**: exactly the verdict of v0.2.1's validator: file size equals `data_offset +
-  data_length`; `meta1_size == meta1_count * 16`; `meta2_offset` follows meta1; `data_offset`
-  follows meta2; meta2 offsets are sorted; the stack walk over fields is consistent; the object count
-  matches the header. Only legacy-valid saves are ever patched.
+- **structural**: what parsing requires: file size equals `data_offset + data_length`;
+  `meta1_size == meta1_count * 16`; `meta2_offset` follows meta1; `data_offset` follows meta2;
+  meta2 offsets are sorted; the stack walk over fields is consistent; the object count matches the
+  header. Only structurally valid saves are ever patched.
 - **strict**: additionally the magic `01 b1 00 00` (unverified against real saves, so only reported,
   never a gate), `header_length` and `meta1_offset` equal 64, strictly increasing offsets, each
   object's meta1 index equal to its running number, exact `all_children`, and exactly one root.
   Neither level reports bit 31 of `info`: it is not part of the format the validator checks.
 
-`write_applied` gates: the input must be legacy-valid; the output must be legacy-valid, must not be
+`write_applied` gates: the input must be structurally valid; the output must be structurally valid, must not be
 strict-worse than the input, and must read back exactly the requested entries. Format detection
 (`sniff`) needs 64 bytes with `header_length == 64` and `meta1_offset == 64`; a file starting with
 `{` is reported as "is this a decoded text save?". New formats plug in through the `SaveFormat`
@@ -264,7 +263,7 @@ protocol and `SaveFormatRegistry` (detection requires exactly one match).
   precedence, never ranks, so flipping the direction changes verdicts and labels but not bytes.
   While `verified` is false, direction-dependent findings are capped at INFO
   (`ValidationContext.capped`). Details and the probe protocol: `docs/load-order-semantics.md`.
-- **Tiers live in precedence space.** `TierTable.from_legacy(category_order, custom_categories)`
+- **Tiers live in precedence space.** `TierTable.from_categories(category_order, custom_categories)`
   gives `overhaul` weight 0, each category in editor order `(i + 1) * 100`, then `unassigned`, then
   `patch` (highest). `auto_sort` orders active mods by `(tier weight, current precedence)` and honours
   declared precedence edges with a heap-based Kahn sort; cycles become one `core.sort_cycle` error
@@ -281,7 +280,7 @@ folder raises `DataDirNotWritableError` instead of silently starting a second co
 
 | Path under `DD Manager Data` | Owner | Contents |
 | --- | --- | --- |
-| `mod_state.json` | `state_repo` | the legacy 22-key document plus `schema_version: 1` (below) |
+| `mod_state.json` | `state_repo` | the 22-key state document plus `schema_version: 1` (below) |
 | `mod_state.backup.json` | `state_repo` | previous main file; rotated only from a parseable main |
 | `mod_state.pre-0.3.0.json` | `state_repo` | one-time copy made on the first 0.3.0 GUI launch |
 | `mod_state.corrupt.<ts>.json` | `state_repo` | an unreadable main, preserved before it is replaced |
@@ -296,7 +295,7 @@ folder raises `DataDirNotWritableError` instead of silently starting a second co
 | `icon_cache/` | none | kept for v0.2.1; no longer written |
 | `ddmanager.lock` | `QLockFile` | single-instance lock |
 
-`mod_state.json` keeps v0.2.1's schema, parsed tolerantly by `core/legacy_state.parse_state` (a
+`mod_state.json` keeps v0.2.1's schema, parsed tolerantly by `core/state_file.parse_state` (a
 wrongly typed value is repaired with a `state.*` finding where v0.2.1 would crash) and rendered by
 `render_state`, which starts from the untouched original document, so unknown keys and key order
 survive. The 22 keys: `language`, `mods_path`, `last_save_path`, `last_backup_path`,
@@ -326,6 +325,36 @@ User plugins register through `register(registry)` into a staging registry that 
 loaded only for files whose SHA-256 the user approved; `--safe-mode` loads none. Failures are
 `plugin.*` findings and never stop start-up. The user-facing contract is in the README.
 
+## Source of truth
+
+The reference for everything DD Manager reads and writes is the game itself: the
+`persist.game.json` files it saves and the mod folders it loads. Three things follow from it:
+
+- **The corpus check** (`just corpus`, marker `corpus`, never in CI) runs the codec, the state
+  reader and the scan against the maintainer's real data. `tools/make_corpus.py`
+  (`just corpus-refresh`) fills `<repo>/.corpus` with the app's own detection
+  (`Environment.from_host`, `InstallDetector`, `resolve_app_paths`): every `persist.game.json`
+  the game wrote, the game's own `backup/` copy next to each one, and the active `mod_state.json`;
+  the originals are only read and `manifest.json` records every source and its SHA-256.
+  `tools/corpus_env.py` supplies `DDM_SAVE_CORPUS`, `DDM_STATE_CORPUS` and `DDM_MODS_ROOT` from
+  `.corpus` (and the detected Workshop folder) when they are unset. The tests
+  (`tests/core/saves/test_corpus.py`, `tests/services/test_corpus_state.py`): every real save is
+  detected, structurally and strictly valid, and survives parse/serialize and its own identity
+  rewrite byte for byte; reorder/add/remove rewrites re-validate strictly, read back exactly and
+  restore the original file when the original list is written back; the state file round-trips
+  through parse/render, and a full scan of the mods folder resolves every mod the state holds a
+  metadata identity for to exactly that identity.
+- **Goldens are frozen outputs of this program** (`tests/golden/`): the bytes `write_applied`
+  produces for the matrix in `tests/support/parity_matrix.py`, the identity and display tables of
+  the synthetic mod folders in `tests/support/mod_facts.py`, and the classification of every
+  sample mod. `tools/regen_goldens.py` (`just regen-goldens`) rebuilds them from the current code,
+  prints what differs and refuses to overwrite a changed golden unless `--update` is passed.
+- **History.** The previous version, DD Manager 0.2.1 (the Tkinter app), was deleted at the 0.3.0
+  cutover; its code is still in the git history (tag `v0.2.1`) if anyone ever needs to read it.
+  Nothing in the repository imports or compares against it any more: the data-format
+  compatibility that matters (the 22-key state file, beside-save backups, the 0.2 loadout import)
+  is specified by this program's own tests.
+
 ## Test strategy
 
 `pytest` runs the whole suite (about 2,350 tests) in a couple of minutes. Warnings are errors
@@ -333,21 +362,13 @@ loaded only for files whose SHA-256 the user approved; `--safe-mode` loads none.
 
 - **Layering and purity** (`tests/test_layering.py`, `tests/test_purity.py`): the import matrix and
   the purity rules above, as AST walks.
-- **Parity oracle from git** (`tools/legacy_oracle.py`, marker `legacy`): the v0.2.1 modules
-  (`dd2.py`, `state.py`, `categories.py`, `localization.py`, `paths.py`, `legacy_loadout.py`) are
-  extracted with `git show 31e85d6:<file>` into a temp folder and imported under private names, so
-  the working tree no longer needs them. Differential tests compare the new code with them: the
-  DSON writer over a matrix of save shapes, the validator over mutations, identity and display
-  tables, classification of every sample mod, category operations, reorder, state migration and
-  rendering (and that the pinned v0.2.1 loader accepts what 0.3.0 writes: the rollback proof).
-  These tests skip when git history or `tkinter` is missing; CI uses `fetch-depth: 0`.
-- **Goldens** (`tests/golden/`): expected bytes and tables produced once from the oracle by
-  `just regen-goldens` (dev only), so byte parity is still proven where the oracle cannot run.
-  `tests/fixtures/mod_state_v0.json` is a real-shape v0.2.1 state file.
+- **Goldens** (`tests/golden/`): frozen outputs of this program, regenerated by
+  `just regen-goldens` (see "Source of truth"); `tests/fixtures/mod_state_v0.json` is a real-shape
+  0.2.x state file.
 - **Builders and fakes**: `tests/support/dson_builder.py` builds DSON saves independently of the
-  codec; `tests/conftest.py` provides `data_dir`, `sample_mods_dir` (the `modding/` samples, read in
-  place) and the `legacy` oracle fixture; `tests/services/conftest.py` and `helpers.py` provide
-  `mod_dir`, `fake_env`, `fixed_clock`, `fake_probe`, a fake `SaveFormat` and a fake Steam tree.
+  codec; `tests/conftest.py` provides `data_dir` and `sample_mods_dir` (the `modding/` samples,
+  read in place); `tests/services/conftest.py` and `helpers.py` provide `mod_dir`, `fake_env`,
+  `fixed_clock`, `fake_probe`, a fake `SaveFormat` and a fake Steam tree.
 - **Rules, services, plugins**: `tests/rules`, `tests/services`, `tests/plugins` run against temporary
   trees with injected environment, clock and process probe; failure injection covers atomic writes,
   conflicts, corrupt state, backup retention and restore of invalid bytes.
@@ -357,8 +378,7 @@ loaded only for files whose SHA-256 the user approved; `--safe-mode` loads none.
   all four languages, and a main-window smoke test.
 - **Parity checklist** (`tests/test_parity_checklist.py`): the table of P01-P30 maps each id to
   concrete test functions and fails if one is missing, renamed, or marked `skip`, `skipif`, `xfail`
-  or `legacy` (so it could silently not run). The ids and their status are in `docs/migration.md`.
-- **Local corpora** (marker `corpus`, skipped in CI): `DDM_SAVE_CORPUS` (a folder of real
-  `persist.game*.json` copies), `DDM_STATE_CORPUS` (a real `mod_state.json`) and `DDM_MODS_ROOT` (its
-  mods folder) check the codec and the state reader against the maintainer's real data.
+  or `corpus` (so it could silently not run). The ids and their status are in `docs/migration.md`.
+- **Corpus** (marker `corpus`, skipped in CI): the real-data check described under "Source of
+  truth".
 - **Frozen build**: `DD Manager.exe --self-test` runs in `packaging/build.ps1` and CI (`BUILD.md`).

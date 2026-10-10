@@ -5,54 +5,23 @@ Contract: active() is sorted by (tier_weight, current precedence position) in pr
 lexicographically smallest topological order; cycles yield ONE ERROR Finding "core.sort_cycle"
 (members sorted by preferred rank), their edges are dropped and the sort continues; the result is
 mapped back to index space via the direction (FIRST_WINS: highest precedence at index 0).
-Disabled entries keep their slots. Parity: the bucket order equals the pinned
-``categories.get_category_priority`` buckets used by ``sorted_order_by_category``
-(dd2.py:4327-4353) when no overhaul/patch tiers are involved.
+Disabled entries keep their slots.
 """
 
 import random
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any
 
 import pytest
 
 from src.core.ids import ModId
 from src.core.load_order import LoadOrder, PriorityDirection
 from src.core.sorting import PrecedenceEdge, RankChange, SortResult, auto_sort
-from src.core.tiers import TierTable
 from src.core.validation import Finding, Severity
-from tools.legacy_oracle import LegacyOracle
 
 FIRST = PriorityDirection.FIRST_WINS
 LAST = PriorityDirection.LAST_WINS
 M = ModId
 CYCLE_RULE = "core.sort_cycle"
-
-# categories.py:31-41 and dd2.py:4333-4344 (inlined; see test_tiers.py)
-DEFAULT_CATEGORIES = (
-    "UI",
-    "Districts",
-    "Dungeons",
-    "Quirks",
-    "Trinkets",
-    "Enemies",
-    "Class Patch",
-    "Class",
-    "Skins",
-)
-BASE_PRIORITY = {
-    "UI": 0,
-    "Districts": 100,
-    "Dungeons": 200,
-    "Quirks": 250,
-    "Trinkets": 300,
-    "Enemies": 400,
-    "Class Patch": 450,
-    "Class": 500,
-    "Skins": 600,
-    "Unassigned": 700,
-}
-CUSTOM_POOL = ("Lore", "Music", "Fonts")
 
 
 # ----------------------------------------------------------------- helpers
@@ -369,73 +338,3 @@ def test_result_types_are_frozen_values() -> None:
         change.new_rank = 3  # ty: ignore[invalid-assignment]
     with pytest.raises((AttributeError, TypeError)):
         edge.reason = "x"  # ty: ignore[invalid-assignment]
-
-
-# ----------------------------------------------------------------- legacy parity
-
-
-def _bucket_fn(
-    assigned: Mapping[ModId, str], priority: Mapping[str, int]
-) -> Callable[[ModId], tuple[int, int]]:
-    """The bucket part of the legacy sort key (dd2.py:4346-4351), used only to PROJECT an order
-    onto its bucket sequence; the legacy sort itself runs in the oracle."""
-
-    def key(mod: ModId) -> tuple[int, int]:
-        cat = assigned.get(mod, "Unassigned")
-        return (1 if cat == "Unassigned" else 0, priority.get(cat, 700))
-
-    return key
-
-
-def _table_weight_fn(table: TierTable, assigned: Mapping[ModId, str]) -> Callable[[ModId], int]:
-    return lambda mod: table.for_category(assigned.get(mod)).weight
-
-
-def _legacy_manager(dd2: Any, state: dict[str, Any]) -> Any:
-    """``sorted_order_by_category`` (dd2.py:4327-4353) reads ``self.state``,
-    ``self.get_category_priority`` and ``self.sort_name``; the identity sort name makes its
-    within-bucket tie-break the mod key."""
-    manager = object.__new__(dd2.ModManager)
-    manager.state = state
-    manager.sort_name = lambda mod: mod
-    return manager
-
-
-@pytest.mark.legacy
-def test_bucket_order_matches_legacy_sorted_order_by_category(legacy: LegacyOracle) -> None:
-    """Resolved ambiguity: the legacy top-to-bottom order (UI first ... Unassigned last) is the
-    precedence-space order, i.e. LAST_WINS index space; FIRST_WINS is its mirror. Only bucket
-    sequences are compared because the legacy breaks ties by sort_name and core by current
-    position."""
-    categories = legacy.module("categories")
-    dd2 = legacy.module("dd2")
-    rng = random.Random(4327)
-    for _ in range(120):
-        category_order = list(DEFAULT_CATEGORIES)
-        rng.shuffle(category_order)
-        customs = rng.sample(CUSTOM_POOL, rng.randint(0, len(CUSTOM_POOL)))
-        order = _random_order(rng, max_len=16)
-        choices = [*category_order, *customs, "Unassigned", "Unassigned"]
-        assigned = {m: rng.choice(choices) for m in order.entries}
-        state: dict[str, Any] = {
-            "order": list(order.entries),
-            "category_order": category_order,
-            "custom_categories": customs,
-            "categories": {m: c for m, c in assigned.items() if c != "Unassigned"},
-        }
-        legacy_sorted = _legacy_manager(dd2, state).sorted_order_by_category(
-            list(order.active()), state["categories"]
-        )
-        assert sorted(legacy_sorted) == sorted(order.active())
-        bucket = _bucket_fn(
-            state["categories"], categories.get_category_priority(state, BASE_PRIORITY, 700)
-        )
-        legacy_sequence = [bucket(m) for m in legacy_sorted]
-        assert legacy_sequence == sorted(legacy_sequence)
-        table = TierTable.from_legacy(category_order, customs)
-        weight = _table_weight_fn(table, state["categories"])
-        last = auto_sort(order, tier_weight=weight, edges=(), direction=LAST)
-        assert [bucket(m) for m in last.order.active()] == legacy_sequence
-        first = auto_sort(order, tier_weight=weight, edges=(), direction=FIRST)
-        assert [bucket(m) for m in first.order.active()] == legacy_sequence[::-1]
-        assert last.findings == () and first.findings == ()

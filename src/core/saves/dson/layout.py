@@ -1,9 +1,6 @@
 """Byte layout of a DSON save: constants, bit helpers, table records and the document type.
 
-Pure port of the module-level ``dson_*`` helpers of the legacy app (``dd2.py`` at commit
-``31e85d6``, lines 315-760); every function documents the legacy line it comes from.
-
-Layout (``dson_parse_header`` dd2.py:683-698, ``dson_parse_meta1`` 701, ``dson_parse_meta2`` 715):
+Layout:
 
 * 64-byte header: magic ``[0:4]``, revision ``[4:8]``, then little-endian i32 fields at 8
   (header_length), 16 (meta1_size), 20 (meta1_count), 24 (meta1_offset), 44 (meta2_count),
@@ -28,7 +25,7 @@ HEADER_SIZE: Final = 64
 META1_SIZE: Final = 16
 META2_SIZE: Final = 12
 DSON_MAGIC: Final = b"\x01\xb1\x00\x00"
-"""Expected magic. UNVERIFIED against real saves: only a STRICT-level check, never a legacy gate."""
+"""Expected magic. UNVERIFIED against real saves: only a STRICT-level check, never a parse gate."""
 
 I32: Final = struct.Struct("<i")
 META1_STRUCT: Final = struct.Struct("<iiii")
@@ -37,11 +34,11 @@ _MAX_NAME_LENGTH: Final = 0x1FF
 _MAX_OBJECT_INDEX: Final = 0xFFFFF
 _INFO_MASK: Final = 0x7FFFFFFF
 
-# ------------------------------------------------------------------ bit helpers (verbatim ports)
+# ------------------------------------------------------------------ bit helpers
 
 
 def _i32_from_u32(value: int) -> int:
-    """dd2.py:323 ``dson_i32_from_u32_bits``."""
+    """Reinterpret unsigned 32 bits as a signed i32."""
     if not 0 <= value <= 0xFFFFFFFF:
         raise ValueError(f"32-bit metadata value is out of range: {value}")
     if value >= 0x80000000:
@@ -50,7 +47,7 @@ def _i32_from_u32(value: int) -> int:
 
 
 def string_hash(name: str) -> int:
-    """dd2.py:335 ``dson_string_hash``: ``h = (h * 53 + b) & 0xFFFFFFFF`` over UTF-8, signed."""
+    """The field-name hash: ``h = (h * 53 + b) & 0xFFFFFFFF`` over UTF-8, signed."""
     hash_value = 0
     for byte in name.encode("utf-8"):
         hash_value = (hash_value * 53 + byte) & 0xFFFFFFFF
@@ -60,7 +57,7 @@ def string_hash(name: str) -> int:
 
 
 def field_info(name: str, object_meta1_index: int | None = None) -> int:
-    """dd2.py:669 ``dson_field_info``: ``(name_len << 2) | is_object | (meta1_index << 11)``."""
+    """The info word of a field: ``(name_len << 2) | is_object | (meta1_index << 11)``."""
     name_length = len(name.encode("utf-8")) + 1
     if name_length > _MAX_NAME_LENGTH:
         raise ValueError(f"DSON field name is too long: {name!r}")
@@ -74,7 +71,7 @@ def field_info(name: str, object_meta1_index: int | None = None) -> int:
 
 
 def object_index_from_info(info: int) -> int | None:
-    """dd2.py:734 ``dson_object_index_from_info``."""
+    """The meta1 index stored in an object field's info word."""
     info &= _INFO_MASK
     if not info & 1:
         return None
@@ -82,7 +79,7 @@ def object_index_from_info(info: int) -> int | None:
 
 
 def set_object_index_in_info(info: int, object_index: int) -> int:
-    """dd2.py:741 ``dson_set_object_index_in_info`` (keeps bit 31 as-is)."""
+    """Store a new meta1 index in an info word (keeps bit 31 as-is)."""
     if not 0 <= object_index <= _MAX_OBJECT_INDEX:
         raise ValueError(f"DSON object index is out of range: {object_index}")
     info_bits = info & 0xFFFFFFFF
@@ -96,7 +93,7 @@ def set_object_index_in_info(info: int, object_index: int) -> int:
 
 @dataclass(frozen=True, slots=True)
 class DsonHeader:
-    """The 64-byte header; ``raw`` keeps every byte verbatim (dd2.py:683-698)."""
+    """The 64-byte header; ``raw`` keeps every byte verbatim."""
 
     raw: bytes
     magic: bytes
@@ -112,7 +109,7 @@ class DsonHeader:
 
     @classmethod
     def from_bytes(cls, raw: bytes) -> DsonHeader:
-        """Decode the first 64 bytes exactly like ``dson_parse_header`` (dd2.py:683)."""
+        """Decode the first 64 bytes."""
         if len(raw) < HEADER_SIZE:
             raise DsonFormatError(
                 "Save file is too small to contain a DSON header.", code="too_small", offset=0
@@ -139,7 +136,7 @@ class DsonHeader:
 
 @dataclass(frozen=True, slots=True)
 class Meta1:
-    """One object record, 16 bytes ``<iiii`` (dd2.py:701)."""
+    """One object record, 16 bytes ``<iiii``."""
 
     parent: int
     meta2_index: int
@@ -149,7 +146,7 @@ class Meta1:
 
 @dataclass(frozen=True, slots=True)
 class Meta2:
-    """One field record, 12 bytes ``<iii`` (dd2.py:715); bit layout of ``info`` per dd2.py:669."""
+    """One field record, 12 bytes ``<iii``; see ``field_info`` for the bit layout of ``info``."""
 
     hash: int
     offset: int
@@ -161,17 +158,17 @@ class Meta2:
 
     @property
     def name_length(self) -> int:
-        """Name length INCLUDING the NUL terminator (dd2.py:760)."""
+        """Name length INCLUDING the NUL terminator."""
         return ((self.info & _INFO_MASK) >> 2) & _MAX_NAME_LENGTH
 
     @property
     def object_index(self) -> int | None:
-        """The meta1 index for an object field, ``None`` for a scalar (dd2.py:734)."""
+        """The meta1 index for an object field, ``None`` for a scalar."""
         return object_index_from_info(self.info)
 
 
 def meta2_name(data: bytes, entry: Meta2) -> str:
-    """The NUL-terminated name at ``entry.offset`` decoded losslessly (dd2.py:728, 344)."""
+    """The NUL-terminated name at ``entry.offset`` decoded losslessly."""
     end = entry.offset + entry.name_length - 1
     return data[entry.offset : end].decode("utf-8", "surrogateescape")
 
@@ -213,7 +210,7 @@ class DsonDocument:
         return None
 
     def find_anywhere(self, name: str) -> int | None:
-        """First field with that name anywhere (legacy ``dson_find_meta2_by_name`` dd2.py:751).
+        """First field with that name anywhere.
 
         Diagnostics only: nested fields may share names with top-level ones.
         """
@@ -232,10 +229,10 @@ def read_header(raw: bytes) -> DsonHeader:
 
 
 def _read_meta1(raw: bytes, header: DsonHeader) -> tuple[Meta1, ...]:
-    """dd2.py:701 ``dson_parse_meta1``, with the same four separate ``<i`` reads per record.
+    """Read the meta1 table with four separate ``<i`` reads per record.
 
-    (Four reads and one ``<iiii`` read differ for a few negative offsets, and the legacy
-    validator's verdict must be reproduced exactly.)
+    (Four reads and one ``<iiii`` read differ for a few negative offsets, and the STRUCTURAL
+    verdict is defined by the four-read form.)
     """
     entries: list[Meta1] = []
     offset = header.meta1_offset
@@ -258,7 +255,7 @@ def _read_meta1(raw: bytes, header: DsonHeader) -> tuple[Meta1, ...]:
 
 
 def _read_meta2(raw: bytes, header: DsonHeader) -> tuple[Meta2, ...]:
-    """dd2.py:715 ``dson_parse_meta2`` (three separate ``<i`` reads per record, see above)."""
+    """Read the meta2 table (three separate ``<i`` reads per record, see above)."""
     entries: list[Meta2] = []
     offset = header.meta2_offset
     try:
@@ -279,12 +276,12 @@ def _read_meta2(raw: bytes, header: DsonHeader) -> tuple[Meta2, ...]:
 
 
 def data_block(raw: bytes, header: DsonHeader) -> bytes:
-    """The data slice as the legacy took it (Python slice semantics for odd header values)."""
+    """The data slice (Python slice semantics for odd header values)."""
     return bytes(raw[header.data_offset : header.data_offset + header.data_length])
 
 
 def read_tables(raw: bytes) -> tuple[DsonHeader, tuple[Meta1, ...], tuple[Meta2, ...]]:
-    """Header plus both tables, exactly as the legacy parsers read them (no validation)."""
+    """Header plus both tables, exactly as the structural validator reads them (no validation)."""
     header = DsonHeader.from_bytes(raw)
     meta1 = _read_meta1(raw, header)
     meta2 = _read_meta2(raw, header)
@@ -292,7 +289,7 @@ def read_tables(raw: bytes) -> tuple[DsonHeader, tuple[Meta1, ...], tuple[Meta2,
 
 
 def refresh_header(header: DsonHeader, n1: int, n2: int, data_length: int) -> DsonHeader:
-    """``header.raw`` with the six size/offset fields recomputed (dd2.py:1160-1172)."""
+    """``header.raw`` with the six size/offset fields recomputed."""
     raw = bytearray(header.raw)
     if len(raw) != HEADER_SIZE:
         raise DsonFormatError(

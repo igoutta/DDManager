@@ -1,6 +1,6 @@
-"""The file-paths editor: the five legacy path settings with Browse, Auto and Clear each.
+"""The file-paths editor: the five path settings of the state file with Browse, Auto and Clear each.
 
-``dd2.py:5836-5885``: a blank field keeps using auto-detection for that path.
+A blank field keeps using auto-detection for that path.
 """
 
 from typing import TYPE_CHECKING, override
@@ -77,7 +77,7 @@ class PathsDialog(LiveDialog):
         layout.addWidget(make_button_box(self, self.save_button, self.cancel_button))
 
     def values(self) -> dict[str, str]:
-        """The text of every field by its legacy state key."""
+        """The text of every field by its state-file key."""
         return {key: row.edit.text() for key, row in self.rows.items()}
 
     def _browse(self, key: str) -> None:

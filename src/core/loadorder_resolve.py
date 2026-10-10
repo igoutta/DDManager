@@ -55,7 +55,7 @@ class _Index:
 
     def _folder(self, entry: LoadOrderEntry) -> list[ModId]:
         """The installed mod whose folder is ``entry.folder`` (or, without one, the identity
-        name, which is the folder for legacy local save names) when the kinds agree."""
+        name, which is the folder for local save names) when the kinds agree."""
         mod = ModId(entry.folder if entry.folder is not None else entry.save_identity.name)
         if mod not in self.mods:
             return []

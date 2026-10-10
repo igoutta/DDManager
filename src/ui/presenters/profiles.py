@@ -181,12 +181,12 @@ class ProfilesPresenter(QObject):
         if imported is None:
             return
         doc, extras = imported
-        # a legacy loadout re-imported under the same file name replaces the earlier copy
+        # a 0.2 loadout re-imported under the same file name replaces the earlier copy
         saved = self._attempt(lambda: c.services.profiles.save(doc, overwrite=extras is not None))
         if saved is not None:
             c.post("ui.notice.profile_saved", name=doc.name)
         if extras is not None:
-            c.tools.import_legacy(doc, extras)
+            c.tools.import_loadout_v02(doc, extras)
 
     def export(self, name: str, dest: Path) -> None:
         c = self._c

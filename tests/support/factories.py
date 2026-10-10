@@ -25,7 +25,7 @@ WORKSHOP_ROOT = PurePosixPath("C:/Steam/steamapps/workshop/content/262060")
 LOCAL_ROOT = PurePosixPath("C:/Games/Darkest Dungeon/mods")
 CODE_DIRS = ("heroes", "monsters", "dungeons", "raid", "trinkets", "quirks", "diseases", "upgrades")
 
-# Precedence-space weights (higher wins) shaped like ``TierTable.from_legacy`` over the default
+# Precedence-space weights (higher wins) shaped like ``TierTable.from_categories`` over the default
 # category order: overhaul is the base, unassigned sits above every category, patch above all.
 TIER_WEIGHTS: Mapping[str, int] = {
     "overhaul": 0,
@@ -53,7 +53,7 @@ _LOAD_AFTER = re.compile(r"load (this|it) after:?", re.IGNORECASE)
 
 
 def strip_numeric_prefix(folder: str) -> str:
-    """Test-side copy of the legacy ``save_name`` folder rule (dd2.py:3960-3964)."""
+    """Test-side copy of the folder rule: drop leading ``<digits>_`` parts."""
     parts = folder.split("_")
     while parts and parts[0].isdigit():
         parts.pop(0)
@@ -72,7 +72,7 @@ def tier(tier_id: str, weight: int | None = None) -> Tier:
     """A ``Tier`` value; builtin ids get their ``TIER_WEIGHTS`` weight, others 1000 unless given."""
     builtin = tier_id in TIER_WEIGHTS
     resolved = TIER_WEIGHTS.get(tier_id, 1000) if weight is None else weight
-    return Tier(id=tier_id, weight=resolved, legacy_category=None, builtin=builtin)
+    return Tier(id=tier_id, weight=resolved, category=None, builtin=builtin)
 
 
 def _derived_dirs(
@@ -104,7 +104,7 @@ def mod_info(
     """A ``ModInfo`` with sensible defaults; ``overrides`` are applied with ``dataclasses.replace``.
 
     Workshop mods default to ``workshop_id = key`` (when numeric) and a Steam save identity; local
-    mods default to the legacy save identity ``(title, mod_local_source)`` with the title falling
+    mods default to the save identity ``(title, mod_local_source)`` with the title falling
     back to the numeric-prefix-stripped folder name.
     """
     file_set = frozenset(normalize_path(f) for f in files)

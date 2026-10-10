@@ -1,7 +1,7 @@
 """The public edits: rewrite or insert a ``{ "0": {name, source}, ... }`` object, patch a string.
 
-Each one builds a block and hands it to :func:`.splice.splice`; byte parity with the legacy
-patchers (dd2.py:937-1009, 1054-1199, 1312-1478, 1481-1641) on well-formed saves.
+Each one builds a block and hands it to :func:`.splice.splice`, which repairs every offset,
+count and index after it.
 """
 
 from collections.abc import Sequence
@@ -26,13 +26,13 @@ def _build_name_source_block(
     parent_meta1: int,
     object_entry: Meta2,
 ) -> tuple[bytes, list[Meta1], list[Meta2]]:
-    """Build an object ``{ "0": {name, source}, ... }`` block (dd2.py:866 and 1012 merged).
+    """Build an object ``{ "0": {name, source}, ... }`` block.
 
     ``name_bytes`` is the object's NUL-terminated name.  Child ``k`` gets meta1 index
     ``object_meta1 + 1 + k`` and meta2 index ``object_meta2 + 1 + 3k``; each child is
-    ``Meta1(object_meta1, ..., 2, 2)`` and the object itself ``(parent, object_meta2, N, 3N)``
-    (dd2.py:1044-1049, 1084-1089, 1397-1398).  ``flags[k]`` is the bit-31 state of child ``k``'s
-    three info words (see :mod:`.flags`); the legacy always wrote them clear.
+    ``Meta1(object_meta1, ..., 2, 2)`` and the object itself ``(parent, object_meta2, N, 3N)``.
+    ``flags[k]`` is the bit-31 state of child ``k``'s three info words (see :mod:`.flags`); new
+    entries are written with all three bits clear.
     """
     data = bytearray(name_bytes)
     count = len(entries)
@@ -71,12 +71,11 @@ def replace_name_source_object(
 ) -> DsonDocument:
     """Rewrite object ``i`` as ``{ "0": {name, source}, ... }`` for ``entries``.
 
-    Byte-parity with ``dson_patch_mod_list_resize`` (dd2.py:1312-1478) and
-    ``dson_patch_named_name_source_object`` (1481-1641) on well-formed saves: the object's own
+    The object's own
     meta2 record and name bytes are kept verbatim, its meta1 becomes ``(parent, i, N, 3N)``, the
     old subtree is dropped, ancestors get ``all_children += delta`` and later fields are rebuilt.
-    The one deliberate divergence: an entry that already existed keeps bit 31 of its three info
-    words (the legacy cleared it; see :mod:`.flags`), new entries get it clear.
+    Bit-31 preservation: an entry that already existed keeps bit 31 of its three info
+    words (DD Manager 0.2.x cleared it; see :mod:`.flags`), new entries get it clear.
     Raises :class:`DsonUnsupportedError` (``nested_object_span``) when the subtree's meta1
     records are not the contiguous range right after the object's own record.
     """
@@ -137,7 +136,7 @@ def insert_name_source_object(
 ) -> DsonDocument:
     """Insert a new ``{ "0": {name, source}, ... }`` object right before object ``before``.
 
-    Parity with ``dson_insert_missing_applied_ugcs`` (dd2.py:1054-1199): the new object takes the
+    The new object takes the
     anchor's meta1 index, meta2 index and data offset (the anchor and everything after it shift),
     the anchor's parent gets ``direct_children += 1`` and ``all_children += 1 + 3N``.  Raises
     :class:`DsonUnsupportedError` (``no_anchor``) when ``before`` is not an object or has no
@@ -164,9 +163,9 @@ def insert_name_source_object(
 
 
 def patch_scalar_string(doc: DsonDocument, i: int, value: str) -> DsonDocument:
-    """Replace scalar field ``i`` with a string payload (port of dd2.py:937-1009).
+    """Replace scalar field ``i`` with a string payload.
 
-    The meta2 record is rebuilt from ``field_info(name)`` like the legacy helper did (a set bit 31
+    The meta2 record is rebuilt from ``field_info(name)`` (a set bit 31
     is dropped), no meta1 record changes, and later fields are rebuilt for their new offsets.
     """
     entry = entry_at(doc, i)

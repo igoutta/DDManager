@@ -1,8 +1,8 @@
 """Auto-Sort: a stable tier ordering that also honours declared precedence edges.
 
-Replaces ``dd2.py:4327-4353`` (``sorted_order_by_category``: category bucket, then display name).
-Documented divergence: within a tier the CURRENT order is kept (stable) instead of re-sorting
-alphabetically, and declared edges (rules file, patch targets) are honoured through a Kahn
+Mods are ordered by tier (the category sort buckets).  Within a tier the CURRENT order is kept
+(stable) instead of re-sorting alphabetically (DD Manager 0.2.x sorted by display name), and
+declared edges (rules file, patch targets) are honoured through a Kahn
 topological sort whose heap is keyed by the preferred rank, so the result is the lexicographically
 smallest order that satisfies every edge. Everything happens in precedence space (``0`` loses every
 conflict, see ``LoadOrder.precedence``) and is mapped back to index space via the direction.

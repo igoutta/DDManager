@@ -29,7 +29,7 @@ _SUMMARY_LINES = 3
 
 
 def category_label(name: str | None, tr: Tr, has: Has | None = None) -> str:
-    """The translated legacy category name (``category_<snake>`` keys), else the raw name.
+    """The translated category name (``category_<snake>`` keys), else the raw name.
 
     With ``has`` a name the catalog does not know (a custom category) is shown as typed.
     """
@@ -118,7 +118,7 @@ class RowBuilder:
 
     def _common(self, mod: ModId, s: Session, found: Sequence[Finding]) -> dict[str, object]:
         tier = s.tiers.get(mod) or s.table.unassigned()
-        category = s.categories.get(mod) or tier.legacy_category
+        category = s.categories.get(mod) or tier.category
         label = category_label(category, self._tr, self._has)
         return {
             "tier_id": tier.id,

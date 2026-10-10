@@ -1,7 +1,6 @@
 """Readers: a ``{ "0": {name, source}, ... }`` object as identities, and named scalar fields.
 
-They replace the heuristic byte scanner of dd2.py:395-484, ``dson_parse_named_name_source_object``
-(821) and ``read_scalar_dson_fields`` (2740).
+They read through the parsed document, never a byte scan.
 """
 
 from collections.abc import Collection
@@ -59,8 +58,7 @@ def _read_child_identity(doc: DsonDocument, child: int, object_name: str) -> Sav
 def read_name_source_object(doc: DsonDocument, i: int) -> tuple[SaveIdentity, ...]:
     """Read object ``i`` whose children ``"0".."N-1"`` each hold string fields name and source.
 
-    Replaces the heuristic byte scanner (dd2.py:395-484) and ``dson_parse_named_name_source_object``
-    (dd2.py:821): UTF-8 throughout, no ASCII / 300-byte / 999-entry limits.  Child order is data
+    UTF-8 throughout, no ASCII / 300-byte / 999-entry limits.  Child order is data
     order; child names are not interpreted.  Raises :class:`DsonFormatError` when a child is not
     an object or lacks a string ``name`` or ``source``.
     """
@@ -70,10 +68,10 @@ def read_name_source_object(doc: DsonDocument, i: int) -> tuple[SaveIdentity, ..
 
 
 def read_scalars(raw: bytes, names: Collection[str]) -> dict[str, DsonScalar]:
-    """Decode the scalar fields called ``names`` (replaces dd2.py:2740 ``read_scalar_dson_fields``).
+    """Decode the scalar fields called ``names``.
 
-    Raises :class:`DsonFormatError` on an invalid save instead of returning ``{}``.  Like the
-    legacy, a name that occurs several times yields its last occurrence; object fields are skipped.
+    Raises :class:`DsonFormatError` on an invalid save instead of returning ``{}``.
+    A name that occurs several times yields its last occurrence; object fields are skipped.
     """
     doc = parse(raw)
     wanted = set(names)

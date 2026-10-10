@@ -1,4 +1,4 @@
-"""The builder is the independent oracle: prove it by hand, against the legacy validator and src."""
+"""The builder is the independent reference: prove it by hand, and against src."""
 
 import itertools
 import struct
@@ -19,11 +19,10 @@ from tests.support.dson_builder import (
     standard_root,
     standard_save,
 )
-from tools.legacy_oracle import LegacyOracle
 
 VARIANTS = sample_variants()
-# Accepted by the legacy validator (it ignores magic and payload bytes); STRICT may disagree.
-LEGACY_ONLY_VARIANTS = {
+# Structurally valid (STRUCTURAL ignores magic and payload bytes); STRICT may disagree.
+STRUCTURAL_ONLY_VARIANTS = {
     "nonzero_padding": standard_save(THREE_ENTRIES, pad_byte=0xFF),
     "zero_magic": build_save(standard_root(THREE_ENTRIES), magic=b"\x00\x00\x00\x00"),
 }
@@ -86,7 +85,7 @@ def test_standard_root_keeps_applied_and_anchor_adjacent() -> None:
     assert anchor.meta2_index == applied.meta2_index + 1 + 3 * len(THREE_ENTRIES)
     raw = build_save(root)
     data = raw[struct.unpack_from("<i", raw, 60)[0] :]
-    # the legacy byte scanner only recognises a block name that follows a NUL
+    # a block name must follow a NUL to be found by a byte scan
     assert data[applied.offset - 1] == 0
     assert data[anchor.offset - 1] == 0
 
@@ -94,22 +93,14 @@ def test_standard_root_keeps_applied_and_anchor_adjacent() -> None:
 @pytest.mark.parametrize("name", sorted(VARIANTS))
 def test_variants_pass_src_validate_at_both_levels(name: str) -> None:
     report = dson.validate(VARIANTS[name])
-    assert report.legacy_errors == ()
+    assert report.structural_errors == ()
     assert report.strict_errors == ()
     assert report.ok
     assert report.ok_strict
 
 
-@pytest.mark.parametrize("name", sorted(LEGACY_ONLY_VARIANTS))
-def test_legacy_only_variants_pass_src_validate_at_legacy_level(name: str) -> None:
-    report = dson.validate(LEGACY_ONLY_VARIANTS[name])
-    assert report.legacy_errors == ()
+@pytest.mark.parametrize("name", sorted(STRUCTURAL_ONLY_VARIANTS))
+def test_structural_only_variants_pass_src_validate_at_structural_level(name: str) -> None:
+    report = dson.validate(STRUCTURAL_ONLY_VARIANTS[name])
+    assert report.structural_errors == ()
     assert report.ok
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("name", sorted(VARIANTS) + sorted(LEGACY_ONLY_VARIANTS))
-def test_variants_pass_the_pinned_legacy_validator(legacy: LegacyOracle, name: str) -> None:
-    dd2 = legacy.module("dd2")
-    raw = VARIANTS.get(name) or LEGACY_ONLY_VARIANTS[name]
-    assert dd2.dson_validate_editor_compatible(raw) is None

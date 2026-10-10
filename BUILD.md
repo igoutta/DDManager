@@ -92,8 +92,8 @@ The layout is the same as the v0.2.x releases, so users extract a new zip over t
 ## Continuous integration
 
 - `.github/workflows/ci.yml` runs ruff, `ruff format --check` and `ty` on Linux, the test suite on
-  Windows and Linux (Qt runs offscreen; `fetch-depth: 0` because the parity tests read the legacy
-  files from git history), and on pushes to `main` the build above.
+  Windows and Linux (Qt runs offscreen; `fetch-depth: 0` so the build can label the zip with the
+  exact git tag at `HEAD`), and on pushes to `main` the build above.
 - `.github/workflows/release.yml` runs the same `packaging/build.ps1` on a `v*` tag and attaches
   the zip and its `.sha256` file to the GitHub release.
 

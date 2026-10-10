@@ -95,8 +95,8 @@ def test_serialize_keeps_unknown_bytes_and_payloads(raw: bytes) -> None:
 
 
 GOOD = standard_save(THREE_ENTRIES)
-# parse refuses all of these; header_length != 64 is a parse gate (dd2.py:1319), NOT a verdict of
-# the pinned validator (dd2.py:1202 never reads byte 8), so LEGACY-level validate accepts it
+# parse refuses all of these; header_length != 64 is a parse gate, NOT a verdict of
+# the STRUCTURAL validator (which never reads byte 8), so STRUCTURAL-level validate accepts it
 PARSE_REJECTS = {
     "empty": b"",
     "short": GOOD[:63],
@@ -123,10 +123,10 @@ def test_validate_never_raises(name: str) -> None:
     report = dson.validate(VALIDATE_REJECTS[name])
     assert not report.ok
     assert not report.ok_strict
-    assert report.legacy_errors
+    assert report.structural_errors
 
 
-def test_header_length_is_legacy_valid_but_strict_invalid_and_unparseable() -> None:
+def test_header_length_is_structurally_valid_but_strict_invalid_and_unparseable() -> None:
     raw = PARSE_REJECTS["header_length_65"]
     report = dson.validate(raw)
     assert report.ok
@@ -305,11 +305,11 @@ def test_insert_needs_an_anchor_with_a_parent_object() -> None:
 @pytest.mark.parametrize("name", sorted(VARIANTS))
 def test_validate_accepts_variants_at_both_levels(name: str) -> None:
     report = dson.validate(VARIANTS[name])
-    assert (report.legacy_errors, report.strict_errors) == ((), ())
+    assert (report.structural_errors, report.strict_errors) == ((), ())
 
 
 def _strict_only_inputs() -> dict[str, tuple[bytes, list[str]]]:
-    """Legacy-valid files that only STRICT rejects, with the exact codes expected.
+    """Structurally valid files that only STRICT rejects, with the exact codes expected.
 
     See tests/support/mutations.py for the surgery; test_dson_parity.py proves the pinned
     validator accepts every one of them.
@@ -337,16 +337,16 @@ STRICT_ONLY = _strict_only_inputs()
 def test_strict_only_inputs_report_their_codes(name: str) -> None:
     raw, codes = STRICT_ONLY[name]
     report = dson.validate(raw)
-    assert report.legacy_errors == ()
+    assert report.structural_errors == ()
     assert report.ok
     assert not report.ok_strict
     assert [p.code for p in report.strict_errors] == codes
     if name != "header_length_65":
-        assert dson.serialize(dson.parse(raw)) == raw  # legacy-valid, so still parseable
+        assert dson.serialize(dson.parse(raw)) == raw  # structurally valid, so still parseable
 
 
 def test_second_top_level_object_is_not_a_root_child() -> None:
-    """root_count IS reachable behind the legacy gate (the walk lets a new object open once the
+    """root_count IS reachable behind the STRUCTURAL gate (the walk lets a new object open once the
     root has closed); the codec keeps the extra object out of the root's children."""
     raw = STRICT_ONLY["second_root"][0]
     doc = dson.parse(raw)
@@ -359,7 +359,7 @@ def test_second_top_level_object_is_not_a_root_child() -> None:
 def test_bad_magic_is_a_strict_problem_only() -> None:
     raw = build_save(standard_root(THREE_ENTRIES), magic=b"\x00\x00\x00\x00")
     report = dson.validate(raw)
-    assert report.legacy_errors == ()
+    assert report.structural_errors == ()
     assert report.ok
     assert not report.ok_strict
     assert [p.code for p in report.strict_errors] == ["bad_magic"]
@@ -368,7 +368,7 @@ def test_bad_magic_is_a_strict_problem_only() -> None:
 
 def test_problem_records_carry_offsets_and_messages() -> None:
     report = dson.validate(PARSE_REJECTS["truncated"])
-    problem = report.legacy_errors[0]
+    problem = report.structural_errors[0]
     assert isinstance(problem.code, str) and problem.code
     assert isinstance(problem.offset, int)
     assert isinstance(problem.message, str) and problem.message

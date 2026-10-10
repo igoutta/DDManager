@@ -4,8 +4,8 @@ import argparse
 
 from src.__about__ import __version__
 from src.cli_context import open_session, print_findings, scan_mods
-from src.core.legacy_state import StateChanges
 from src.core.loadorder_file import document_from_order, resolve_document
+from src.core.state_file import StateChanges
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -52,7 +52,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     path = session.services.profiles.save(doc, overwrite=args.overwrite)
     print(f"imported {doc.name!r} ({len(doc.entries)} mods) to {path}")
     if extras is not None:
-        print("note: the legacy nicknames and categories of the loadout were not imported")
+        print("note: the nicknames and categories of the 0.2 loadout were not imported")
     return 0
 
 

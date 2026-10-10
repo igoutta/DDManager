@@ -32,7 +32,6 @@ from tests.support.dson_builder import (
 )
 from tests.support.identities import identities
 from tests.support.mutations import info_bit31_indices, set_info_bit31
-from tools.legacy_oracle import LegacyOracle
 
 FMT = DsonV1Format()
 A, B, C = THREE_ENTRIES
@@ -237,36 +236,12 @@ def test_a_malformed_old_child_contributes_no_flags() -> None:
     assert block_words(out) == ((False, False, False), (True, True, True))
 
 
-# ---------------------------------------------------------------- the divergence from the legacy
-
-
-@pytest.mark.legacy
-def test_legacy_clears_the_bits_the_codec_carries(legacy: LegacyOracle) -> None:
-    """The pinned patcher rebuilt every word of the block from ``dson_field_info`` (dd2.py:866),
-    clearing bit 31 on child, name and source words alike; outside the block both agree.  The
-    divergence is listed exactly: ours == legacy with the carried words set, nothing else."""
-    dd2 = legacy.module("dd2")
-    new = (C, B, A, D)
-    keys, table = pm.stub_identities(new)
-    expected, count = dd2.dson_patch_mod_list_resize(OLD, keys, legacy.stub_manager(table))
-    assert count == len(new)
-    ours = FMT.write_applied(OLD, identities(new))
-    doc = dson.parse(ours)
-    applied = doc.find_child(0, APPLIED_BLOCK)
-    assert applied is not None
-    inside = set(range(applied + 1, applied + 1 + 3 * len(new)))
-    carried = {applied + 1 + 3 * 1 + 2, applied + 1 + 3 * 2, applied + 1 + 3 * 2 + 1}
-    assert info_bit31_indices(expected) & inside == set()
-    assert info_bit31_indices(ours) & inside == carried
-    assert info_bit31_indices(ours) - inside == info_bit31_indices(expected) - inside
-    assert set_info_bit31(ours, carried, on=False) == expected
-    assert set_info_bit31(expected, carried, on=True) == ours
-    assert ours != expected
+# ---------------------------------------------------------------- bit-31 preservation
 
 
 def test_carried_positions_table_matches_the_matrix() -> None:
-    """``pm.CARRIED_POSITIONS`` is the hand-written list of matrix cells where the codec diverges
-    from the legacy on a flagged save; check it against the entries the matrix actually uses."""
+    """``pm.PRESERVED_POSITIONS`` is the hand-written list of matrix cells where the codec diverges
+    that keep their bit-31 flags; check it against the entries the matrix actually uses."""
     for n, m in pm.CASES:
         existing = list(pm.existing_entries(n) or ())
         carried = []
@@ -274,4 +249,4 @@ def test_carried_positions_table_matches_the_matrix() -> None:
             if entry in existing:
                 existing.remove(entry)
                 carried.append(k)
-        assert tuple(carried) == pm.CARRIED_POSITIONS.get((n, m), ()), (n, m)
+        assert tuple(carried) == pm.PRESERVED_POSITIONS.get((n, m), ()), (n, m)

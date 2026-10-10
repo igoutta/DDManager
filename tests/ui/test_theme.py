@@ -9,7 +9,7 @@ from PySide6.QtWidgets import QApplication, QPushButton
 from src.ui.theme.theme import apply_theme, render_qss, set_role
 from src.ui.theme.tokens import DARK_TOKENS, DENSITY, TIER_TOKENS
 
-LEGACY_THEME = {
+BASE_THEME = {
     "bg": "#14100F",
     "panel": "#211A18",
     "panel_deep": "#100D0C",
@@ -59,9 +59,9 @@ def contrast(a: str, b: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
-def test_palette_keeps_the_verbatim_legacy_colors():
+def test_palette_keeps_the_verbatim_base_colors():
     palette = DARK_TOKENS.palette
-    for name, value in LEGACY_THEME.items():
+    for name, value in BASE_THEME.items():
         assert getattr(palette, name).upper() == value, name
     for extra in ("error", "warning", "info", "ok"):
         assert QColor(getattr(palette, extra)).isValid()
@@ -115,7 +115,7 @@ def restore_app(qapp):
 def test_apply_theme_sets_fusion_palette_and_stylesheet(restore_app):
     apply_theme(restore_app, DARK_TOKENS)
     palette = restore_app.palette()
-    assert palette.color(QPalette.ColorRole.Window).name().upper() == LEGACY_THEME["bg"]
+    assert palette.color(QPalette.ColorRole.Window).name().upper() == BASE_THEME["bg"]
     for role in (
         QPalette.ColorRole.Text,
         QPalette.ColorRole.ButtonText,
@@ -123,7 +123,7 @@ def test_apply_theme_sets_fusion_palette_and_stylesheet(restore_app):
     ):
         assert (
             palette.color(QPalette.ColorGroup.Disabled, role).name().upper()
-            == LEGACY_THEME["disabled"]
+            == BASE_THEME["disabled"]
         )
     assert restore_app.styleSheet().strip()
     restore_app.setStyleSheet("")  # an active stylesheet wraps the style; look at the real one

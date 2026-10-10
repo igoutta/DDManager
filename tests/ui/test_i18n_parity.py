@@ -14,7 +14,7 @@ from tests.ui.m5_support import LANGUAGES, construct, load_attr
 from tests.ui.test_tooltips import check_tooltips
 
 I18N = Path(__file__).parents[2] / "src" / "resources" / "i18n"
-GOLDEN = Path(__file__).parents[1] / "golden" / "i18n" / "legacy_keys.json"
+GOLDEN = Path(__file__).parents[1] / "golden" / "i18n" / "base_keys.json"
 OTHERS = tuple(code for code in LANGUAGES if code != "en")
 
 
@@ -58,9 +58,9 @@ def test_the_key_set_equals_the_english_key_set(catalogs, language):
     assert sorted(other - en) == [], f"{language}.json has keys en.json does not"
 
 
-def test_there_are_ui_keys_and_the_legacy_ones_are_untouched(catalogs):
+def test_there_are_ui_keys_and_the_base_ones_are_untouched(catalogs):
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))["keys"]
-    assert len(golden) == 115
+    assert len(golden) == 114
     for language in LANGUAGES:
         catalog = catalogs[language]
         assert set(golden) <= set(catalog), language

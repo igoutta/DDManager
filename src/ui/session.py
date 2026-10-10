@@ -8,10 +8,10 @@ from pathlib import Path
 from src.core.findings import Finding
 from src.core.ids import ModId
 from src.core.json_values import JsonValue
-from src.core.legacy_state import StateDoc
 from src.core.load_order import LoadOrder
 from src.core.model import ModInfo
 from src.core.rules_data import ResolvedRules
+from src.core.state_file import StateDoc
 from src.core.tiers import Tier, TierTable
 from src.services.detection import InstallSnapshot
 from src.services.fsutil import FileFingerprint

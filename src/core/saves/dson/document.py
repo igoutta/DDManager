@@ -1,7 +1,7 @@
 """``parse`` / ``serialize`` and the document-level tree lookups the edits build on.
 
-:func:`serialize` is THE only serializer (it replaces dd2.py:987-1003, 1160-1187, 1439-1466 and
-1603-1630).
+:func:`serialize` is THE only serializer (every edit and every round trip goes
+through it).
 """
 
 import struct
@@ -20,7 +20,7 @@ from src.core.saves.dson.layout import (
     read_tables,
     refresh_header,
 )
-from src.core.saves.dson.validate import legacy_walk
+from src.core.saves.dson.validate import structural_walk
 from src.core.saves.dson.walk import RejectError, walk_tree
 from src.core.saves.format import DsonProblem
 
@@ -49,15 +49,15 @@ def make_document(
 
 
 def parse(raw: bytes) -> DsonDocument:
-    """Parse a legacy-valid save into a :class:`DsonDocument`.
+    """Parse a structurally valid save into a :class:`DsonDocument`.
 
-    Raises :class:`DsonFormatError` on any layout problem: the legacy validator's checks plus the
-    ``header_length == 64`` / ``meta1_offset == 64`` gate of the legacy patchers (dd2.py:1316).
+    Raises :class:`DsonFormatError` on any layout problem: the STRUCTURAL validator's
+    checks plus the ``header_length == 64`` / ``meta1_offset == 64`` gate the edits need.
     ``serialize(parse(raw)) == raw`` for every accepted input.
     """
     header, meta1, meta2 = read_tables(raw)
     try:
-        walk = legacy_walk(raw, header, meta1, meta2)
+        walk = structural_walk(raw, header, meta1, meta2)
     except RejectError as exc:
         raise _format_error(exc.problem) from None
     if header.header_length != HEADER_SIZE or header.meta1_offset != HEADER_SIZE:

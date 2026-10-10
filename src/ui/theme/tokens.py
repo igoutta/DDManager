@@ -1,4 +1,4 @@
-"""Design tokens: the verbatim legacy palette plus the semantic additions."""
+"""Design tokens: the base palette (ported value for value) plus the semantic additions."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
@@ -8,7 +8,7 @@ from typing import Final
 
 @dataclass(frozen=True, slots=True)
 class Palette:
-    """The 18 legacy theme colors (``dd2.py:115-134``) and the new semantic ones."""
+    """The 18 base theme colours and the new semantic ones."""
 
     bg: str = "#14100F"
     panel: str = "#211A18"
@@ -57,7 +57,7 @@ TIER_TOKENS: Final[Mapping[str, TierToken]] = MappingProxyType(
         "skin": TierToken("#9D7A9A", "ui.tier.skn"),
         "patch": TierToken("#8C7BB0", "ui.tier.pat"),
         "unassigned": TierToken("#82786B", "ui.tier.una"),
-        # user-defined categories without an override resolve to text_bright (legacy fallback)
+        # user-defined categories without an override resolve to text_bright (the default fallback)
         "custom": TierToken("#E7D8B0", "ui.tier.cus"),
     }
 )
@@ -82,7 +82,7 @@ class Spacing:
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Font families (first installed one wins) and sizes in points (``dd2.py:136-149``)."""
+    """Font families (first installed one wins) and sizes in points."""
 
     heading_families: tuple[str, ...] = ("Georgia", "DejaVu Serif")
     body_families: tuple[str, ...] = ("Segoe UI", "DejaVu Sans")
@@ -103,7 +103,7 @@ DENSITY: Final[Mapping[str, tuple[int, int]]] = MappingProxyType(
         "Visual": (52, 60),
     }
 )
-"""``(icon px, row px)`` keyed by the legacy ``view_mode`` names."""
+"""``(icon px, row px)`` keyed by the ``view_mode`` names."""
 DEFAULT_DENSITY: Final = "Comfortable"
 
 

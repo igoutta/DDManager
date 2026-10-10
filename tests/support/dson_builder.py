@@ -1,4 +1,4 @@
-"""Independent DSON oracle: build binary Darkest Dungeon saves from a small node tree.
+"""Independent DSON builder: build binary Darkest Dungeon saves from a small node tree.
 
 This module is the test-side ground truth for the byte format and shares NO code with ``src``.
 Every rule below comes from the format description, never from the codec under test:
@@ -267,11 +267,10 @@ def standard_root(
     ``after_persistent``, then (when ``extra_after``) never_again:B, tail_int:I,
     nested:O{x:S, b:B, z:I}.
 
-    For legacy differential tests keep ``between`` EMPTY (the legacy heuristic scanner needs
-    applied_ugcs_1_0 immediately followed by persistent_ugcs) and ``before_applied`` ending in a
-    NUL-terminated payload (an S or an O): the legacy byte scanner only finds a block name
-    preceded by a NUL.  ``between`` is the one place where nothing resets the alignment between
-    the applied block and a later field, so it is where realignment can be observed.
+    A byte scan only finds a block name preceded by a NUL, so ``before_applied`` should end in a
+    NUL-terminated payload (an S or an O) when one is used.  ``between`` is the one place
+    where nothing resets the alignment between the applied block and a later field, so it is
+    where realignment can be observed.
     """
     children: list[Node] = [
         I("version", 5),

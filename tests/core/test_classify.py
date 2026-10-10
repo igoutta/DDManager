@@ -1,14 +1,12 @@
-"""The legacy category classifier over ``ModInfo`` (src/core/classify.py).
+"""The category classifier over ``ModInfo`` (src/core/classify.py).
 
-Contract: ``category_scores`` ports categories.py:134-229 (``auto_category_scores``) with the same
-weights and ignore list, reading tags from ``info.tags`` (the legacy tag list), directories from
-``top_level_dirs`` / ``subdirs_of("heroes")`` and the title bits from key, save name,
-``display_name(info, nickname)`` and title; ``suggest_category`` ports 232-253 (best >= 4,
-Dungeons wins ties, Class wins strictly, otherwise a margin of 2).
+Contract: ``category_scores`` weighs tags (``info.tags``), directories (``top_level_dirs`` /
+``subdirs_of("heroes")``) and the title bits from key, save name, ``display_name(info, nickname)``
+and title with a fixed weight table and ignore list; ``suggest_category`` picks the best score when
+it is at least 4 (Dungeons wins ties, Class wins strictly, otherwise a margin of 2 is needed).
 
-Parity: every ``modding/*`` sample and every synthetic folder of tests/support/mod_facts.py
-against ``categories.suggested_category_for_mod`` with the legacy callbacks (live) and against the
-committed goldens under tests/golden/classify (no oracle needed).
+Every ``modding/*`` sample and every synthetic folder of tests/support/mod_facts.py is checked
+against the committed goldens under tests/golden/classify (frozen outputs of this program).
 """
 
 import json
@@ -24,7 +22,6 @@ from src.core.identity import derive_mod_info
 from src.core.model import ModInfo
 from tests.support import factories
 from tests.support import mod_facts as mf
-from tools.legacy_oracle import LegacyOracle
 
 GOLDEN_FILE = Path(__file__).absolute().parents[1] / "golden" / "classify" / "cases.json"
 
@@ -36,8 +33,8 @@ LOCAL_TZ = _local
 def _load_golden() -> dict[str, Any]:
     if not GOLDEN_FILE.is_file():
         pytest.fail(
-            f"{GOLDEN_FILE} is missing: the classify goldens are the parity proof that outlives the"
-            " legacy oracle; restore them from git or run tools/regen_goldens.py",
+            f"{GOLDEN_FILE} is missing: the classify goldens are the frozen contract of this"
+            " program; restore them from git or run tools/regen_goldens.py",
             pytrace=False,
         )
     return json.loads(GOLDEN_FILE.read_text("utf-8"))
@@ -136,7 +133,7 @@ def test_title_bits_come_from_key_save_name_display_name_and_title() -> None:
     assert _nonzero(category_scores(_mod("m", title="character_ui"))) == {"UI": 11}
     assert _nonzero(category_scores(_mod("m", title="Roster Size"))) == {"UI": 5}
     assert _nonzero(category_scores(_mod("m", title="Vermintide"))) == {"Dungeons": 6}
-    # "ui" is a substring test (categories.py:200): "Ruin" and "Quirk" both hit it
+    # "ui" is a substring test: "Ruin" and "Quirk" both hit it
     assert _nonzero(category_scores(_mod("m", title="Smouldering Ruin"))) == {
         "UI": 5,
         "Districts": 6,
@@ -207,15 +204,15 @@ def test_crusader_patch_sample_is_a_class_patch(sample_mods_dir: Path) -> None:
     assert suggest_category(info) == "Class Patch"
 
 
-# ----------------------------------------------------------------- goldens (no oracle needed)
+# ----------------------------------------------------------------- goldens
 
 
 def _info_for(folder: Path, acf: dict[str, str] | None = None) -> ModInfo:
     return derive_mod_info(mf.snapshot_from_dir(folder, acf=acf), tz=LOCAL_TZ)
 
 
-def test_golden_is_pinned_and_covers_every_sample(sample_mods_dir: Path) -> None:
-    assert GOLDEN["legacy_commit"] == "31e85d6"
+def test_golden_names_its_generator_and_covers_every_sample(sample_mods_dir: Path) -> None:
+    assert GOLDEN["generator"] == "tools/regen_goldens.py regenerate_classify"
     samples = sorted(p.name for p in sample_mods_dir.iterdir() if p.is_dir())
     assert sorted(GOLDEN["samples"]) == samples
     assert set(GOLDEN["synthetic"]) == {spec.id for spec in mf.CASES}
@@ -247,54 +244,3 @@ def test_synthetic_classification_matches_golden(case_dirs: dict[str, Path], cas
     for nickname, expected in case["nicknames"].items():
         assert category_scores(info, nickname=nickname) == expected["scores"], nickname
         assert suggest_category(info, nickname=nickname) == expected["suggestion"], nickname
-
-
-# ----------------------------------------------------------------- live parity vs the pinned oracle
-
-
-def _legacy_classify(
-    legacy: LegacyOracle, manager: Any, mod: str
-) -> tuple[dict[str, int], str | None]:
-    cat = legacy.module("categories")
-    dd2 = legacy.module("dd2")
-    manager.current_metadata_for_mod(mod)  # the app always has metadata before classifying
-    args = (
-        manager.state,
-        mod,
-        manager.mod_folder_path,
-        manager.save_name,
-        manager.display_name,
-        dd2.parse_xml_file_forgiving,
-    )
-    return cat.auto_category_scores(*args), cat.suggested_category_for_mod(*args)
-
-
-@pytest.mark.legacy
-def test_samples_match_legacy_classifier(legacy: LegacyOracle, sample_mods_dir: Path) -> None:
-    dd2 = legacy.module("dd2")
-    folders = {p.name: p for p in sample_mods_dir.iterdir() if p.is_dir()}
-    manager = mf.legacy_manager(dd2, folders)
-    for name, folder in sorted(folders.items()):
-        scores, suggestion = _legacy_classify(legacy, manager, name)
-        info = _info_for(folder)
-        assert category_scores(info) == scores, name
-        assert suggest_category(info) == suggestion, name
-
-
-@pytest.mark.legacy
-@pytest.mark.parametrize("spec", mf.CASES, ids=[s.id for s in mf.CASES])
-def test_synthetic_folders_match_legacy_classifier(
-    legacy: LegacyOracle, case_dirs: dict[str, Path], spec: mf.ModDirSpec
-) -> None:
-    dd2 = legacy.module("dd2")
-    folder = case_dirs[spec.id]
-    manager = mf.legacy_manager(dd2, {spec.folder: folder}, acf=dict(spec.acf))
-    info = _info_for(folder, dict(spec.acf))
-    scores, suggestion = _legacy_classify(legacy, manager, spec.folder)
-    assert category_scores(info) == scores
-    assert suggest_category(info) == suggestion
-    for nickname in spec.nicknames:
-        manager.state["nicknames"][spec.folder] = nickname
-        scores, suggestion = _legacy_classify(legacy, manager, spec.folder)
-        assert category_scores(info, nickname=nickname) == scores, nickname
-        assert suggest_category(info, nickname=nickname) == suggestion, nickname

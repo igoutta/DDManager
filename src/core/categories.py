@@ -1,8 +1,7 @@
-"""The legacy category system, pure: constants, lookups and the category-editor operations.
+"""The category system, pure: constants, lookups and the category-editor operations.
 
-Ports ``categories.py:7-100`` (data and helpers), ``dd2.py:623-631`` (``normalize_hex_color``)
-and ``categories.py:292-384`` (editor operations) with explicit arguments instead of the
-legacy ``state`` dict and with functional (copying) list operations.
+Every function takes its inputs explicitly (no state dict) and the editor operations are
+functional: they return copies instead of mutating lists in place.
 """
 
 import re
@@ -26,7 +25,7 @@ DEFAULT_CATEGORIES: Final[tuple[str, ...]] = (
     "Class",
     "Skins",
 )
-"""``categories.py:32-42``."""
+"""The built-in categories a mod can be assigned to."""
 
 CATEGORY_COLORS: Final[Mapping[str, str]] = MappingProxyType(
     {
@@ -42,7 +41,7 @@ CATEGORY_COLORS: Final[Mapping[str, str]] = MappingProxyType(
         "Unassigned": "#82786B",
     }
 )
-"""``categories.py:7-18``."""
+"""The default order of the built-in categories."""
 
 CATEGORY_COLOR_CYCLE: Final[tuple[str, ...]] = (
     "#5F8B7E",
@@ -54,14 +53,14 @@ CATEGORY_COLOR_CYCLE: Final[tuple[str, ...]] = (
     "#B46A5B",
     "#6E8C9C",
 )
-"""``categories.py:20-29``."""
+"""The default colour of each built-in category."""
 
 PSEUDO_CATEGORIES: Final[tuple[str, ...]] = ("All", "Unassigned")
 """Filter labels that are never real categories."""
 
 
 def normalize_hex_color(value: str) -> str | None:
-    """``dd2.py:623-631``: ``#RRGGBB`` upper-cased, or ``None`` when the text is not one."""
+    """``#RRGGBB`` upper-cased, or ``None`` when the text is not one."""
     if not value:
         return None
     text = str(value).strip()
@@ -71,8 +70,8 @@ def normalize_hex_color(value: str) -> str | None:
 
 
 def dedupe_category_names(*groups: Iterable[str]) -> tuple[str, ...]:
-    """``categories.py:49-63`` / ``state.py:47-53``: the names of ``groups`` in order, without
-    blanks, pseudo categories or case-insensitive (``str.lower``, like the legacy) repeats."""
+    """The names of ``groups`` in order, without blanks, pseudo categories or
+    case-insensitive (``str.lower``) repeats."""
     categories: list[str] = []
     seen: set[str] = set()
     for group in groups:
@@ -86,14 +85,14 @@ def dedupe_category_names(*groups: Iterable[str]) -> tuple[str, ...]:
 def get_categories(
     category_order: Sequence[str], custom_categories: Sequence[str], assigned: Iterable[str]
 ) -> tuple[str, ...]:
-    """``categories.py:44-65``: ordered, then custom, then discovered names without duplicates."""
+    """Ordered, then custom, then discovered names without duplicates."""
     return dedupe_category_names(category_order, custom_categories, assigned)
 
 
 def get_category_priority(
     categories: Sequence[str], base: Mapping[str, int], fallback: int = 700
 ) -> dict[str, int]:
-    """``categories.py:67-79`` over an already-combined category list (see ``get_categories``)."""
+    """over an already-combined category list (see ``get_categories``)."""
     priority = {cat: index * 100 for index, cat in enumerate(categories)}
     for cat, value in base.items():
         priority.setdefault(cat, value)
@@ -102,7 +101,7 @@ def get_category_priority(
 
 
 def category_color(category: str, colors: Mapping[str, str], fallback: str) -> str:
-    """``categories.py:82-87``: user colour (normalised), then built-in, then ``fallback``."""
+    """User colour (normalised), then built-in, then ``fallback``."""
     custom = normalize_hex_color(colors.get(category, ""))
     if custom:
         return custom
@@ -110,7 +109,7 @@ def category_color(category: str, colors: Mapping[str, str], fallback: str) -> s
 
 
 def default_color_for_new_category(colors: Mapping[str, str], fallback: str) -> str:
-    """``categories.py:91-100``: the first cycle colour no user colour already uses."""
+    """The first cycle colour no user colour already uses."""
     used = {normalized for color in colors.values() if (normalized := normalize_hex_color(color))}
     for color in CATEGORY_COLOR_CYCLE:
         normalized = normalize_hex_color(color)
@@ -120,7 +119,7 @@ def default_color_for_new_category(colors: Mapping[str, str], fallback: str) -> 
 
 
 def move_category(categories: Sequence[str], index: int, delta: int) -> tuple[str, ...]:
-    """``categories.py:292-300`` as a copy: swap ``index`` with ``index + delta`` if both exist."""
+    """as a copy: swap ``index`` with ``index + delta`` if both exist."""
     items = list(categories)
     new_index = index + delta
     if not (0 <= index < len(items)) or not (0 <= new_index < len(items)):
@@ -130,7 +129,7 @@ def move_category(categories: Sequence[str], index: int, delta: int) -> tuple[st
 
 
 def move_category_to_index(categories: Sequence[str], index: int, target: int) -> tuple[str, ...]:
-    """``categories.py:303-314`` as a copy: pop ``index`` and insert it at ``target``."""
+    """as a copy: pop ``index`` and insert it at ``target``."""
     items = list(categories)
     if not (0 <= index < len(items)) or not (0 <= target < len(items)) or index == target:
         return tuple(items)
@@ -140,13 +139,13 @@ def move_category_to_index(categories: Sequence[str], index: int, target: int) -
 
 @dataclass(frozen=True, slots=True)
 class CategoryEditorState:
-    """The category editor's working copy (the five lists the legacy dialog mutated in place)."""
+    """The category editor's working copy (the five lists the dialog edits)."""
 
     categories: tuple[str, ...]
     custom_categories: tuple[str, ...]
     category_colors: Mapping[str, str]
     renamed: Mapping[str, str]
-    """``new name -> original name`` bookkeeping (``categories.py:329-331``)."""
+    """``new name -> original name`` bookkeeping."""
     removed: tuple[str, ...]
     """Custom categories removed in this session, in removal order."""
 
@@ -154,7 +153,7 @@ class CategoryEditorState:
 def add_custom_category(
     state: CategoryEditorState, name: str, chosen_color: str
 ) -> CategoryEditorState:
-    """``categories.py:317-322``: append ``name`` as a custom category with ``chosen_color``."""
+    """Append ``name`` as a custom category with ``chosen_color``."""
     return CategoryEditorState(
         categories=(*state.categories, name),
         custom_categories=(*state.custom_categories, name),
@@ -167,9 +166,9 @@ def add_custom_category(
 def rename_custom_category(
     state: CategoryEditorState, index: int, old_name: str, new_name: str
 ) -> CategoryEditorState:
-    """``categories.py:325-332``: rename the custom category at ``index`` (bookkeeping kept).
+    """Rename the custom category at ``index`` (bookkeeping kept).
 
-    Raises ``ValueError`` when ``old_name`` is not a custom category (the legacy ``KeyError``).
+    Raises ``ValueError`` when ``old_name`` is not a custom category (not a ``KeyError``).
     """
     if old_name not in state.custom_categories:
         raise ValueError(f"{old_name!r} is not a custom category")
@@ -194,10 +193,10 @@ def rename_custom_category(
 def remove_custom_category(
     state: CategoryEditorState, index: int, category_name: str
 ) -> CategoryEditorState:
-    """``categories.py:335-342``: drop the custom category at ``index`` and record the removal.
+    """Drop the custom category at ``index`` and record the removal.
 
-    Raises ``ValueError`` when ``category_name`` is not a custom category (the legacy
-    ``KeyError``).
+    Raises ``ValueError`` when ``category_name`` is not a custom category
+    (not a ``KeyError``).
     """
     if category_name not in state.custom_categories:
         raise ValueError(f"{category_name!r} is not a custom category")
@@ -215,7 +214,7 @@ def remove_custom_category(
 
 @dataclass(frozen=True, slots=True)
 class CategoryChanges:
-    """What applying the editor produces (``categories.py:344-384``)."""
+    """What applying the editor produces."""
 
     category_order: tuple[str, ...]
     custom_categories: tuple[str, ...]
@@ -227,7 +226,7 @@ class CategoryChanges:
 
 
 def _renamed_pairs(renamed: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
-    """``categories.py:349-353``: ``(old, new)`` for every effective rename."""
+    """``(old, new)`` for every effective rename."""
     return tuple((old, new) for new, old in renamed.items() if old != new)
 
 
@@ -241,7 +240,7 @@ def _effective_removals(state: CategoryEditorState) -> tuple[str, ...]:
 
 
 def _final_colors(state: CategoryEditorState) -> dict[str, str]:
-    """``categories.py:378-382``: normalised colours for the surviving categories only."""
+    """Normalised colours for the surviving categories only."""
     colors: dict[str, str] = {}
     for cat in state.categories:
         normalized = normalize_hex_color(state.category_colors.get(cat, ""))
@@ -256,7 +255,7 @@ def apply_category_editor_changes(
     assignments: Mapping[ModId, str],
     category_memory: Mapping[str, str],
 ) -> CategoryChanges:
-    """``categories.py:344-384``: renames propagate, removed customs unassign and purge memory."""
+    """Renames propagate, removed customs unassign and purge memory."""
     final_categories = tuple(state.categories)
     final_custom = tuple(cat for cat in final_categories if cat not in DEFAULT_CATEGORIES)
     rename_map = dict(_renamed_pairs(state.renamed))

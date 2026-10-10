@@ -179,7 +179,7 @@ def test_cancel_and_escape_reject(rig, qtbot):
 def test_the_dialog_follows_the_language(rig, qtbot, language):
     dialog = make_dialog(rig, qtbot)
     result = follow_language(dialog, rig.translator, language)
-    assert result.changed >= 3, "title, prompt, save and cancel are legacy translated keys"
+    assert result.changed >= 3, "title, prompt, save and cancel are translated base keys"
     assert dialog.edit.text() == default_name(rig), "the typed text is the user's, never translated"
 
 

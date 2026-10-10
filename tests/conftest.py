@@ -24,16 +24,3 @@ def data_dir(tmp_path: Path) -> Path:
     d = tmp_path / "DD Manager Data"
     d.mkdir()
     return d
-
-
-@pytest.fixture(scope="session")
-def legacy():
-    """The pinned legacy oracle (git show 31e85d6:<file>). Skips when unavailable."""
-    pytest.importorskip("tkinter", reason="legacy dd2.py imports tkinter at module level")
-    from tools.legacy_oracle import LegacyOracle, extract
-
-    try:
-        directory = extract()
-    except Exception as exc:  # noqa: BLE001 - shallow clone or no git: skip, don't fail
-        pytest.skip(f"legacy oracle unavailable: {exc}")
-    return LegacyOracle(directory)

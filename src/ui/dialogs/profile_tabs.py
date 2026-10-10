@@ -208,6 +208,7 @@ class BackupsTab(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
+        tr = self._tr.tr
         backups = list(self._port.backups_for_active())
         self.table.setRowCount(len(backups))
         for row, backup in enumerate(backups):
@@ -216,7 +217,7 @@ class BackupsTab(QWidget):
             )
             set_cell(self.table, row, 1, backup.reason_text)
             set_cell(self.table, row, 2, backup.size_text)
-            set_cell(self.table, row, 3, backup.location)
+            set_cell(self.table, row, 3, tr(f"ui.backups.location.{backup.location}"))
         self.table.resizeColumnsToContents()
 
     def _restore(self) -> None:

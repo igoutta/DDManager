@@ -1,7 +1,7 @@
-"""The two validation levels: LEGACY (the verdict of dd2.py:1202-1309) and STRICT (extra checks).
+"""The two validation levels: STRUCTURAL (what parsing requires) and STRICT (extra checks).
 
-:func:`legacy_walk` is also the gate :func:`.document.parse` runs; it hands back the checked walk
-so the document's children index comes from the very walk that accepted it.
+:func:`structural_walk` is also the gate :func:`.document.parse` runs; it hands back the checked
+walk so the document's children index comes from the very walk that accepted it.
 """
 
 from collections.abc import Sequence
@@ -22,11 +22,11 @@ from src.core.saves.dson.layout import (
 from src.core.saves.dson.walk import ObjectVisit, RejectError, TreeWalk, walk_tree
 from src.core.saves.format import DsonProblem, SaveValidationReport
 
-# ------------------------------------------------------------------ LEGACY level
+# ------------------------------------------------------------------ STRUCTURAL level
 
 
 def _check_layout(raw: bytes, header: DsonHeader) -> None:
-    """dd2.py:1208-1218: the four header/table layout checks, in order."""
+    """The four header/table layout checks, in order."""
     if header.data_offset + header.data_length != len(raw):
         raise RejectError(
             DsonProblem(
@@ -50,7 +50,7 @@ def _check_layout(raw: bytes, header: DsonHeader) -> None:
 
 
 def _check_offsets_sorted(meta2: Sequence[Meta2]) -> None:
-    """dd2.py:1220-1222 (non-strict: equal offsets are accepted)."""
+    """Offsets sorted (non-strict: equal offsets are accepted)."""
     offsets = [entry.offset for entry in meta2]
     if offsets != sorted(offsets):
         bad = next(k for k in range(1, len(offsets)) if offsets[k] < offsets[k - 1])
@@ -59,13 +59,13 @@ def _check_offsets_sorted(meta2: Sequence[Meta2]) -> None:
         )
 
 
-def legacy_walk(
+def structural_walk(
     raw: bytes, header: DsonHeader, meta1: Sequence[Meta1], meta2: Sequence[Meta2]
 ) -> TreeWalk:
-    """Every check of ``dson_validate_editor_compatible`` (dd2.py:1202-1309), in its order.
+    """Every STRUCTURAL check, in order.
 
-    Raises :class:`RejectError` with the first problem the legacy would have raised on; the
-    accept/reject verdict is identical, arithmetic included.  Returns the checked walk.
+    Raises :class:`RejectError` with the first problem found; the
+    accept/reject verdict is defined by this walk, arithmetic included.  Returns the checked walk.
     """
     _check_layout(raw, header)
     _check_offsets_sorted(meta2)
@@ -170,8 +170,8 @@ def _problem_of(exc: DsonFormatError) -> DsonProblem:
 def validate(raw: bytes) -> SaveValidationReport:
     """Validate without raising.
 
-    LEGACY level reproduces the verdict of ``dson_validate_editor_compatible`` (dd2.py:1202-1309):
-    it accepts exactly what the legacy accepted.  STRICT level adds ``bad_magic``, the 64-byte
+    STRUCTURAL level: the checks parsing requires (header/table layout, sorted offsets, a
+    consistent stack walk, the object count).  STRICT level adds ``bad_magic``, the 64-byte
     header layout, strictly increasing meta2 offsets, meta1 index == running object index, exact
     ``all_children`` per object and exactly one root.
     """
@@ -182,7 +182,7 @@ def validate(raw: bytes) -> SaveValidationReport:
         return SaveValidationReport((_problem_of(exc),), tuple(strict))
     strict.extend(_strict_header_problems(header))
     try:
-        walk = legacy_walk(raw, header, meta1, meta2)
+        walk = structural_walk(raw, header, meta1, meta2)
     except RejectError as exc:
         return SaveValidationReport((exc.problem,), tuple(strict))
     strict.extend(_strict_offset_problems(meta2))

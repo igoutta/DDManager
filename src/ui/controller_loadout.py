@@ -1,8 +1,8 @@
-"""Importing a legacy ``dd_mod_loadout.json``: the order through the diff preview, then its extras.
+"""Importing a 0.2 ``dd_mod_loadout.json``: the order through the diff preview, then its extras.
 
 The order half is the ordinary profile ladder (``resolve_document``) and review; the extras
 (nicknames, categories, category memory) are applied only once the order was accepted (or needed
-no change), as the legacy ``load_loadout`` did in one go (``legacy_loadout.py``).
+no change), as DD Manager 0.2.x did in one go.
 """
 
 import dataclasses
@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
 from src.core.ids import ModId
-from src.core.loadorder_file import LegacyLoadoutExtras, LoadOrderDocument, resolve_document
+from src.core.loadorder_file import LoadOrderDocument, LoadoutV02Extras, resolve_document
 from src.ui import controller_scan as scanning
 from src.ui.controller_tools import is_assigned, remember
 
@@ -26,7 +26,7 @@ class LoadoutFlow:
     def __init__(self, controller: MainController) -> None:
         self._c = controller
 
-    def import_legacy(self, doc: LoadOrderDocument, extras: LegacyLoadoutExtras) -> None:
+    def import_loadout_v02(self, doc: LoadOrderDocument, extras: LoadoutV02Extras) -> None:
         """Preview and commit the loadout's order, then apply its extras (a rejected preview
         applies nothing)."""
         c = self._c
@@ -43,7 +43,7 @@ class LoadoutFlow:
         by_folder = {doc.entries[index].folder or "": mod for index, mod in result.matched}
         self._apply_extras(extras, by_folder)
 
-    def _apply_extras(self, extras: LegacyLoadoutExtras, by_folder: Mapping[str, ModId]) -> None:
+    def _apply_extras(self, extras: LoadoutV02Extras, by_folder: Mapping[str, ModId]) -> None:
         c = self._c
         s = c.session
         categories = self._categories(extras.categories, by_folder)

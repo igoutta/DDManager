@@ -14,9 +14,9 @@ from PySide6.QtCore import QObject, Signal
 
 from src.core.errors import DDManagerError
 from src.core.ids import ModId, SaveIdentity
-from src.core.legacy_state import StateSettings
 from src.core.load_order import LoadOrder, PrioritySetting
 from src.core.model import ModInfo
+from src.core.state_file import StateSettings
 from src.core.tiers import Tier
 from src.services.detection import InstallSnapshot
 from src.services.ports import CancelToken

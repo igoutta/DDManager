@@ -13,8 +13,8 @@ from src.cli_context import (
     scan_mods,
 )
 from src.core.ids import SaveIdentity
-from src.core.legacy_state import StateChanges
 from src.core.load_order import missing_active
+from src.core.state_file import StateChanges
 from src.services.backup import BackupReason, BackupRecord
 from src.services.errors import BackupNotFoundError, StateConflictError, UnacknowledgedRiskError
 from src.services.fsutil import atomic_write_bytes
@@ -82,7 +82,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
 
 
 def _remember(session: Session, save_path: Path, backup: BackupRecord) -> None:
-    """``dd2.py:1778-1782``: remember the save and its backup in the state."""
+    """Remember the save and its backup in the state."""
     changes = StateChanges(
         settings={
             "last_save_path": str(save_path),
@@ -133,7 +133,7 @@ def _choose_backup(session: Session, save_path: Path, source: Path | None) -> Ba
         raise BackupNotFoundError(f"Backup file not found: {source}", path=str(source))
     stat = source.stat()
     created = datetime.fromtimestamp(stat.st_mtime).astimezone()
-    return BackupRecord(source, save_path, created, None, stat.st_size, None, "legacy")
+    return BackupRecord(source, save_path, created, None, stat.st_size, None, "beside_save")
 
 
 def cmd_restore(args: argparse.Namespace) -> int:

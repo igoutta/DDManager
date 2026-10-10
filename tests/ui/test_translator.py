@@ -8,7 +8,7 @@ import pytest
 from src.ui.i18n import Translator
 
 I18N = Path(__file__).parents[2] / "src" / "resources" / "i18n"
-BODY = "auto_detect_complete_body"  # a legacy key whose template has named placeholders
+BODY = "auto_detect_complete_body"  # a base key whose template has named placeholders
 PARAMS = {
     "game_root": "G",
     "local_mods": "L",

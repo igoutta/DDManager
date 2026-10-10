@@ -1,8 +1,7 @@
 """Scanning: ask every source for mod folders, resolve conflicts, read and derive ``ModInfo``.
 
-Replaces the legacy ``get_current_mod_folders`` (``dd2.py:5994-6021``): the same first-root-wins
-rule per folder name, but a shadowed duplicate is now reported as a finding instead of being
-dropped silently.  A failing source or an unreadable folder never aborts the scan.
+The first root wins per folder name, and a shadowed duplicate is reported as a finding instead
+of being dropped silently.  A failing source or an unreadable folder never aborts the scan.
 
 With a :class:`MetadataCache` the scan takes a cheap stat-based signature of each folder first
 (``mod_reader.signature_of``) and reuses the cached ``ModInfo`` when it matches; only folders
