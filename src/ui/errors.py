@@ -16,6 +16,15 @@ from PySide6.QtCore import QObject, Qt, QtMsgType, Signal, Slot, qInstallMessage
 LOGGER_NAME: Final = "ddmanager"
 LOG_FILE: Final = "ddmanager.log"
 FAULT_FILE: Final = "faulthandler.log"
+# faulthandler's Windows handler also reports *first-chance* exceptions that the OS or Qt
+# catch right away. 0x8001010D (RPC_E_CANTCALLOUT_ININPUTSYNCCALL, raised by COM during
+# input-sync calls such as drag-and-drop or UI Automation) is the usual one; the process
+# keeps running.
+FAULT_HEADER: Final = (
+    "# DD Manager faulthandler log. Entries with 'code 0x8001010d' are first-chance COM "
+    "exceptions handled by Windows/Qt (not crashes); a real crash ends the session here."
+    "\n"
+)
 LOG_BYTES: Final = 1_000_000
 LOG_BACKUPS: Final = 3
 CRASH_TITLE: Final = "Unexpected error"
@@ -144,5 +153,7 @@ def enable_faulthandler(logs_dir: Path) -> IO[str]:
         faulthandler.disable()
         _fault_file.close()
     _fault_file = (logs_dir / FAULT_FILE).open("a", encoding="utf-8")
+    _fault_file.write(FAULT_HEADER)
+    _fault_file.flush()
     faulthandler.enable(file=_fault_file, all_threads=True)
     return _fault_file
