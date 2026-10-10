@@ -61,8 +61,8 @@ corpus-refresh *args:
 corpus-env:
     uv run python tools/corpus_env.py
 
-# Write the load-order probe mods into a folder
-probe-kit dest:
+# Write the load-order probe mods into the game's mods folder (or into dest)
+probe-kit dest="":
     uv run python tools/probe_kit.py "{{dest}}"
 
 # Build the frozen Windows app + portable zip

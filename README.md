@@ -400,7 +400,7 @@ uv run just build       # Windows only: frozen app + portable zip (see BUILD.md)
 
 (Activate `.venv` to type plain `just`.) `just --list` shows every recipe: `lint`, `fmt`,
 `typecheck`, `test`, `cli`, `regen-goldens`, `corpus`, `corpus-refresh`, `corpus-env`,
-`probe-kit <dest>`, `build-check`, `clean`.
+`probe-kit [dest]`, `build-check`, `clean`.
 
 ### Source of truth
 

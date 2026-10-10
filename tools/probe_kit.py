@@ -7,7 +7,11 @@ number of stage-coach recruits, which is visible in town without any other setup
 
 import argparse
 import json
+import sys
 from pathlib import Path
+
+from src.services.detection import InstallDetector, ManualPaths
+from src.services.environment import Environment
 
 REL_TARGET = "campaign/town/buildings/stage_coach/stage_coach.building.json"
 
@@ -119,11 +123,26 @@ def write_kit(dest: Path) -> list[Path]:
     return written
 
 
+def default_dest() -> Path | None:
+    """The game's local mods folder as the app detects it (no manual overrides)."""
+    install = InstallDetector(Environment.from_host()).detect(ManualPaths(), None)
+    return install.local_mod_dirs[0] if install.local_mod_dirs else None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("dest", type=Path, help="folder to write ddm_probe_a and ddm_probe_b into")
+    parser.add_argument(
+        "dest",
+        nargs="?",
+        default="",
+        help="folder to write ddm_probe_a and ddm_probe_b into (default: the game's mods folder)",
+    )
     args = parser.parse_args(argv)
-    for path in write_kit(args.dest):
+    dest = Path(args.dest) if args.dest else default_dest()
+    if dest is None:
+        print("No Darkest Dungeon install found; pass the folder to write into.", file=sys.stderr)
+        return 2
+    for path in write_kit(dest):
         print(path)
     print("Next: see docs/load-order-semantics.md for the launch protocol.")
     return 0

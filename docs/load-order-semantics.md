@@ -33,16 +33,23 @@ While `verified` is `false`, direction-dependent findings are capped at INFO.
 
 ## Confirming it empirically (probe kit)
 
-`just probe-kit <dest>` writes two local mods into `<dest>`:
+`just probe-kit` writes two local mods straight into the game's local mods folder
+(`<game>/mods` as the app detects it; pass a folder to write somewhere else instead):
 
 - `ddm_probe_a` and `ddm_probe_b` both override
   `campaign/town/buildings/stage_coach/stage_coach.building.json` with a different, visible
   number of stage-coach recruits.
 - `ddm_probe_b` also ships one file that its `modfiles.txt` does not list.
 
+Setup in DD Manager: Rescan (F5); both probes appear in Available as local mods. For the
+duration of the test, disable every other mod that overrides the stage coach (the Health panel
+lists them as file overlaps with the probes, for example "Level 7 Stage Coach"); otherwise that
+mod, not a probe, may be the winner you see.
+
 Protocol (each step is one game launch):
 
-1. Copy both into `<game>/mods`, enable both with A above B, patch, launch, note the recruit count.
+1. Enable both at ranks 1 and 2 with A above B, patch, launch, note the recruit count in the
+   Stage Coach (A = 4 base recruits, B = 8; stage-coach upgrades add to the base).
 2. Swap to B above A, patch, launch, note the count. If step 1 showed A's value and step 2 showed
    B's, the first entry wins; the reverse means the last entry wins.
 3. Rename the folders so their alphabetical order inverts (`zz_ddm_probe_a`) and repeat 1–2. If
