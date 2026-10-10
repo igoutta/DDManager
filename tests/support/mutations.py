@@ -7,6 +7,7 @@ STRICT problem each one provokes.
 """
 
 import struct
+from collections.abc import Iterable
 
 from tests.support.dson_builder import (
     HEADER_SIZE,
@@ -113,6 +114,29 @@ def with_second_root(raw: bytes, name: str) -> bytes:
     ):
         struct.pack_into("<i", header, at, value)
     return bytes(header) + meta1 + meta2 + data
+
+
+def set_info_bit31(raw: bytes, meta2_indices: Iterable[int], *, on: bool) -> bytes:
+    """Set (``on``) or clear bit 31 of the info word of the given meta2 records, nothing else.
+
+    Bit 31 is outside every field of the format, so the legacy validator and STRICT are blind to
+    it; this is how a test states "the same file, with the unknown flag flipped here".
+    """
+    meta2_offset = _i32(raw, 48)
+    out = bytearray(raw)
+    for k in meta2_indices:
+        at = meta2_offset + META2_SIZE * k + 8
+        info = _i32(raw, at) & 0x7FFFFFFF
+        struct.pack_into("<i", out, at, _signed(info | 0x80000000 if on else info))
+    return bytes(out)
+
+
+def info_bit31_indices(raw: bytes) -> frozenset[int]:
+    """The meta2 indices whose info word has bit 31 set, read with ``struct`` alone."""
+    meta2_count, meta2_offset = _i32(raw, 44), _i32(raw, 48)
+    return frozenset(
+        k for k in range(meta2_count) if _i32(raw, meta2_offset + META2_SIZE * k + 8) < 0
+    )
 
 
 def or_object_infos(raw: bytes, mask: int) -> bytes:

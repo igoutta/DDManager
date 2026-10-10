@@ -17,7 +17,7 @@ from tests.support.dson_builder import (
     standard_save,
 )
 from tests.support.identities import identities
-from tests.support.mutations import or_object_infos
+from tests.support.mutations import info_bit31_indices, or_object_infos, set_info_bit31
 from tools.legacy_oracle import LegacyOracle
 
 pytestmark = pytest.mark.legacy
@@ -107,20 +107,38 @@ def test_patch_scalar_string_parity(legacy: LegacyOracle, value: str, bits: str)
     assert dson.serialize(dson.patch_scalar_string(doc, estate, value)) == expected
 
 
+# matrix cells only (pm.CARRIED_POSITIONS is keyed by them): every N=3 column, the other rows once
+SPARE_BIT_CASES = [(3, 1), (3, 2), (3, 5), (3, 12), (7, 5), (1, 1), (0, 1), (None, 2)]
+
+
 @pytest.mark.parametrize("bits", sorted(SPARE_INFO_BITS), ids=sorted(SPARE_INFO_BITS))
-@pytest.mark.parametrize(("n", "m"), [(3, 3), (3, 5), (None, 2), (0, 1)])
+@pytest.mark.parametrize(("n", "m"), SPARE_BIT_CASES, ids=[pm.case_id(*c) for c in SPARE_BIT_CASES])
 def test_write_applied_parity_with_spare_info_bits(
     legacy: LegacyOracle, n: int | None, m: int, bits: str
 ) -> None:
     """The resize/insert paths DO rewrite later infos (dd2.py:1109, 1425), clearing bit 1 past
-    the splice even for a zero meta1 delta; the codec mirrors that path for path."""
+    the splice even for a zero meta1 delta; the codec mirrors that path for path.
+
+    Bit 31 is the one listed divergence: the legacy cleared it on every word of the block, the
+    codec keeps it on the child word of each entry that already existed (``or_object_infos``
+    flags object words only, so name/source words are clear on both sides).  The cells and
+    positions come from ``pm.CARRIED_POSITIONS``; every other cell matches byte for byte.
+    """
     dd2 = legacy.module("dd2")
     raw = or_object_infos(pm.build_input(n), SPARE_INFO_BITS[bits])
     entries = pm.new_entries(m)
     keys, table = pm.stub_identities(entries)
     expected, count = dd2.dson_patch_mod_list_resize(raw, keys, legacy.stub_manager(table))
     assert count == m
-    assert FMT.write_applied(raw, identities(entries)) == expected
+    ours = FMT.write_applied(raw, identities(entries))
+    carried: set[int] = set()
+    if SPARE_INFO_BITS[bits] & 0x80000000:
+        applied = dson.parse(ours).find_child(0, "applied_ugcs_1_0")
+        assert applied is not None
+        carried = {applied + 1 + 3 * k for k in pm.CARRIED_POSITIONS.get((n, m), ())}
+    assert info_bit31_indices(ours) == info_bit31_indices(expected) | carried
+    assert set_info_bit31(ours, carried, on=False) == expected
+    assert (ours == expected) == (not carried)
 
 
 @pytest.mark.parametrize("name", sorted(STRICT_ONLY))

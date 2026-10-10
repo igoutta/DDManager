@@ -195,7 +195,7 @@ codec (`src/core/saves`, `DsonV1Format`, format id `dson.v1`) understands four r
 | --- | --- |
 | **header** (64 bytes) | magic `[0:4]`, revision `[4:8]`, then little-endian `i32` fields: `header_length`@8 (64), `meta1_size`@16, `meta1_count`@20, `meta1_offset`@24 (64), `meta2_count`@44, `meta2_offset`@48, `data_length`@56, `data_offset`@60. Other bytes are passed through verbatim. |
 | **meta1** | one 16-byte record per **object**: parent object index (-1 for the root), its meta2 index, `direct_children`, `all_children` (every descendant field) |
-| **meta2** | one 12-byte record per **field**, in data order: name hash (`h = h * 53 + byte`, 32-bit, signed), data-relative offset, info (bit 0 = is object, bits 2-10 = name length including NUL, bits 11-30 = meta1 index) |
+| **meta2** | one 12-byte record per **field**, in data order: name hash (`h = h * 53 + byte`, 32-bit, signed), data-relative offset, info (bit 0 = is object, bits 2-10 = name length including NUL, bits 11-30 = meta1 index, bit 31 = unknown game flag: never interpreted, preserved per entry, cleared for new entries) |
 | **data** | every field starts with its NUL-terminated name; objects have no payload; a 1-byte payload (bool) is unaligned, anything longer starts at the next 4-byte boundary of the data block; a string is an `i32` length (including NUL), UTF-8 bytes, NUL |
 
 The block DD Manager owns is `applied_ugcs_1_0`, a direct child of the root object. Its children
@@ -222,7 +222,14 @@ it refuses (`DsonUnsupportedError`) a block that is a scalar or not a direct chi
 a save with no `persistent_ugcs` anchor. Every edit goes through one `splice` primitive that
 rebuilds meta1/meta2/header and re-pads moved fields; `assert_shift_safe` refuses a move that would
 corrupt data it does not understand. `write_applied` is byte-identical to v0.2.1's patcher on
-well-formed saves (golden files and a differential matrix prove it).
+well-formed saves (golden files and a differential matrix prove it), with one deliberate
+exception: **bit 31 of `info`** is a flag the game sets sporadically (inside the applied block on
+child objects, `name` and `source` words alike, and on scalars elsewhere) and loads either way.
+Fields outside the block keep it verbatim; inside the block each entry whose `(name, source)`
+already existed keeps the original state of its three words (positional among duplicates), a new
+entry gets it clear. v0.2.1 cleared it on every rewrite, so a game-written save did not survive its
+own identity rewrite byte for byte; it does now (`dson/flags.py`, proven on the maintainer's
+corpus).
 
 **Validation has two levels** (`ddmanager save inspect` prints both):
 
@@ -233,6 +240,7 @@ well-formed saves (golden files and a differential matrix prove it).
 - **strict**: additionally the magic `01 b1 00 00` (unverified against real saves, so only reported,
   never a gate), `header_length` and `meta1_offset` equal 64, strictly increasing offsets, each
   object's meta1 index equal to its running number, exact `all_children`, and exactly one root.
+  Neither level reports bit 31 of `info`: it is not part of the format the validator checks.
 
 `write_applied` gates: the input must be legacy-valid; the output must be legacy-valid, must not be
 strict-worse than the input, and must read back exactly the requested entries. Format detection

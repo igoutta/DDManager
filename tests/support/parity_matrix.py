@@ -17,6 +17,22 @@ CASES: tuple[tuple[int | None, int], ...] = tuple((n, m) for n in N_VALUES for m
 # legacy, and any cell not listed must match byte for byte, so a new divergence fails loudly.
 EXPECTED_DIVERGENCE: frozenset[tuple[int | None, int]] = frozenset()
 
+# The ONE deliberate divergence from the legacy on a legacy-valid save: bit 31 of an info word
+# (an unknown game flag) inside the applied block. The legacy rebuilt every word of the block
+# with ``dson_field_info`` and so cleared it; the codec carries it over for every entry that
+# already existed in the old block (positional among duplicates) and clears it only for new
+# entries. ``CARRIED_POSITIONS[(N, M)]`` lists, per cell, the positions k of ``new_entries(M)``
+# that exist in ``existing_entries(N)``: with bit 31 set on the old block's words the output
+# differs from the legacy exactly in child k's three words (meta2 ``applied + 1 + 3k`` and the
+# two after it) and nowhere else; a cell not listed must match byte for byte even then. Only
+# ``("1", "Steam")`` is in both the N=3 row and the new pool (at position 0).
+CARRIED_POSITIONS: dict[tuple[int | None, int], tuple[int, ...]] = {
+    (3, 1): (0,),
+    (3, 2): (0,),
+    (3, 5): (0,),
+    (3, 12): (0,),
+}
+
 _EXISTING: dict[int, tuple[Entry, ...]] = {
     0: (),
     1: (("999", STEAM),),

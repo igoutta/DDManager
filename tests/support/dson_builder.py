@@ -15,11 +15,13 @@ Every rule below comes from the format description, never from the codec under t
 * data: each field starts with its NUL-terminated name; objects carry no payload; a 1-byte
   payload (bool) follows the name immediately; any other payload is padded to the next 4-byte
   boundary relative to the data block; strings are i32 length (incl. NUL) + UTF-8 + NUL; ints
-  are 4-byte little-endian.
+  are 4-byte little-endian;
+* bit 31 of info is an unknown flag the game sets on some fields; ``build_save(..., flag31=)``
+  sets it on the meta2 words whose index the predicate accepts.
 """
 
 import struct
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 DSON_MAGIC = b"\x01\xb1\x00\x00"
@@ -27,6 +29,10 @@ ZERO_REVISION = b"\x00\x00\x00\x00"
 HEADER_SIZE = 64
 META1_SIZE = 16
 META2_SIZE = 12
+INFO_FLAG_BIT = 0x80000000
+
+type Flag31 = Callable[[int], bool]
+"""Called with a meta2 index; ``True`` sets bit 31 of that field's info word."""
 
 APPLIED_BLOCK = "applied_ugcs_1_0"
 ANCHOR_BLOCK = "persistent_ugcs"
@@ -101,10 +107,12 @@ def string_hash(name: str) -> int:
     return value - 0x100000000 if value >= 0x80000000 else value
 
 
-def field_info(name: str, meta1_index: int | None) -> int:
+def field_info(name: str, meta1_index: int | None, *, flag31: bool = False) -> int:
     info = (len(name.encode("utf-8")) + 1) << 2
     if meta1_index is not None:
         info |= 1 | (meta1_index << 11)
+    if flag31:
+        info |= INFO_FLAG_BIT
     return info - 0x100000000 if info >= 0x80000000 else info
 
 
@@ -120,8 +128,9 @@ def _payload(node: S | B | I | R) -> bytes:
 
 
 class _Emitter:
-    def __init__(self, pad_byte: int) -> None:
+    def __init__(self, pad_byte: int, flag31: Flag31 | None) -> None:
         self.pad_byte = pad_byte
+        self.flag31 = flag31
         self.data = bytearray()
         self.meta1: list[list[int]] = []
         self.meta2: list[tuple[int, int, int]] = []
@@ -131,11 +140,13 @@ class _Emitter:
         offset = len(self.data)
         meta2_index = len(self.meta2)
         name_bytes = node.name.encode("utf-8") + b"\x00"
+        flagged = self.flag31 is not None and self.flag31(meta2_index)
         if isinstance(node, O):
             meta1_index = len(self.meta1)
             record = [parent_meta1, meta2_index, 0, 0]
             self.meta1.append(record)
-            self.meta2.append((string_hash(node.name), offset, field_info(node.name, meta1_index)))
+            info = field_info(node.name, meta1_index, flag31=flagged)
+            self.meta2.append((string_hash(node.name), offset, info))
             self.data += name_bytes
             slot = len(self.layouts)
             first_child_meta2 = len(self.meta2)
@@ -148,7 +159,8 @@ class _Emitter:
                 slot, FieldLayout(path, meta2_index, meta1_index, offset, after_name, after_name)
             )
             return
-        self.meta2.append((string_hash(node.name), offset, field_info(node.name, None)))
+        info = field_info(node.name, None, flag31=flagged)
+        self.meta2.append((string_hash(node.name), offset, info))
         self.data += name_bytes
         payload = _payload(node)
         if len(payload) > 1:
@@ -159,8 +171,8 @@ class _Emitter:
         )
 
 
-def _emit(root: O, pad_byte: int) -> _Emitter:
-    emitter = _Emitter(pad_byte)
+def _emit(root: O, pad_byte: int, flag31: Flag31 | None = None) -> _Emitter:
+    emitter = _Emitter(pad_byte, flag31)
     emitter.emit(root, -1, (root.name,))
     return emitter
 
@@ -172,11 +184,16 @@ def build_save(
     revision: bytes = ZERO_REVISION,
     filler: int = 0xAA,
     pad_byte: int = 0,
+    flag31: Flag31 | None = None,
 ) -> bytes:
-    """Serialize ``root`` as a complete DSON file (header + meta1 + meta2 + data)."""
+    """Serialize ``root`` as a complete DSON file (header + meta1 + meta2 + data).
+
+    ``flag31(meta2_index)`` picks the info words that get bit 31 set (none by default); the
+    layout is the same either way, so ``layout(root)`` still says where every field is.
+    """
     if len(magic) != 4 or len(revision) != 4:
         raise ValueError("magic and revision are 4 bytes each")
-    emitter = _emit(root, pad_byte)
+    emitter = _emit(root, pad_byte, flag31)
     meta1_count, meta2_count = len(emitter.meta1), len(emitter.meta2)
     meta2_offset = HEADER_SIZE + META1_SIZE * meta1_count
     data_offset = meta2_offset + META2_SIZE * meta2_count

@@ -14,6 +14,30 @@ from src.core.saves.dson.layout import DsonDocument
 from src.core.saves.format import DsonScalar
 
 
+def child_identity(doc: DsonDocument, child: int) -> tuple[SaveIdentity, int, int] | None:
+    """``(identity, name field, source field)`` of object ``child``, or ``None``.
+
+    The identity comes from the first string field called ``name`` and the first called
+    ``source`` among the child's direct fields (objects and other names are ignored).  ``None``
+    when ``child`` is not an object or lacks either: the shape the readers refuse.
+    """
+    if not doc.meta2[child].is_object:
+        return None
+    found: dict[str, tuple[int, str]] = {}
+    for field in doc.children[child]:
+        entry = doc.meta2[field]
+        field_name = doc.name_of(field)
+        if entry.is_object or field_name in found or field_name not in ("name", "source"):
+            continue
+        value = decode_scalar(doc.data, entry, doc.field_end(field))
+        if isinstance(value, str):
+            found[field_name] = (field, value)
+    if "name" not in found or "source" not in found:
+        return None
+    (name_field, name), (source_field, source) = found["name"], found["source"]
+    return SaveIdentity(name, source), name_field, source_field
+
+
 def _read_child_identity(doc: DsonDocument, child: int, object_name: str) -> SaveIdentity:
     entry = doc.meta2[child]
     if not entry.is_object:
@@ -22,22 +46,14 @@ def _read_child_identity(doc: DsonDocument, child: int, object_name: str) -> Sav
             code="name_source_shape",
             offset=entry.offset,
         )
-    values: dict[str, str] = {}
-    for field in doc.children[child]:
-        field_entry = doc.meta2[field]
-        field_name = doc.name_of(field)
-        if field_entry.is_object or field_name not in ("name", "source"):
-            continue
-        value = decode_scalar(doc.data, field_entry, doc.field_end(field))
-        if isinstance(value, str):
-            values.setdefault(field_name, value)
-    if "name" not in values or "source" not in values:
+    found = child_identity(doc, child)
+    if found is None:
         raise DsonFormatError(
             f"Child {doc.name_of(child)!r} of {object_name!r} lacks string fields name/source.",
             code="name_source_shape",
             offset=entry.offset,
         )
-    return SaveIdentity(values["name"], values["source"])
+    return found[0]
 
 
 def read_name_source_object(doc: DsonDocument, i: int) -> tuple[SaveIdentity, ...]:

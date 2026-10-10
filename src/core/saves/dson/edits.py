@@ -10,6 +10,7 @@ from src.core.errors import DsonFormatError, DsonUnsupportedError
 from src.core.ids import SaveIdentity
 from src.core.saves.dson.document import entry_at, object_meta1_index, parent_map, subtree_end
 from src.core.saves.dson.fields import build_string_field
+from src.core.saves.dson.flags import NO_FLAGS, EntryFlags, carry_flags, old_entry_flags, with_flag
 from src.core.saves.dson.layout import DsonDocument, Meta1, Meta2, field_info, string_hash
 from src.core.saves.dson.splice import Span, splice
 
@@ -17,6 +18,7 @@ from src.core.saves.dson.splice import Span, splice
 def _build_name_source_block(
     name_bytes: bytes,
     entries: Sequence[SaveIdentity],
+    flags: Sequence[EntryFlags],
     *,
     data_start: int,
     object_meta1: int,
@@ -29,28 +31,31 @@ def _build_name_source_block(
     ``name_bytes`` is the object's NUL-terminated name.  Child ``k`` gets meta1 index
     ``object_meta1 + 1 + k`` and meta2 index ``object_meta2 + 1 + 3k``; each child is
     ``Meta1(object_meta1, ..., 2, 2)`` and the object itself ``(parent, object_meta2, N, 3N)``
-    (dd2.py:1044-1049, 1084-1089, 1397-1398).
+    (dd2.py:1044-1049, 1084-1089, 1397-1398).  ``flags[k]`` is the bit-31 state of child ``k``'s
+    three info words (see :mod:`.flags`); the legacy always wrote them clear.
     """
     data = bytearray(name_bytes)
     count = len(entries)
     meta1 = [Meta1(parent_meta1, object_meta2, count, count * 3)]
     meta2 = [object_entry]
-    for k, identity in enumerate(entries):
+    for k, (identity, kept) in enumerate(zip(entries, flags, strict=True)):
         child_name = str(k)
         child_offset = data_start + len(data)
         data.extend(child_name.encode("utf-8"))
         data.append(0)
-        child_info = field_info(child_name, object_meta1 + 1 + k)
+        child_info = with_flag(field_info(child_name, object_meta1 + 1 + k), kept.child)
         meta2.append(Meta2(string_hash(child_name), child_offset, child_info))
         meta1.append(Meta1(object_meta1, object_meta2 + 1 + 3 * k, 2, 2))
 
         name_offset = data_start + len(data)
         data.extend(build_string_field("name", identity.name, name_offset))
-        meta2.append(Meta2(string_hash("name"), name_offset, field_info("name")))
+        name_info = with_flag(field_info("name"), kept.name)
+        meta2.append(Meta2(string_hash("name"), name_offset, name_info))
 
         source_offset = data_start + len(data)
         data.extend(build_string_field("source", identity.source, source_offset))
-        meta2.append(Meta2(string_hash("source"), source_offset, field_info("source")))
+        source_info = with_flag(field_info("source"), kept.source)
+        meta2.append(Meta2(string_hash("source"), source_offset, source_info))
     return bytes(data), meta1, meta2
 
 
@@ -70,6 +75,8 @@ def replace_name_source_object(
     ``dson_patch_named_name_source_object`` (1481-1641) on well-formed saves: the object's own
     meta2 record and name bytes are kept verbatim, its meta1 becomes ``(parent, i, N, 3N)``, the
     old subtree is dropped, ancestors get ``all_children += delta`` and later fields are rebuilt.
+    The one deliberate divergence: an entry that already existed keeps bit 31 of its three info
+    words (the legacy cleared it; see :mod:`.flags`), new entries get it clear.
     Raises :class:`DsonUnsupportedError` (``nested_object_span``) when the subtree's meta1
     records are not the contiguous range right after the object's own record.
     """
@@ -92,6 +99,7 @@ def replace_name_source_object(
     block, meta1, meta2 = _build_name_source_block(
         name_bytes,
         wanted,
+        carry_flags(old_entry_flags(doc, i), wanted),
         data_start=entry.offset,
         object_meta1=object_meta1,
         object_meta2=i,
@@ -144,6 +152,7 @@ def insert_name_source_object(
     block, meta1, meta2 = _build_name_source_block(
         name.encode("utf-8") + b"\x00",
         wanted,
+        [NO_FLAGS] * len(wanted),
         data_start=offset,
         object_meta1=anchor_meta1,
         object_meta2=before,

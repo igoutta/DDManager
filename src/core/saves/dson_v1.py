@@ -57,6 +57,10 @@ class DsonV1Format:
     def write_applied(self, raw: bytes, entries: Sequence[SaveIdentity]) -> bytes:
         """Rewrite the applied block; byte-identical to the legacy patcher on well-formed saves.
 
+        The one deliberate exception is bit 31 of the block's info words (an unknown game flag):
+        the legacy cleared it, this keeps it per pre-existing entry (see ``dson/flags.py``), so a
+        game-written save survives its own identity rewrite byte for byte.
+
         Gates: the input must be legacy-valid; the output must be legacy-valid and not strict-worse
         than the input ("never make a save worse"); reading the output back must give ``entries``
         exactly (full equality, not a count).  Empty ``entries`` are allowed.

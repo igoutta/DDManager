@@ -15,8 +15,9 @@ The package is layered bottom-up; every module documents the legacy lines it por
 * :mod:`.validate` - the LEGACY and STRICT validation levels;
 * :mod:`.document` - ``parse`` / ``serialize`` and tree lookups;
 * :mod:`.splice` - the splice primitive;
-* :mod:`.edits` - the public edits;
-* :mod:`.readers` - identities and scalars out of a document.
+* :mod:`.readers` - identities and scalars out of a document;
+* :mod:`.flags` - bit 31 of ``info``, an unknown game flag carried per applied entry;
+* :mod:`.edits` - the public edits.
 
 The public API is what ``__all__`` lists (``from src.core.saves import dson`` is the whole
 API, including the two codec errors); names defined in the submodules are package internals,
